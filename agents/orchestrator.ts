@@ -41,7 +41,8 @@ const orchestratorAgent: AgentConfig = {
         'mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent',
         'mcp__levys-awesome-mcp__mcp__agent-invoker__list_agents',
         'mcp__levys-awesome-mcp__mcp__agent-invoker__get_agent_info',
-        'mcp__levys-awesome-mcp__mcp__agent-invoker__get_agent_summary'
+        'mcp__levys-awesome-mcp__mcp__agent-invoker__get_agent_summary',
+        'mcp__levys-awesome-mcp__mcp__content-writer__get_summary'
       ],
       denied: []
     },
@@ -77,16 +78,12 @@ const orchestratorAgent: AgentConfig = {
    - Example session_ID: "20250830-153642"
 
 4. **Output Collection and Report Enforcement**
-   - After each agent completes, VERIFY report creation at \`/reports/\${session_ID}/\`
-   - Expected reports:
-     * Backend: \`\${session_ID}/backend-agent-report.json\`
-     * Frontend: \`\${session_ID}/frontend-agent-report.json\`
-     * Builder: \`\${session_ID}/build-report.json\`
-     * Linter: \`\${session_ID}/lint-report.json\`
-     * Testing: \`\${session_ID}/testing-agent-report.json\`
-   - **If report missing**: Create fallback report with agent output and warning
-   - Parse and understand the content of each report
-   - **Critical**: Analyze testing report for orchestratorInstructions.nextActions to determine feedback loop needs
+   - After each agent completes, IMMEDIATELY use mcp__content-writer__get_summary with the session_ID to retrieve the agent's summary report
+   - Expected summary reports: \`\${agent_name}-summary.json\` (e.g., "builder-summary.json", "testing-agent-summary.json")
+   - **ALWAYS use get_summary after invoking any agent** to retrieve and analyze what the agent accomplished
+   - If get_summary fails, the agent may not have created a proper summary - note this as an issue
+   - Parse and understand the content of each summary report
+   - **Critical**: Analyze testing summary for orchestratorInstructions.nextActions to determine feedback loop needs
 
 5. **Error Handling and Feedback Loop Management**
    - If development agents fail, still proceed to build, lint, and test phases to assess the current state
@@ -144,8 +141,17 @@ const orchestratorAgent: AgentConfig = {
 ## MCP Agent Invocation Details
 
 When using mcp__agent-invoker__invoke_agent:
-- Use agentName parameter to specify: 'backend-agent', 'frontend-agent', 'builder', or 'linter'
+- Use agentName parameter to specify: 'backend-agent', 'frontend-agent', 'builder', 'linter', or 'testing-agent'
 - Include clean session_ID in the prompt: "Execute [operation] for SESSION_ID: \${session_ID}. Use this exact session ID for all report generation."
+- **IMMEDIATELY after each agent invocation**, use mcp__content-writer__get_summary:
+  \`\`\`
+  mcp__content-writer__get_summary({
+    session_id: "your-session-id",
+    agent_name: "agent-you-just-invoked"
+  })
+  \`\`\`
+- Always read and analyze the summary to understand what the agent accomplished
+- Use the summary information for workflow decisions and final reporting
 - Session ID format: YYYYMMDD-HHMMSS (e.g., "20250830-153642")
 - ALWAYS set streaming: true for real-time output visibility
 - ALWAYS set saveStreamToFile: true to capture stream logs
@@ -256,6 +262,7 @@ You must maintain strict sequential execution and never attempt to parallelize o
 };
 
 export { orchestratorAgent };
+export default orchestratorAgent;
 
 // Direct execution logic
 async function runAgent() {
@@ -300,5 +307,7 @@ async function runAgent() {
   }
 }
 
-// Always run when script is called directly
-runAgent().catch(console.error);
+// Only run when script is called directly (not when imported)
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runAgent().catch(console.error);
+}

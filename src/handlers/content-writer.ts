@@ -1,5 +1,5 @@
 import { writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import * as path from 'path';
 import { validatePath, validateProjectDirectory } from '../shared/utils.js';
 
@@ -60,6 +60,46 @@ export const contentWriterTools = [
         }
       },
       required: ['file_path', 'content']
+    }
+  },
+  {
+    name: 'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
+    description: 'Create a summary report file in reports/$SESSION_ID/${agent_name}-summary.json. Use this to create summary reports of agent execution.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        session_id: {
+          type: 'string',
+          description: 'Session ID to create the summary for'
+        },
+        agent_name: {
+          type: 'string',
+          description: 'Name of the agent creating the summary'
+        },
+        content: {
+          type: 'string',
+          description: 'JSON content of the summary report'
+        }
+      },
+      required: ['session_id', 'agent_name', 'content']
+    }
+  },
+  {
+    name: 'mcp__levys-awesome-mcp__mcp__content-writer__get_summary',
+    description: 'Read a summary report file from reports/$SESSION_ID/ directory. Looks for any summary files in the session directory.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        session_id: {
+          type: 'string',
+          description: 'Session ID to read the summary from'
+        },
+        agent_name: {
+          type: 'string',
+          description: 'Optional: specific agent name to look for (e.g., "builder", "testing-agent"). If not provided, returns the first summary found.'
+        }
+      },
+      required: ['session_id']
     }
   }
 ];
@@ -202,6 +242,165 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
             text: message
           }]
         };
+      }
+
+      case 'mcp__levys-awesome-mcp__mcp__content-writer__put_summary': {
+        const { session_id, agent_name, content } = args;
+        
+        // Validate session_id
+        if (!session_id || typeof session_id !== 'string') {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Invalid session_id: must be a non-empty string'
+            }],
+            isError: true
+          };
+        }
+
+        // Validate agent_name
+        if (!agent_name || typeof agent_name !== 'string') {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Invalid agent_name: must be a non-empty string'
+            }],
+            isError: true
+          };
+        }
+
+        // Create reports directory structure
+        const reportsDir = path.resolve(process.cwd(), 'reports', session_id);
+        if (!existsSync(reportsDir)) {
+          await mkdir(reportsDir, { recursive: true });
+        }
+
+        // Validate JSON content
+        let jsonContent;
+        try {
+          jsonContent = JSON.parse(content);
+        } catch (error) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Invalid JSON content: Content must be valid JSON string'
+            }],
+            isError: true
+          };
+        }
+
+        // Ensure the JSON has the session_id and agent_name
+        if (!jsonContent.sessionId) {
+          jsonContent.sessionId = session_id;
+        }
+        if (!jsonContent.agentName) {
+          jsonContent.agentName = agent_name;
+        }
+
+        // Write summary file with agent name format
+        const summaryFileName = `${agent_name}-summary.json`;
+        const summaryPath = path.join(reportsDir, summaryFileName);
+        await writeFile(summaryPath, JSON.stringify(jsonContent, null, 2), 'utf8');
+
+        return {
+          content: [{
+            type: 'text',
+            text: `Summary report created successfully at reports/${session_id}/${summaryFileName}`
+          }]
+        };
+      }
+
+      case 'mcp__levys-awesome-mcp__mcp__content-writer__get_summary': {
+        const { session_id, agent_name } = args;
+        
+        // Validate session_id
+        if (!session_id || typeof session_id !== 'string') {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Invalid session_id: must be a non-empty string'
+            }],
+            isError: true
+          };
+        }
+
+        // Check if reports directory exists
+        const reportsDir = path.resolve(process.cwd(), 'reports', session_id);
+        if (!existsSync(reportsDir)) {
+          return {
+            content: [{
+              type: 'text',
+              text: `No reports directory found for session: ${session_id}`
+            }],
+            isError: true
+          };
+        }
+
+        try {
+          // Get all JSON files in the session directory
+          const files = readdirSync(reportsDir).filter((file: string) => file.endsWith('.json'));
+          
+          if (files.length === 0) {
+            return {
+              content: [{
+                type: 'text',
+                text: `No summary files found in reports/${session_id}/`
+              }],
+              isError: true
+            };
+          }
+
+          // If agent_name is specified, look for that specific summary
+          let targetFile: string | null = null;
+          if (agent_name) {
+            const expectedFileName = `${agent_name}-summary.json`;
+            if (files.includes(expectedFileName)) {
+              targetFile = expectedFileName;
+            } else {
+              return {
+                content: [{
+                  type: 'text',
+                  text: `Summary file not found for agent '${agent_name}' in session ${session_id}. Available files: ${files.join(', ')}`
+                }],
+                isError: true
+              };
+            }
+          } else {
+            // Find the first summary file
+            targetFile = files.find((file: string) => file.includes('-summary.json')) || files[0];
+          }
+
+          if (!targetFile) {
+            return {
+              content: [{
+                type: 'text',
+                text: `No valid summary file found in reports/${session_id}/`
+              }],
+              isError: true
+            };
+          }
+
+          // Read the summary file
+          const summaryPath = path.join(reportsDir, targetFile);
+          const summaryContent = readFileSync(summaryPath, 'utf8');
+          const summaryData = JSON.parse(summaryContent);
+
+          return {
+            content: [{
+              type: 'text',
+              text: `Summary for session ${session_id} (${targetFile}):\n\n${JSON.stringify(summaryData, null, 2)}`
+            }]
+          };
+
+        } catch (error) {
+          return {
+            content: [{
+              type: 'text',
+              text: `Error reading summary file: ${error instanceof Error ? error.message : String(error)}`
+            }],
+            isError: true
+          };
+        }
       }
 
       default:

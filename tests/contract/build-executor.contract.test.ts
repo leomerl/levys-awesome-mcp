@@ -4,10 +4,7 @@ import { validateToolCallResponse } from '../helpers/schema-validator.js';
 
 describe('Build Executor Contract Tests', () => {
   it('should handle valid build request', async () => {
-    const result = await handleBuildExecutorTool('build-executor-build', {
-      project_type: 'frontend',
-      build_commands: ['npm run typecheck']
-    });
+    const result = await handleBuildExecutorTool('mcp__levys-awesome-mcp__mcp__build-executor__build_frontend', {});
 
     expect(result).toBeDefined();
     expect(result.content).toBeDefined();
@@ -17,44 +14,36 @@ describe('Build Executor Contract Tests', () => {
     expect(typeof result.content[0].text).toBe('string');
   });
 
-  it('should validate project types', async () => {
-    const result = await handleBuildExecutorTool('build-executor-build', {
-      project_type: 'invalid_type'
-    });
-
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain('Invalid project type');
-  });
-
-  it('should handle missing project type', async () => {
-    await expect(
-      handleBuildExecutorTool('build-executor-build', {})
-    ).rejects.toThrow();
-  });
-
-  it('should validate build commands array', async () => {
-    const result = await handleBuildExecutorTool('build-executor-build', {
-      project_type: 'frontend',
-      build_commands: 'not-an-array'
-    });
-
-    expect(result.isError).toBe(true);
-  });
-
-  it('should handle parallel execution flag', async () => {
-    const result = await handleBuildExecutorTool('build-executor-build', {
-      project_type: 'fullstack',
-      parallel: true
-    });
+  it('should handle backend build', async () => {
+    const result = await handleBuildExecutorTool('mcp__levys-awesome-mcp__mcp__build-executor__build_backend', {});
 
     expect(result).toBeDefined();
-    expect(result.content[0].text).toContain('parallel');
+    expect(result.content).toBeDefined();
+  });
+
+  it('should handle full project build', async () => {
+    const result = await handleBuildExecutorTool('mcp__levys-awesome-mcp__mcp__build-executor__build_project', {});
+    
+    expect(result).toBeDefined();
+    expect(result.content).toBeDefined();
+  });
+
+  it('should handle unknown build tool', async () => {
+    const result = await handleBuildExecutorTool('unknown-build-tool', {});
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Unknown');
+  });
+
+  it('should validate tool exists', async () => {
+    const result = await handleBuildExecutorTool('mcp__levys-awesome-mcp__mcp__build-executor__build_frontend', {});
+
+    expect(result).toBeDefined();
+    expect(result.content).toBeDefined();
   });
 
   it('should conform to MCP response schema', async () => {
-    const result = await handleBuildExecutorTool('build-executor-build', {
-      project_type: 'backend'
-    });
+    const result = await handleBuildExecutorTool('mcp__levys-awesome-mcp__mcp__build-executor__build_backend', {});
 
     const mockResponse = {
       jsonrpc: '2.0' as const,

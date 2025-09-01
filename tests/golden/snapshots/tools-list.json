@@ -1,0 +1,329 @@
+{
+  "result": {
+    "tools": [
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__agent-generator__generate_all_agents",
+        "description": "Generate markdown files for all available agent configurations",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__agent-generator__get_agent_info",
+        "description": "Get detailed information about a specific agent",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "agent_name"
+          ],
+          "required": [
+            "agent_name"
+          ]
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__agent-generator__list_available_agents",
+        "description": "List all available agent configurations",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__agent-generator__remove_agent_markdowns",
+        "description": "Remove all generated agent markdown files",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent",
+        "description": "Invoke another agent programmatically with enforced session.log creation",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "agentName",
+            "continueSessionId",
+            "maxTurns",
+            "prompt",
+            "saveStreamToFile",
+            "streaming"
+          ],
+          "required": [
+            "agentName",
+            "prompt"
+          ]
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__agent-invoker__list_agents",
+        "description": "List all available agents that can be invoked",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__build-executor__build_backend",
+        "description": "Build/typecheck the backend only",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__build-executor__build_frontend",
+        "description": "Build the frontend only",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__build-executor__build_project",
+        "description": "Build the entire project (backend typecheck + frontend build)",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__code-analyzer__code_quality_scan",
+        "description": "Run comprehensive code quality analysis",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "path"
+          ],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__code-analyzer__dependency_check",
+        "description": "Check for outdated dependencies",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "type"
+          ],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__code-analyzer__lint_javascript",
+        "description": "Run ESLint on JavaScript/TypeScript files",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "fix",
+            "path"
+          ],
+          "required": [
+            "path"
+          ]
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__code-analyzer__security_scan",
+        "description": "Run security analysis using npm audit and bandit (for Python)",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "type"
+          ],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__content-writer__backend_write",
+        "description": "Write files to the backend/ folder only.",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "content",
+            "file_path"
+          ],
+          "required": [
+            "content",
+            "file_path"
+          ]
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__content-writer__frontend_write",
+        "description": "Write files to the frontend/ folder only.",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "content",
+            "file_path"
+          ],
+          "required": [
+            "content",
+            "file_path"
+          ]
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__content-writer__get_summary",
+        "description": "Read a summary report file from reports/$SESSION_ID/ directory. Looks for any summary files in the session directory.",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "agent_name",
+            "session_id"
+          ],
+          "required": [
+            "session_id"
+          ]
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__content-writer__put_summary",
+        "description": "Create a summary report file in reports/$SESSION_ID/${agent_name}-summary.json. Use this to create summary reports of agent execution.",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "agent_name",
+            "content",
+            "session_id"
+          ],
+          "required": [
+            "agent_name",
+            "content",
+            "session_id"
+          ]
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__content-writer__restricted_write",
+        "description": "Write files to a specified folder only. The invoking agent must provide the allowed folder.",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "allowed_folder",
+            "content",
+            "file_path"
+          ],
+          "required": [
+            "allowed_folder",
+            "content",
+            "file_path"
+          ]
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__plan-creator__create_plan",
+        "description": "Analyzes a task and creates a detailed execution plan with task breakdown, agent assignments, and dependencies. Saves the plan to reports/$git_commit_hash/",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "context",
+            "task_description"
+          ],
+          "required": [
+            "task_description"
+          ]
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__server-runner__run_dev_all",
+        "description": "Start both backend and frontend development servers",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__server-runner__run_dev_backend",
+        "description": "Start the backend development server",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__server-runner__run_dev_frontend",
+        "description": "Start the frontend development server",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__test-executor__run_tests",
+        "description": "Execute test suite with support for multiple test frameworks",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "coverage",
+            "framework",
+            "watch"
+          ],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__test-executor__validate_and_run_tests",
+        "description": "Validate test environment and run comprehensive test suite",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "validate_only"
+          ],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__test-runner__run_backend_tests",
+        "description": "Run backend tests only (lint and typecheck)",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__test-runner__run_e2e_tests",
+        "description": "Run E2E tests only (root-level Playwright tests)",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__test-runner__run_frontend_tests",
+        "description": "Run frontend tests only (lint, build, and browser tests)",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "mcp__levys-awesome-mcp__mcp__test-runner__test_runner",
+        "description": "Run all tests (backend, frontend, and E2E)",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": "SANITIZED_ID"
+}

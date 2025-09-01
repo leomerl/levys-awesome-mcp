@@ -10,7 +10,6 @@ interface Task {
   dependencies: string[];
   description: string;
   files_to_modify: string[];
-  estimated_duration?: string;
 }
 
 interface PlanDocument {
@@ -18,7 +17,6 @@ interface PlanDocument {
   synopsis: string;
   created_at: string;
   git_commit_hash: string | null;
-  total_estimated_duration?: string;
   tasks: Task[];
 }
 
@@ -75,16 +73,6 @@ async function analyzeTaskAndCreatePlan(taskDescription: string, context: string
     tasks: generateTaskBreakdown(taskDescription, context)
   };
 
-  // Calculate total estimated duration
-  const durations = plan.tasks
-    .map(t => t.estimated_duration)
-    .filter(d => d)
-    .map(d => parseDuration(d!));
-  
-  if (durations.length > 0) {
-    const totalMinutes = durations.reduce((sum, minutes) => sum + minutes, 0);
-    plan.total_estimated_duration = formatDuration(totalMinutes);
-  }
 
   return plan;
 }
@@ -119,8 +107,7 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
     state: 'pending',
     dependencies: [],
     description: 'Analyze requirements and current codebase structure',
-    files_to_modify: [],
-    estimated_duration: '30 minutes'
+    files_to_modify: []
   });
 
   let taskCounter = 2;
@@ -134,7 +121,6 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
       dependencies: ['TASK-001'],
       description: 'Design authentication database schema and models',
       files_to_modify: ['src/models/User.js', 'migrations/', 'src/models/Session.js'],
-      estimated_duration: '1 hour'
     });
     taskCounter++;
 
@@ -145,7 +131,6 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
       dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
       description: 'Implement registration and login API endpoints',
       files_to_modify: ['src/routes/auth.js', 'src/controllers/auth.js', 'src/middleware/auth.js'],
-      estimated_duration: '2 hours'
     });
     taskCounter++;
 
@@ -157,7 +142,6 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
         dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
         description: 'Implement password reset functionality with email verification',
         files_to_modify: ['src/routes/auth.js', 'src/services/email.js', 'src/controllers/auth.js'],
-        estimated_duration: '1.5 hours'
       });
       taskCounter++;
     }
@@ -169,7 +153,6 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
       dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
       description: 'Add input validation and security middleware',
       files_to_modify: ['src/validation/auth.js', 'src/middleware/security.js'],
-      estimated_duration: '1 hour'
     });
     taskCounter++;
 
@@ -181,8 +164,7 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
         dependencies: ['TASK-001'],
         description: 'Create authentication UI components (login, register, password reset forms)',
         files_to_modify: ['src/components/auth/', 'src/pages/Login.jsx', 'src/pages/Register.jsx'],
-        estimated_duration: '2 hours'
-      });
+        });
       taskCounter++;
 
       tasks.push({
@@ -192,7 +174,6 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
         dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
         description: 'Implement authentication state management and API integration',
         files_to_modify: ['src/context/AuthContext.jsx', 'src/hooks/useAuth.js', 'src/services/authService.js'],
-        estimated_duration: '1.5 hours'
       });
       taskCounter++;
     }
@@ -206,7 +187,6 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
       dependencies: ['TASK-001'],
       description: 'Design and implement API endpoints',
       files_to_modify: inferFilesToModify(taskDescription, 'backend'),
-      estimated_duration: '2 hours'
     });
     taskCounter++;
 
@@ -217,7 +197,6 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
       dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
       description: 'Add input validation and error handling',
       files_to_modify: inferFilesToModify(taskDescription, 'validation'),
-      estimated_duration: '1 hour'
     });
     taskCounter++;
   }
@@ -231,7 +210,6 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
       dependencies: ['TASK-001'],
       description: 'Create frontend components and user interface',
       files_to_modify: inferFilesToModify(taskDescription, 'frontend'),
-      estimated_duration: '2.5 hours'
     });
     taskCounter++;
 
@@ -242,8 +220,7 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
       dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
       description: 'Implement state management and data flow',
       files_to_modify: inferFilesToModify(taskDescription, 'state'),
-      estimated_duration: '1.5 hours'
-    });
+      });
     taskCounter++;
   }
 
@@ -256,7 +233,6 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
       dependencies: ['TASK-001'],
       description: 'Design database schema and create migration scripts',
       files_to_modify: inferFilesToModify(taskDescription, 'database'),
-      estimated_duration: '1 hour'
     });
     taskCounter++;
   }
@@ -269,7 +245,6 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
     dependencies: tasks.slice(1, -1).map(t => t.id), // Depends on all implementation tasks
     description: 'Write comprehensive tests for the implemented functionality',
     files_to_modify: inferFilesToModify(taskDescription, 'tests'),
-    estimated_duration: '1.5 hours'
   });
   taskCounter++;
 
@@ -281,35 +256,33 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
     dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
     description: 'Update documentation and add usage examples',
     files_to_modify: ['README.md', 'docs/'],
-    estimated_duration: '45 minutes'
   });
 
   return tasks;
 }
 
 function determineAgent(context: string, taskType: string): string {
-  const lowerContext = context.toLowerCase();
-  
+  // Use the actual available agents from the system
   switch (taskType) {
     case 'backend':
-      return lowerContext.includes('node') || lowerContext.includes('express') 
-        ? 'backend/node-agent' 
-        : 'backend/general-agent';
+      return 'backend-agent';
     case 'frontend':
-      return lowerContext.includes('react') 
-        ? 'frontend/react-agent'
-        : lowerContext.includes('vue')
-        ? 'frontend/vue-agent'
-        : 'frontend/general-agent';
+      return 'frontend-agent';
     case 'testing':
-      return lowerContext.includes('jest') || lowerContext.includes('vitest')
-        ? 'testing/jest-agent'
-        : 'testing/general-agent';
+      return 'testing-agent';
     case 'analysis':
-      return 'analysis/code-analyzer-agent';
+      return 'general-purpose';
+    case 'build':
+      return 'builder';
+    case 'lint':
+      return 'linter';
+    case 'orchestration':
+      return 'orchestrator';
+    case 'planning':
+      return 'planner';
     case 'general':
     default:
-      return 'general/general-purpose-agent';
+      return 'general-purpose';
   }
 }
 
@@ -350,30 +323,6 @@ function inferFilesToModify(taskDescription: string, category: string): string[]
   }
 }
 
-function parseDuration(duration: string): number {
-  // Parse duration string like "2 hours", "30 minutes", "1.5 hours" into minutes
-  const match = duration.match(/(\d+(?:\.\d+)?)\s*(hour|minute)s?/i);
-  if (!match) return 60; // Default to 1 hour if can't parse
-  
-  const value = parseFloat(match[1]);
-  const unit = match[2].toLowerCase();
-  
-  return unit.startsWith('hour') ? value * 60 : value;
-}
-
-function formatDuration(minutes: number): string {
-  if (minutes < 60) {
-    return `${minutes} minutes`;
-  } else {
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    if (remainingMinutes === 0) {
-      return `${hours} hour${hours !== 1 ? 's' : ''}`;
-    } else {
-      return `${hours} hour${hours !== 1 ? 's' : ''} ${remainingMinutes} minutes`;
-    }
-  }
-}
 
 export async function handlePlanCreatorTool(name: string, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
@@ -445,10 +394,6 @@ function generatePlanSummary(plan: PlanDocument): string {
     ''
   ];
 
-  if (plan.total_estimated_duration) {
-    summary.push(`⏱️  Total Estimated Duration: ${plan.total_estimated_duration}`);
-    summary.push('');
-  }
 
   summary.push(`📊 Tasks Breakdown (${plan.tasks.length} tasks):`);
   summary.push('');
@@ -456,10 +401,9 @@ function generatePlanSummary(plan: PlanDocument): string {
   plan.tasks.forEach((task, index) => {
     const status = task.state === 'pending' ? '⏳' : 
                   task.state === 'in_progress' ? '🔄' : '✅';
-    const duration = task.estimated_duration ? ` (${task.estimated_duration})` : '';
     const dependencies = task.dependencies.length > 0 ? ` [depends on: ${task.dependencies.join(', ')}]` : '';
     
-    summary.push(`  ${status} ${task.id}: ${task.description}${duration}`);
+    summary.push(`  ${status} ${task.id}: ${task.description}`);
     summary.push(`     👤 Agent: ${task.designated_agent}`);
     
     if (task.files_to_modify.length > 0) {

@@ -27,7 +27,7 @@ describe('Negative Cases Integration Tests', () => {
   it('should return error for missing method', async () => {
     const response = await client.call('', {});
     expect(response.error).toBeDefined();
-    expect(response.error?.code).toBe(-32600); // Invalid Request
+    expect(response.error?.code).toBe(-32601); // Method not found
   });
 
   it('should return error for invalid method', async () => {

@@ -26,7 +26,7 @@ const frontendAgent: AgentConfig = {
     allowedTools: [
       'mcp__levys-awesome-mcp__mcp__content-writer__frontend_write',
       'mcp__levys-awesome-mcp__mcp__content-writer__frontend_edit',
-      'mcp__levys-awesome-mcp__mcp__content-writer__reports_write',
+      'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
       'Read',
       'Glob', 
       'Grep',
@@ -49,7 +49,7 @@ IMPORTANT: You can ONLY write/edit files within the frontend/ folder using front
 You MUST track all files you touch and generate a detailed JSON report at the end of your session.
 
 ### Report Format:
-Create a file at /reports/\$SESSION_ID/frontend-agent-report.json using the reports_write tool with this structure:
+Create a summary report using the put_summary tool with this structure:
 \`\`\`json
 {
   "sessionId": "SESSION_ID_HERE",
@@ -107,7 +107,7 @@ CRITICAL: You are STRICTLY FORBIDDEN from creating TodoWrite entries without imm
 ## Your Capabilities:
 - Write new files in frontend/ using mcp__content-writer__frontend_write
 - Edit existing files in frontend/ using mcp__content-writer__frontend_edit  
-- Generate JSON reports using mcp__content-writer__reports_write
+- Generate JSON reports using put_summary
 - Read files anywhere for analysis
 - Search and explore the codebase
 
@@ -123,7 +123,7 @@ CRITICAL: You are STRICTLY FORBIDDEN from creating TodoWrite entries without imm
 - mcp__language-server__rename_symbol: Rename symbols and update all references
 - mcp__levys-awesome-mcp__mcp__content-writer__frontend_write
 - mcp__levys-awesome-mcp__mcp__content-writer__frontend_edit,
-- mcp__levys-awesome-mcp__mcp__content-writer__reports_write
+- put_summary
 
 ## PROHIBITED TOOLS:
 - Task: NEVER delegate tasks to other agents
@@ -180,7 +180,7 @@ mcp__content-writer__frontend_edit({
 ## WORKFLOW:
 1. Start tracking all file interactions
 2. Perform your frontend development tasks
-3. Before completing, generate the JSON report using reports_write tool
+3. Before completing, generate the JSON report using put_summary tool
 4. Include detailed information about all changes made
 
 Remember: You are focused on frontend development and can only modify files in the frontend/ directory, but you MUST generate comprehensive JSON reports.`
@@ -189,6 +189,7 @@ Remember: You are focused on frontend development and can only modify files in t
 
 // Export for SDK usage
 export { frontendAgent };
+export default frontendAgent;
 
 // Direct execution logic
 async function runAgent() {
@@ -235,4 +236,7 @@ async function runAgent() {
 }
 
 // Always run when script is called directly
-runAgent().catch(console.error);
+// Only run when script is called directly (not when imported)
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runAgent().catch(console.error);
+}

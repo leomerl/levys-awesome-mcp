@@ -51,10 +51,39 @@ export const agentGeneratorTools = [
 class AgentLoader {
   static async loadAgentConfig(agentPath: string): Promise<AgentConfig | null> {
     try {
-      const agentModule = await import(path.resolve(agentPath));
-      return agentModule.default || agentModule.agent || null;
+      // Convert to file:// URL for Windows compatibility and add timestamp to avoid cache
+      const resolvedPath = path.resolve(agentPath);
+      const fileUrl = `file:///${resolvedPath.replace(/\\/g, '/').replace(/^[A-Z]:/, (match) => match.toLowerCase())}?t=${Date.now()}`;
+      
+      // Clear require cache if it exists
+      delete require.cache[resolvedPath];
+      
+      const agentModule = await import(fileUrl);
+      
+      // Try different export patterns
+      let config = agentModule.default;
+      if (!config) {
+        // Try named exports based on filename
+        const agentName = path.basename(agentPath, '.ts').replace('-', '');
+        const possibleNames = [
+          agentName + 'Agent',
+          agentName.charAt(0).toUpperCase() + agentName.slice(1) + 'Agent',
+          'agent',
+          agentName,
+          'config'
+        ];
+        
+        for (const name of possibleNames) {
+          if (agentModule[name]) {
+            config = agentModule[name];
+            break;
+          }
+        }
+      }
+      
+      return config || null;
     } catch (error) {
-      console.error(`Error loading agent from ${agentPath}:`, error);
+      console.error(`Error loading agent from ${agentPath}:`, error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -79,53 +108,36 @@ class MarkdownConverter {
   static convertTSAgentToMD(config: AgentConfig): string {
     if (isAgentConfigOld(config)) {
       const oldConfig = config as AgentConfigOld;
-      return `# ${oldConfig.name}
+      return `---
+name: ${oldConfig.name}
+description: ${oldConfig.description.replace(/\n/g, '\\n')}
+tools: ${oldConfig.permissions.tools.allowed.join(', ') || 'default'}
+model: ${oldConfig.model}
+color: ${oldConfig.color || 'default'}
+---
 
-## Description
-${oldConfig.description}
-
-## Configuration
-- **Model:** ${oldConfig.model}
-- **Permission Mode:** ${oldConfig.permissions.mode}
-- **Temperature:** ${oldConfig.context.temperature}
-- **Max Tokens:** ${oldConfig.context.maxTokens}
-
-## System Prompt
-${oldConfig.systemPrompt}
-
-## Permissions
-- **Allowed Tools:** ${oldConfig.permissions.tools.allowed.join(', ') || 'None'}
-- **Denied Tools:** ${oldConfig.permissions.tools.denied.join(', ') || 'None'}
-- **MCP Servers:** ${Object.entries(oldConfig.permissions.mcpServers).map(([server, permission]) => `${server}: ${permission}`).join(', ') || 'None'}
-`;
+${oldConfig.systemPrompt}`;
     } else if (isAgentConfigNew(config)) {
       const newConfig = config as AgentConfigNew;
-      return `# ${newConfig.name}
+      return `---
+name: ${newConfig.name}
+description: ${newConfig.description.replace(/\n/g, '\\n')}
+tools: ${newConfig.options.tools?.join(', ') || 'default'}
+model: ${newConfig.options.model || 'default'}
+color: default
+---
 
-## Description
-${newConfig.description}
-
-## Prompt
-${newConfig.prompt}
-
-## Configuration
-- **Model:** ${newConfig.options.model || 'default'}
-- **Max Turns:** ${newConfig.options.maxTurns}
-- **Temperature:** ${newConfig.options.temperature || 'default'}
-- **Max Tokens:** ${newConfig.options.maxTokens || 'default'}
-- **Permission Mode:** ${newConfig.options.permissions?.mode || 'default'}
-
-## System Prompt
-${newConfig.options.systemPrompt}
-
-## Tools
-${newConfig.options.tools?.join(', ') || 'Default tools'}
-
-## MCP Servers
-${newConfig.options.mcpServers?.join(', ') || 'Default servers'}
-`;
+${newConfig.options.systemPrompt}`;
     }
-    return `# ${config.name}\n\nUnsupported configuration format.`;
+    return `---
+name: ${config.name}
+description: Unsupported configuration format
+tools: default
+model: default
+color: default
+---
+
+Unsupported configuration format.`;
   }
 }
 
@@ -143,7 +155,9 @@ export async function handleAgentGeneratorTool(name: string, args: any): Promise
       }
 
       case 'mcp__levys-awesome-mcp__mcp__agent-generator__generate_all_agents': {
+        console.log('Current working directory:', process.cwd());
         const agents = await AgentLoader.getAvailableAgents();
+        console.log('Found agents:', agents);
         const results = [];
         
         // Ensure .claude/agents directory exists

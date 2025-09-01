@@ -26,7 +26,7 @@ const linterAgent: LinterAgentConfig = {
       'mcp__levys-awesome-mcp__mcp__code-analyzer__security_scan',
       'mcp__levys-awesome-mcp__mcp__code-analyzer__dependency_check',
       'mcp__levys-awesome-mcp__mcp__code-analyzer__code_quality_scan',
-      'mcp__levys-awesome-mcp__mcp__content-writer__reports_write',
+      'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
       'Read',
       'Bash'
     ],
@@ -38,7 +38,7 @@ const linterAgent: LinterAgentConfig = {
 1. Run linting tools (ESLint, etc.) using mcp__code-analyzer__ tools
 2. Perform security vulnerability scanning  
 3. Check dependencies for outdated packages
-4. Generate structured JSON reports using the mcp__content-writer__reports_write tool to reports/lint-report-[timestamp].json
+4. Generate structured JSON reports using the put_summary tool
 
 IMPORTANT: You must create a JSON report after completing all analysis operations.
 IMPORTANT: You CANNOT use the mcp__agent-invoker__invoke_agent or Task tools.
@@ -101,11 +101,9 @@ Create a comprehensive JSON report with this structure:
 - The session ID should be consistent across all operations in the same workflow
 
 ## File Output:
-- Always write the JSON report to: reports/$SESSION_ID/lint-report.json
-- Create the session directory first if it doesn't exist using Bash: mkdir -p reports/$SESSION_ID
-- Use the mcp__content-writer__reports_write tool with the path: $SESSION_ID/lint-report.json
-- Print the full path of the created file after writing  
-- Include the session ID in the JSON report's sessionId field
+- Always create a JSON summary report using the put_summary tool
+- Include the session ID and comprehensive analysis results in your report
+- Provide detailed linting, security, and code quality findings
 
 You cannot edit code, only analyze it.`
   }
@@ -113,3 +111,4 @@ You cannot edit code, only analyze it.`
 
 // Export using ES6 for agent loader compatibility
 export { linterAgent };
+export default linterAgent;

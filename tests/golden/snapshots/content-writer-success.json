@@ -1,0 +1,13 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Error in content writer tool: Unknown content writer tool: content-writer-write"
+      }
+    ],
+    "isError": true
+  },
+  "jsonrpc": "2.0",
+  "id": "SANITIZED_ID"
+}

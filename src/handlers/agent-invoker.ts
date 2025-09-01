@@ -8,6 +8,8 @@ import { SessionStore } from '../utilities/session/session-store.js';
 import { StreamingManager } from '../utilities/session/streaming-utils.js';
 import { AgentLoader } from '../utilities/agents/agent-loader.js';
 import { ValidationUtils } from '../utilities/config/validation.js';
+import { ReportManager } from '../utilities/session/report-manager.js';
+import { PermissionManager } from '../utilities/agents/permission-manager.js';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -112,6 +114,9 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
         // Initialize session.log file - THIS IS ENFORCED
         streamingUtils.initStreamFile();
         
+        // Get stream log file reference for logging throughout the session
+        const streamLogFile = streamingUtils.getStreamLogFile();
+        
         try {
           // Build enhanced prompt with session tracking
           const enhancedPrompt = `${prompt}
@@ -122,21 +127,32 @@ OUTPUT_DIR: output_streams/${sessionId}/
 `;
 
           // Add initial prompt to session.log
-          const streamLogFile = streamingUtils.getStreamLogFile();
           if (streamLogFile) {
             const timestamp = new Date().toISOString();
             const promptLog = `[${timestamp}] USER PROMPT:\n${enhancedPrompt}\n\n`;
             fs.appendFileSync(streamLogFile, promptLog, 'utf8');
           }
 
-          // Execute agent with Claude Code query
+          // Execute agent with Claude Code query - Enforce strict tool permissions
+          const permissions = PermissionManager.getAgentPermissions({
+            allowedTools: agentConfig.options?.allowedTools || []
+          });
+
           for await (const message of query({
             prompt: enhancedPrompt,
             options: {
               maxTurns,
               model: agentConfig.options?.model || 'sonnet',
-              allowedTools: agentConfig.options?.allowedTools,
-              pathToClaudeCodeExecutable: path.resolve(process.cwd(), 'node_modules/@anthropic-ai/claude-code/cli.js')
+              allowedTools: permissions.allowedTools, // Use managed permissions
+              disallowedTools: permissions.disallowedTools, // Explicitly block problematic built-in tools
+              permissionMode: 'acceptEdits',
+              pathToClaudeCodeExecutable: path.resolve(process.cwd(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
+              mcpServers: {
+                "levys-awesome-mcp": {
+                  command: "node",
+                  args: ["dist/src/index.js"]
+                }
+              }
             }
           })) {
             // Always collect messages for conversation history
@@ -173,6 +189,68 @@ OUTPUT_DIR: output_streams/${sessionId}/
           // Final save
           await SessionStore.saveConversationHistory(sessionId!, agentName, messages);
 
+          // Check if summary report was created
+          const summaryCheck = ReportManager.checkForSummaryFiles(sessionId!, agentName);
+          if (!summaryCheck.found) {
+            // Request summary creation by continuing the session
+            const summaryPrompt = `Please create a summary report of what you accomplished in this session. Use the put_summary tool with session_id "${sessionId}" and agent_name "${agentName}" to save your report as JSON. Include: your tasks completed, any files created/modified, key findings, and overall results.`;
+            
+            // Log the summary request
+            if (streamLogFile) {
+              const timestamp = new Date().toISOString();
+              const summaryRequestLog = `[${timestamp}] REQUESTING SUMMARY REPORT:\nReason: No summary file found after agent execution\nPrompt: ${summaryPrompt}\n\n`;
+              fs.appendFileSync(streamLogFile, summaryRequestLog, 'utf8');
+            }
+
+            // Continue the session to request summary - Ensure put_summary tool is available
+            const summaryPermissions = PermissionManager.getSummaryPermissions({
+              allowedTools: agentConfig.options?.allowedTools || []
+            });
+            
+            for await (const message of query({
+              prompt: summaryPrompt,
+              options: {
+                maxTurns: 3, // Limited turns for summary creation
+                model: agentConfig.options?.model || 'sonnet',
+                allowedTools: summaryPermissions.allowedTools, // Include put_summary tool for report creation
+                disallowedTools: summaryPermissions.disallowedTools, // Maintain same restrictions for summary creation
+                permissionMode: 'acceptEdits',
+                pathToClaudeCodeExecutable: path.resolve(process.cwd(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
+                mcpServers: {
+                  "levys-awesome-mcp": {
+                    command: "node",
+                    args: ["dist/src/index.js"]
+                  }
+                }
+              }
+            })) {
+              messages.push(message);
+              await streamingUtils.logConversationMessage(message);
+              
+              if (message.type === "assistant") {
+                const content = message.message.content;
+                if (content) {
+                  for (const item of content) {
+                    if (item.type === "text") {
+                      output += item.text + '\n';
+                    }
+                  }
+                }
+              }
+            }
+
+            // Final save after summary request
+            await SessionStore.saveConversationHistory(sessionId!, agentName, messages);
+
+            // Check again if summary was created
+            const finalSummaryCheck = ReportManager.checkForSummaryFiles(sessionId!, agentName);
+            if (streamLogFile) {
+              const timestamp = new Date().toISOString();
+              const summaryResultLog = `[${timestamp}] SUMMARY REPORT CHECK:\nFound: ${finalSummaryCheck.found}\nFiles: ${finalSummaryCheck.files.join(', ') || 'none'}\n\n`;
+              fs.appendFileSync(streamLogFile, summaryResultLog, 'utf8');
+            }
+          }
+
           // Add completion marker to session.log
           if (streamLogFile) {
             const timestamp = new Date().toISOString();
@@ -180,16 +258,24 @@ OUTPUT_DIR: output_streams/${sessionId}/
             fs.appendFileSync(streamLogFile, completionLog, 'utf8');
           }
 
+          // Check final summary status for response
+          const finalSummaryCheck = ReportManager.checkForSummaryFiles(sessionId!, agentName);
+          let summaryInfo = '';
+          if (finalSummaryCheck.found) {
+            summaryInfo = `\n**Summary Report:** reports/${sessionId}/${agentName}-summary.json`;
+          } else {
+            summaryInfo = `\n**Warning:** No summary report was created despite requesting one.`;
+          }
+
           return {
             content: [{
               type: 'text',
-              text: `Agent '${agentName}' completed successfully.\n\n**Session ID:** ${sessionId}\n**Session Log:** output_streams/${sessionId}/session.log\n\n**Output:**\n${output.trim()}\n\n**ALL conversation data has been saved to session.log for debugging and analysis.**`
+              text: `Agent '${agentName}' completed successfully.\n\n**Session ID:** ${sessionId}\n**Session Log:** output_streams/${sessionId}/session.log${summaryInfo}\n\n**Output:**\n${output.trim()}\n\n**ALL conversation data has been saved to session.log for debugging and analysis.**`
             }]
           };
 
         } catch (error) {
           // Log error to session.log
-          const streamLogFile = streamingUtils.getStreamLogFile();
           if (streamLogFile) {
             const timestamp = new Date().toISOString();
             const errorLog = `[${timestamp}] EXECUTION ERROR:\n${error instanceof Error ? error.message : String(error)}\n\n=== Session Ended with Error ===\n`;

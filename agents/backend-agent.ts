@@ -39,7 +39,6 @@ CRITICAL: You are STRICTLY FORBIDDEN from using the 'any' type in TypeScript cod
 
 ## Available Tools:
 - mcp__levys-awesome-mcp__mcp__content-writer__backend_write: Write new files to backend/ folder
-- mcp__content-writer__reports_write,
 - mcp__language-server__definition: Get source code definition of symbols
 - mcp__language-server__diagnostics: Get diagnostic information for files
 - mcp__language-server__edit_file: Apply multiple text edits to files
@@ -55,6 +54,7 @@ Remember: You are focused on backend development and can only modify files in th
     model: 'sonnet',
     allowedTools: [
       'mcp__levys-awesome-mcp__mcp__content-writer__backend_write',
+      'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
       'mcp__levys-awesome-mcp__mcp__language-server__definition',
       'mcp__levys-awesome-mcp__mcp__language-server__diagnostics',
       'mcp__levys-awesome-mcp__mcp__language-server__edit_file',
@@ -73,6 +73,7 @@ Remember: You are focused on backend development and can only modify files in th
 
 // Export for SDK usage
 export { backendAgent };
+export default backendAgent;
 
 // Direct execution logic
 async function runAgent() {
@@ -119,4 +120,7 @@ async function runAgent() {
 }
 
 // Always run when script is called directly
-runAgent().catch(console.error);
+// Only run when script is called directly (not when imported)
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runAgent().catch(console.error);
+}
