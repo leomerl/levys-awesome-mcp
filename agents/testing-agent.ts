@@ -1,6 +1,8 @@
 #!/usr/bin/env tsx
 
 import { query } from "@anthropic-ai/claude-code";
+import { StreamingManager } from '../src/utilities/session/streaming-utils.js';
+import { v4 as uuidv4 } from 'uuid';
 
 // Testing Agent - Specialized for running tests and generating diagnostic reports
 // Integrates with orchestrator for test failure diagnosis and fixing
@@ -293,6 +295,20 @@ async function runAgent() {
   console.log("🧪 Running Testing Agent...");
   console.log(`📝 Prompt: ${prompt}\n`);
 
+  // Generate session ID and setup streaming
+  const sessionId = uuidv4();
+  const streamingUtils = new StreamingManager(sessionId, 'testing-agent', {
+    streaming: true,
+    saveStreamToFile: true,
+    verbose: true
+  });
+
+  // Initialize session.log file
+  const streamInitialized = streamingUtils.initStreamFile();
+  if (streamInitialized) {
+    console.log(`📝 Session logging enabled: output_streams/${sessionId}/stream.log`);
+  }
+
   try {
     // Execute the testing agent using Claude Code query
     for await (const message of query({
@@ -310,6 +326,9 @@ async function runAgent() {
       }
     }
   })) {
+    // Log all messages to session.log
+    await streamingUtils.logConversationMessage(message);
+    
     if (message.type === "result") {
       console.log(message.result);
     } else if (message.type === "toolCall") {
@@ -318,6 +337,8 @@ async function runAgent() {
       console.error(`❌ Error: ${message.error}`);
     }
   }
+  
+  console.log(`\n✅ Session completed! Log saved to: output_streams/${sessionId}/stream.log`);
   } catch (error) {
     console.error("Failed to execute agent:", error);
   }

@@ -1,0 +1,2 @@
+# This file ensures the snapshots directory is tracked by git
+# Golden test files will be generated here during test runs
