@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "levys-awesome-mcp": {
+      "command": "cmd",
+      "args": ["/c","npx", "levys-awesome-mcp"]
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "ctx7sk-0371274b-25f7-4484-a6a8-823279760695"
+      }
+    }
+  }
+}

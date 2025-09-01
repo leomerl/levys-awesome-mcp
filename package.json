@@ -1,0 +1,112 @@
+{
+  "name": "levys-awesome-mcp",
+  "version": "1.0.0",
+  "description": "A comprehensive MCP (Model Context Protocol) server toolkit with agent management, build automation, and content writing capabilities",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "levys-awesome-mcp": "./dist/src/index.js",
+    "agent-generator": "./bin/agent-generator",
+    "agent-invoker": "./bin/agent-invoker",
+    "build-executor": "./bin/build-executor",
+    "content-writer": "./bin/content-writer"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run tests/unit",
+    "test:contract": "vitest run tests/contract",
+    "test:integration": "vitest run tests/integration",
+    "test:golden": "vitest run tests/golden",
+    "test:mutate": "stryker run",
+    "lint": "eslint src utilities --ext .ts,.js",
+    "lint:fix": "eslint src utilities --ext .ts,.js --fix",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run clean && npm run build && npm test",
+    "prepare": "npm run build",
+    "backend-agent": "npx tsx agents/backend-agent.ts --",
+    "frontend-agent": "npx tsx agents/frontend-agent.ts --",
+    "testing-agent": "npx tsx agents/testing-agent.ts --",
+    "orchestrator": "npx tsx agents/orchestrator.ts --",
+    "linter": "npx tsx agents/linter.ts --",
+    "builder": "npx tsx agents/builder.ts --"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "agents",
+    "automation",
+    "build-tools",
+    "content-management",
+    "cli"
+  ],
+  "author": "Levy <levy@example.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/levy/awesome-mcp-toolkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/levy/awesome-mcp-toolkit/issues"
+  },
+  "homepage": "https://github.com/levy/awesome-mcp-toolkit#readme",
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-code": "^1.0.98",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@types/express": "^5.0.3",
+    "express": "^5.1.0",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@stryker-mutator/core": "^8.0.0",
+    "@stryker-mutator/typescript-checker": "^8.0.0",
+    "@stryker-mutator/vitest-runner": "^8.0.0",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.5.0",
+    "rimraf": "^5.0.0",
+    "ts-jest": "^29.1.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0",
+    "zod": "^3.22.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./sdk": {
+      "import": "./dist/src/sdk/index.js",
+      "require": "./dist/src/sdk/index.js",
+      "types": "./dist/src/sdk/index.d.ts"
+    },
+    "./utilities/*": {
+      "import": "./dist/utilities/*.js",
+      "require": "./dist/utilities/*.js",
+      "types": "./dist/utilities/*.d.ts"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

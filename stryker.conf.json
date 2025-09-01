@@ -1,0 +1,27 @@
+{
+  "packageManager": "npm",
+  "reporters": ["html", "clear-text", "progress"],
+  "testRunner": "vitest",
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/**/*.ts",
+    "utilities/**/*.ts",
+    "!src/**/*.test.ts",
+    "!src/**/*.spec.ts",
+    "!**/*.d.ts"
+  ],
+  "testFramework": "vitest",
+  "checkers": ["typescript"],
+  "tsconfigFile": "tsconfig.json",
+  "tempDirName": "stryker-tmp",
+  "cleanTempDir": true,
+  "concurrency": 4,
+  "timeoutMS": 60000,
+  "dryRunTimeoutMS": 300000,
+  "maxConcurrentTestRunners": 4,
+  "thresholds": {
+    "high": 80,
+    "low": 70,
+    "break": 60
+  }
+}
