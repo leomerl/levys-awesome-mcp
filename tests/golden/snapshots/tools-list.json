@@ -2,30 +2,21 @@
   "result": {
     "tools": [
       {
-        "name": "mcp__levys-awesome-mcp__mcp__agent-generator__generate_all_agents",
-        "description": "Generate markdown files for all available agent configurations",
-        "inputSchema": {
-          "type": "object",
-          "properties": [],
-          "required": []
-        }
-      },
-      {
-        "name": "mcp__levys-awesome-mcp__mcp__agent-generator__get_agent_info",
-        "description": "Get detailed information about a specific agent",
+        "name": "mcp__levys-awesome-mcp__mcp__agent-generator__convert_agent_ts_to_claude_md",
+        "description": "Convert a TypeScript agent file to Claude agent markdown format",
         "inputSchema": {
           "type": "object",
           "properties": [
-            "agent_name"
+            "agentPath"
           ],
           "required": [
-            "agent_name"
+            "agentPath"
           ]
         }
       },
       {
-        "name": "mcp__levys-awesome-mcp__mcp__agent-generator__list_available_agents",
-        "description": "List all available agent configurations",
+        "name": "mcp__levys-awesome-mcp__mcp__agent-generator__convert_all_agents_ts_to_claude_md",
+        "description": "Convert all TypeScript agent files in agents/ directory to Claude agent markdown format",
         "inputSchema": {
           "type": "object",
           "properties": [],
@@ -33,8 +24,8 @@
         }
       },
       {
-        "name": "mcp__levys-awesome-mcp__mcp__agent-generator__remove_agent_markdowns",
-        "description": "Remove all generated agent markdown files",
+        "name": "mcp__levys-awesome-mcp__mcp__agent-generator__remove_all_agent_md_files",
+        "description": "Remove all generated agent markdown files from .claude/agents/ directory",
         "inputSchema": {
           "type": "object",
           "properties": [],
@@ -283,42 +274,6 @@
           "properties": [
             "validate_only"
           ],
-          "required": []
-        }
-      },
-      {
-        "name": "mcp__levys-awesome-mcp__mcp__test-runner__run_backend_tests",
-        "description": "Run backend tests only (lint and typecheck)",
-        "inputSchema": {
-          "type": "object",
-          "properties": [],
-          "required": []
-        }
-      },
-      {
-        "name": "mcp__levys-awesome-mcp__mcp__test-runner__run_e2e_tests",
-        "description": "Run E2E tests only (root-level Playwright tests)",
-        "inputSchema": {
-          "type": "object",
-          "properties": [],
-          "required": []
-        }
-      },
-      {
-        "name": "mcp__levys-awesome-mcp__mcp__test-runner__run_frontend_tests",
-        "description": "Run frontend tests only (lint, build, and browser tests)",
-        "inputSchema": {
-          "type": "object",
-          "properties": [],
-          "required": []
-        }
-      },
-      {
-        "name": "mcp__levys-awesome-mcp__mcp__test-runner__test_runner",
-        "description": "Run all tests (backend, frontend, and E2E)",
-        "inputSchema": {
-          "type": "object",
-          "properties": [],
           "required": []
         }
       }

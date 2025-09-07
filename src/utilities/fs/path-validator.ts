@@ -124,3 +124,26 @@ export class PathValidator {
     return path.relative(workingDir, path.resolve(filePath));
   }
 }
+
+// --- Lightweight helpers for unit tests ---
+
+export function normalizePath(filePath: string): string {
+  return path.posix.normalize(filePath.replace(/\\/g, '/'));
+}
+
+export function validatePath(filePath: string): void {
+  if (!filePath || filePath.trim() === '') {
+    throw new Error('Invalid file path');
+  }
+  const normalized = normalizePath(filePath).trim();
+  if (
+    normalized === '.' ||
+    normalized.includes('\0') ||
+    normalized.startsWith('..') ||
+    normalized.includes('/..') ||
+    path.isAbsolute(normalized) ||
+    /^[a-zA-Z]:/.test(normalized)
+  ) {
+    throw new Error('Invalid file path');
+  }
+}
