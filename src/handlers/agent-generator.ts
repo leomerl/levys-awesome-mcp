@@ -49,6 +49,83 @@ async function convertTSAgentToMD(agentPath: string): Promise<string> {
   // Extract systemPrompt (handle multiline template literals)
   const systemPromptMatch = fileContent.match(/systemPrompt:\s*`([\s\S]*?)`/);
   
+  // Extract maxTurns and prompt (can be at root or in options)
+  const maxTurnsMatch = fileContent.match(/maxTurns:\s*(\d+)/);
+  const promptMatch = fileContent.match(/prompt:\s*['"`]([^'"`]+)['"`]/);
+  
+  // Extract arrays using simple string parsing - no regex
+  function extractArrayNoRegex(fieldName: string): string[] {
+    const startPattern = `${fieldName}: [`;
+    let startIndex = fileContent.indexOf(startPattern);
+    
+    // Try with spaces around colon
+    if (startIndex === -1) {
+      const altPattern = `${fieldName} : [`;
+      startIndex = fileContent.indexOf(altPattern);
+    }
+    
+    if (startIndex === -1) return [];
+    
+    // Find the opening bracket
+    const openBracketIndex = fileContent.indexOf('[', startIndex);
+    if (openBracketIndex === -1) return [];
+    
+    // Find matching closing bracket by counting brackets
+    let bracketCount = 0;
+    let closeBracketIndex = -1;
+    
+    for (let i = openBracketIndex; i < fileContent.length; i++) {
+      if (fileContent[i] === '[') bracketCount++;
+      if (fileContent[i] === ']') {
+        bracketCount--;
+        if (bracketCount === 0) {
+          closeBracketIndex = i;
+          break;
+        }
+      }
+    }
+    
+    if (closeBracketIndex === -1) return [];
+    
+    // Extract content between brackets
+    const arrayContent = fileContent.substring(openBracketIndex + 1, closeBracketIndex);
+    
+    // Find all quoted strings manually
+    const result: string[] = [];
+    let inQuote = false;
+    let quoteChar = '';
+    let currentString = '';
+    
+    for (let i = 0; i < arrayContent.length; i++) {
+      const char = arrayContent[i];
+      
+      if (!inQuote && (char === '"' || char === "'")) {
+        inQuote = true;
+        quoteChar = char;
+        currentString = '';
+      } else if (inQuote && char === quoteChar) {
+        inQuote = false;
+        if (currentString.trim()) {
+          result.push(currentString);
+        }
+        currentString = '';
+      } else if (inQuote) {
+        currentString += char;
+      }
+    }
+    
+    return result;
+  }
+  
+  const allowedTools = extractArrayNoRegex('allowedTools');
+  const disallowedTools = extractArrayNoRegex('disallowedTools');  
+  const mcpServers = extractArrayNoRegex('mcpServers');
+  
+  // Debug output
+  console.log('=== EXTRACTION DEBUG ===');
+  console.log('allowedTools found:', allowedTools);
+  console.log('mcpServers found:', mcpServers);
+  
   if (!nameMatch) {
     throw new Error('Could not find agent name in file');
   }
@@ -57,15 +134,61 @@ async function convertTSAgentToMD(agentPath: string): Promise<string> {
   const description = descMatch ? descMatch[1] : 'Agent description';
   const model = modelMatch ? modelMatch[1] : 'sonnet';
   const systemPrompt = systemPromptMatch ? systemPromptMatch[1].trim() : '';
+  const maxTurns = maxTurnsMatch ? parseInt(maxTurnsMatch[1]) : undefined;
+  const prompt = promptMatch ? promptMatch[1] : undefined;
   
-  // Format like demo.md
-  return `---
+  // Build markdown content
+  let markdown = `---
 name: ${name}
 description: ${description}
-model: ${model}
+model: ${model}`;
+
+  if (maxTurns) {
+    markdown += `
+maxTurns: ${maxTurns}`;
+  }
+
+  if (prompt) {
+    markdown += `
+prompt: ${prompt}`;
+  }
+
+  // Add allowedTools if present
+  if (allowedTools.length > 0) {
+    markdown += `
+allowedTools:`;
+    allowedTools.forEach(tool => {
+      markdown += `
+  - ${tool}`;
+    });
+  }
+
+  // Add disallowedTools if present
+  if (disallowedTools.length > 0) {
+    markdown += `
+disallowedTools:`;
+    disallowedTools.forEach(tool => {
+      markdown += `
+  - ${tool}`;
+    });
+  }
+
+  // Add mcpServers if present
+  if (mcpServers.length > 0) {
+    markdown += `
+mcpServers:`;
+    mcpServers.forEach(server => {
+      markdown += `
+  - ${server}`;
+    });
+  }
+
+  markdown += `
 ---
 
 ${systemPrompt}`;
+  
+  return markdown;
 }
 
 export async function handleAgentGeneratorTool(name: string, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
