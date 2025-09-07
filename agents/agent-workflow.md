@@ -35,7 +35,7 @@
 - **Purpose**: Coordinates multiple agents, manages complex workflows
 - **Special Ability**: Can invoke other agents
 - **Workflow**: ALWAYS starts by invoking planner agent first before any development work
-- **Key Tools**: `invoke_agent`, `list_agents`, `plan_creator`, `put_summary`
+- **Key Tools**: `invoke_agent`, `list_agents`, `plan_creator`, `put_summary`, `get_summary`, `get_plan`
 
 ### 4. **builder**
 - **Purpose**: Build processes, compilation, type checking
