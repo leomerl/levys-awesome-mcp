@@ -2,55 +2,46 @@
 
 import { query } from "@anthropic-ai/claude-code";
 
+// Agent configuration for SDK usage
 interface AgentConfig {
   name: string;
   description: string;
-  model: string;
-  permissions: {
-    mode: 'default' | 'acceptEdits' | 'ask';
-    tools: {
-      allowed: string[];
-      denied: string[];
-    };
-    mcpServers: Record<string, 'allow' | 'deny' | 'ask'>;
+  prompt: string;
+  model?: string;
+  options: {
+    maxTurns: number;
+    model?: string;
+    allowedTools?: string[];
+    mcpServers?: string[];
+    systemPrompt?: string;
   };
-  systemPrompt: string;
-  context: {
-    maxTokens: number;
-    temperature: number;
-  };
-  color?: string;
 }
 
 const orchestratorAgent: AgentConfig = {
   name: 'orchestrator',
-  description: 'Use this agent when you need to coordinate development workflows including backend/frontend development, building, and linting. This agent intelligently routes tasks to appropriate specialized agents (backend-agent, frontend-agent, builder, linter) and manages the execution flow. Examples:\n\n<example>\nContext: User wants to implement a backend feature\nuser: "Add a new API endpoint for user authentication"\nassistant: "I\'ll use the orchestrator agent to handle backend development followed by building and linting"\n<commentary>\nSince this is a backend task, the orchestrator will invoke the backend-agent, then builder, then linter.\n</commentary>\n</example>\n\n<example>\nContext: User wants to implement a frontend feature  \nuser: "Create a new React component for the dashboard"\nassistant: "Let me invoke the orchestrator agent to handle frontend development and quality checks"\n<commentary>\nSince this is a frontend task, the orchestrator will invoke the frontend-agent, then builder, then linter.\n</commentary>\n</example>\n\n<example>\nContext: User wants both backend and frontend changes\nuser: "Add user profile functionality with API and UI"\nassistant: "I\'ll use the orchestrator agent to coordinate both backend and frontend development"\n<commentary>\nThis requires both backend and frontend work, so the orchestrator will invoke both agents, then builder and linter.\n</commentary>\n</example>',
+  description: 'Use this agent when you need to coordinate development workflows including backend/frontend development, building, and linting. This agent intelligently routes tasks to appropriate specialized agents (backend-agent, frontend-agent, builder, linter) and manages the execution flow.',
+  prompt: 'Coordinate development workflows by routing tasks to appropriate specialized agents.',
   model: 'opus',
-  permissions: {
-    mode: 'default',
-    tools: {
-      allowed: [
-        'Glob',
-        'Grep', 
-        'Read',
-        'WebFetch',
-        'TodoWrite',
-        'WebSearch',
-        'BashOutput',
-        'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent',
-        'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__agent-invoker__list_agents', 
-        'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__agent-invoker__get_agent_info',
-        'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__agent-invoker__get_agent_summary',
-        'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__get_summary',
-        'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__put_summary'
-      ],
-      denied: []
-    },
-    mcpServers: {
-      'levys-awesome-mcp': 'allow'
-    }
-  },
-  systemPrompt: `You are a workflow orchestration specialist responsible for coordinating development workflows including backend/frontend development, building, and linting operations. Your primary role is to intelligently route tasks to appropriate specialized agents and manage their sequential execution.
+  options: {
+    maxTurns: 15,
+    model: 'opus',
+    allowedTools: [
+      'Glob',
+      'Grep', 
+      'Read',
+      'WebFetch',
+      'TodoWrite',
+      'WebSearch',
+      'BashOutput',
+      'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent',
+      'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__agent-invoker__list_agents',
+      'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__get_summary',
+      'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__put_summary'
+    ],
+    mcpServers: [
+      'levys-awesome-mcp'
+    ],
+    systemPrompt: `You are a workflow orchestration specialist responsible for coordinating development workflows including backend/frontend development, building, and linting operations. Your primary role is to intelligently route tasks to appropriate specialized agents and manage their sequential execution.
 
 ## Core Responsibilities
 
@@ -262,12 +253,8 @@ The orchestrator implements a **planning → development → review/build/qualit
 
 This ensures robust software delivery through systematic quality assurance and iterative improvement.
 
-You must maintain strict sequential execution and never attempt to parallelize operations. Your success is measured by intelligent task routing, smooth coordination of specialized agents, effective feedback loop management, and comprehensive consolidated reporting across the entire development workflow.`,
-  context: {
-    maxTokens: 4000,
-    temperature: 0.1
-  },
-  color: 'yellow'
+You must maintain strict sequential execution and never attempt to parallelize operations. Your success is measured by intelligent task routing, smooth coordination of specialized agents, effective feedback loop management, and comprehensive consolidated reporting across the entire development workflow.`
+  }
 };
 
 export { orchestratorAgent };
@@ -290,10 +277,11 @@ async function runAgent() {
     for await (const message of query({
       prompt,
       options: {
-        systemPrompt: orchestratorAgent.systemPrompt,
-        maxTurns: 15,
-        model: orchestratorAgent.model,
-        allowedTools: orchestratorAgent.permissions.tools.allowed,
+        systemPrompt: orchestratorAgent.options.systemPrompt,
+        maxTurns: orchestratorAgent.options.maxTurns,
+        model: orchestratorAgent.options.model,
+        allowedTools: orchestratorAgent.options.allowedTools,
+        disallowedTools: ['Task'], // Block built-in Task tool
         pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
         mcpServers: {
         "levys-awesome-mcp": {

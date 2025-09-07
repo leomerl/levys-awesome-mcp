@@ -371,9 +371,9 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
         // Generate the plan
         const plan = await analyzeTaskAndCreatePlan(task_description, context, session_id);
         
-        // Create the reports directory structure
+        // Create the plan_and_progress directory structure
         const gitHash = plan.git_commit_hash || 'no-commit';
-        const reportsDir = path.join(process.cwd(), 'reports', gitHash);
+        const reportsDir = path.join(process.cwd(), 'plan_and_progress', gitHash);
         
         if (!existsSync(reportsDir)) {
           await mkdir(reportsDir, { recursive: true });

@@ -117,9 +117,32 @@ async function convertTSAgentToMD(agentPath: string): Promise<string> {
     return result;
   }
   
-  const allowedTools = extractArrayNoRegex('allowedTools');
-  const disallowedTools = extractArrayNoRegex('disallowedTools');  
-  const mcpServers = extractArrayNoRegex('mcpServers');
+  // Try to extract allowed tools from either schema
+  let allowedTools = extractArrayNoRegex('allowedTools');
+  if (allowedTools.length === 0) {
+    // Try old schema with permissions.tools.allowed
+    allowedTools = extractArrayNoRegex('allowed');
+  }
+  
+  let disallowedTools = extractArrayNoRegex('disallowedTools');
+  if (disallowedTools.length === 0) {
+    // Try old schema with permissions.tools.denied
+    disallowedTools = extractArrayNoRegex('denied');
+  }
+  
+  // Try to extract mcp servers from either schema
+  let mcpServers = extractArrayNoRegex('mcpServers');
+  if (mcpServers.length === 0) {
+    // Try to find servers in the old schema format
+    const mcpServersObj = fileContent.match(/mcpServers:\s*\{([^}]+)\}/);
+    if (mcpServersObj) {
+      const serversContent = mcpServersObj[1];
+      const serverNames = serversContent.match(/'([^']+)':\s*'allow'/g);
+      if (serverNames) {
+        mcpServers = serverNames.map(match => match.match(/'([^']+)':/)?.[1]).filter(Boolean) as string[];
+      }
+    }
+  }
   
   // Debug output
   console.log('=== EXTRACTION DEBUG ===');

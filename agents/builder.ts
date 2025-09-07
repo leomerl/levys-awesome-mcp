@@ -5,7 +5,7 @@ import { query } from "@anthropic-ai/claude-code";
 import { StreamingManager } from '../src/utilities/session/streaming-utils.ts';
 import { v4 as uuidv4 } from 'uuid';
 
-import { AgentConfig } from '../src/types/agent-config.js';
+import { AgentConfig } from '../src/types/agent-config.ts';
 
 const builderAgent: AgentConfig = {
   name: 'builder-agent',
