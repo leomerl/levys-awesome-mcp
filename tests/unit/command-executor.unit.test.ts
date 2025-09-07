@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { executeCommand, executeParallel } from '../../utilities/process/command-executor.js';
+import { executeCommand, executeParallel } from '../../src/utilities/process/command-executor.ts';
 
 describe('Command Executor Unit Tests', () => {
   describe('executeCommand', () => {

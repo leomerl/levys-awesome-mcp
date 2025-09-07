@@ -10,6 +10,7 @@ export interface CommandResult {
   stdout: string;
   stderr: string;
   exitCode: number | null;
+  error?: string;
 }
 
 export interface CommandOptions {
@@ -156,4 +157,73 @@ export class CommandExecutor {
 
     return Promise.all(promises);
   }
+}
+
+/**
+ * Execute a shell command and capture its output.
+ * Simplified functional API used by unit tests.
+ */
+export async function executeCommand(
+  command: string,
+  options: CommandOptions = {}
+): Promise<CommandResult> {
+  return new Promise((resolve) => {
+    const { cwd = process.cwd(), timeout = 0 } = options;
+    const proc: ChildProcess = spawn(command, {
+      cwd,
+      shell: true,
+      stdio: 'pipe'
+    });
+
+    let stdout = '';
+    let stderr = '';
+    let finished = false;
+    let timer: NodeJS.Timeout | undefined;
+
+    if (timeout > 0) {
+      timer = setTimeout(() => {
+        finished = true;
+        proc.kill('SIGTERM');
+        resolve({
+          success: false,
+          stdout,
+          stderr,
+          exitCode: null,
+          error: 'timeout'
+        });
+      }, timeout);
+    }
+
+    proc.stdout?.on('data', (d) => {
+      stdout += d.toString();
+    });
+    proc.stderr?.on('data', (d) => {
+      stderr += d.toString();
+    });
+
+    const finalize = (result: CommandResult) => {
+      if (finished) return;
+      finished = true;
+      if (timer) clearTimeout(timer);
+      resolve(result);
+    };
+
+    proc.on('error', (err) => {
+      finalize({ success: false, stdout, stderr, exitCode: null, error: err.message });
+    });
+
+    proc.on('close', (code) => {
+      finalize({ success: code === 0, stdout, stderr, exitCode: code });
+    });
+  });
+}
+
+/**
+ * Execute multiple shell commands in parallel.
+ */
+export async function executeParallel(
+  commands: string[],
+  options: CommandOptions = {}
+): Promise<CommandResult[]> {
+  return Promise.all(commands.map((cmd) => executeCommand(cmd, options)));
 }

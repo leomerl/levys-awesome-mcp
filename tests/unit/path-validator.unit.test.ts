@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validatePath, normalizePath } from '../../utilities/fs/path-validator.js';
+import { validatePath, normalizePath } from '../../src/utilities/fs/path-validator.ts';
 
 describe('Path Validator Unit Tests', () => {
   describe('validatePath', () => {

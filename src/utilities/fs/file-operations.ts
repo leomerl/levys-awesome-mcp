@@ -176,3 +176,28 @@ export class FileOperations {
     }
   }
 }
+
+// --- Lightweight functional helpers used in unit tests ---
+
+export async function writeFile(filePath: string, content: string): Promise<void> {
+  await fsp.mkdir(path.dirname(filePath), { recursive: true });
+  await fsp.writeFile(filePath, content, 'utf8');
+}
+
+export async function appendFile(filePath: string, content: string): Promise<void> {
+  await fsp.mkdir(path.dirname(filePath), { recursive: true });
+  await fsp.appendFile(filePath, content, 'utf8');
+}
+
+export async function readFile(filePath: string): Promise<string> {
+  return await fsp.readFile(filePath, 'utf8');
+}
+
+export async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    const stat = await fsp.stat(filePath);
+    return stat.isFile();
+  } catch {
+    return false;
+  }
+}
