@@ -32,11 +32,14 @@ const plannerAgent: AgentConfig = {
     mode: 'default',
     tools: {
       allowed: [
-        'Read',
         'Glob',
-        'Grep', 
+        'Grep',
+        'Read',
+        'WebFetch',
+        'WebSearch',
         'mcp__levys-awesome-mcp__mcp__plan-creator__create_plan',
-        'mcp__levys-awesome-mcp__mcp__content-writer__put_summary'
+        'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
+        'mcp__levys-awesome-mcp__mcp__content-writer__get_summary'
       ],
       denied: [
         'Edit',

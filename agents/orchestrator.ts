@@ -37,12 +37,12 @@ const orchestratorAgent: AgentConfig = {
         'TodoWrite',
         'WebSearch',
         'BashOutput',
-        'KillBash',
-        'mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent',
-        'mcp__levys-awesome-mcp__mcp__agent-invoker__list_agents',
-        'mcp__levys-awesome-mcp__mcp__agent-invoker__get_agent_info',
-        'mcp__levys-awesome-mcp__mcp__agent-invoker__get_agent_summary',
-        'mcp__levys-awesome-mcp__mcp__content-writer__get_summary'
+        'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent',
+        'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__agent-invoker__list_agents', 
+        'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__agent-invoker__get_agent_info',
+        'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__agent-invoker__get_agent_summary',
+        'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__get_summary',
+        'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__put_summary'
       ],
       denied: []
     },

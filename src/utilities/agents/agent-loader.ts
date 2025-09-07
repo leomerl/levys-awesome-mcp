@@ -156,6 +156,21 @@ export class AgentLoader {
       throw new Error(`Invalid agent name: ${config.name}`);
     }
 
+    // Debug logging to understand config structure
+    console.log(`[DEBUG] Loading agent config for: ${config.name}`);
+    console.log(`[DEBUG] Config permissions:`, (config as any).permissions);
+    console.log(`[DEBUG] Config options:`, config.options);
+
+    // Handle both old format (permissions.tools.allowed) and new format (options.allowedTools)
+    let allowedTools: string[] = [];
+    if ((config as any).permissions?.tools?.allowed) {
+      allowedTools = (config as any).permissions.tools.allowed;
+      console.log(`[DEBUG] Using permissions.tools.allowed:`, allowedTools);
+    } else if (config.options?.allowedTools) {
+      allowedTools = config.options.allowedTools;
+      console.log(`[DEBUG] Using options.allowedTools:`, allowedTools);
+    }
+
     // Normalize configuration structure
     const normalizedConfig: AgentConfig = {
       ...config,
@@ -165,16 +180,21 @@ export class AgentLoader {
       model: config.model || config.options?.model || 'claude-3-5-sonnet-20241022'
     };
 
-    // Ensure options exist
+    // Ensure options exist and include resolved allowedTools
     if (!normalizedConfig.options) {
       normalizedConfig.options = {
         systemPrompt: normalizedConfig.systemPrompt || '',
         maxTurns: 10,
         model: normalizedConfig.model,
-        allowedTools: [],
+        allowedTools: allowedTools,
         mcpServers: []
       };
+    } else {
+      // Merge allowed tools from both sources
+      normalizedConfig.options.allowedTools = allowedTools;
     }
+
+    console.log(`[DEBUG] Final normalized allowedTools:`, normalizedConfig.options.allowedTools);
 
     return normalizedConfig;
   }

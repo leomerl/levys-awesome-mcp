@@ -74,8 +74,10 @@ You cannot edit code, only build it.`,
       'mcp__levys-awesome-mcp__mcp__build-executor__build_frontend', 
       'mcp__levys-awesome-mcp__mcp__build-executor__build_backend',
       'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
-      'Read',
-      'Bash'
+      'mcp__levys-awesome-mcp__mcp__content-writer__get_summary',
+      'Glob',
+      'Grep',
+      'Read'
     ],
     mcpServers: [
       'levys-awesome-mcp'

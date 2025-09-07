@@ -25,17 +25,11 @@ const frontendAgent: AgentConfig = {
     model: 'sonnet',
     allowedTools: [
       'mcp__levys-awesome-mcp__mcp__content-writer__frontend_write',
-      'mcp__levys-awesome-mcp__mcp__content-writer__frontend_edit',
       'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
-      'Read',
-      'Glob', 
-      'Grep',
-      'mcp__levys-awesome-mcp__mcp__language-server__definition',
-      'mcp__levys-awesome-mcp__mcp__language-server__diagnostics',
-      'mcp__levys-awesome-mcp__mcp__language-server__edit_file',
-      'mcp__levys-awesome-mcp__mcp__language-server__hover',
-      'mcp__levys-awesome-mcp__mcp__language-server__references',
-      'mcp__levys-awesome-mcp__mcp__language-server__rename_symbol'
+      'mcp__levys-awesome-mcp__mcp__content-writer__get_summary',
+      'Glob',
+      'Grep', 
+      'Read'
     ],
     mcpServers: [
       'levys-awesome-mcp'

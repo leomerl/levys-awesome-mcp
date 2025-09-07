@@ -1,261 +1,220 @@
-import { readdir, readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir, readdir, unlink } from 'fs/promises';
 import { existsSync } from 'fs';
 import * as path from 'path';
-import { AgentConfig, AgentConfigOld, AgentConfigNew } from '../shared/types.js';
-import { isAgentConfigOld, isAgentConfigNew } from '../shared/utils.js';
 
 export const agentGeneratorTools = [
   {
-    name: 'mcp__levys-awesome-mcp__mcp__agent-generator__list_available_agents',
-    description: 'List all available agent configurations',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {},
-      additionalProperties: false
-    }
-  },
-  {
-    name: 'mcp__levys-awesome-mcp__mcp__agent-generator__generate_all_agents',
-    description: 'Generate markdown files for all available agent configurations',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {},
-      additionalProperties: false
-    }
-  },
-  {
-    name: 'mcp__levys-awesome-mcp__mcp__agent-generator__remove_agent_markdowns',
-    description: 'Remove all generated agent markdown files',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {},
-      additionalProperties: false
-    }
-  },
-  {
-    name: 'mcp__levys-awesome-mcp__mcp__agent-generator__get_agent_info',
-    description: 'Get detailed information about a specific agent',
+    name: 'mcp__levys-awesome-mcp__mcp__agent-generator__convert_agent_ts_to_claude_md',
+    description: 'Convert a TypeScript agent file to Claude agent markdown format',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        agent_name: {
+        agentPath: {
           type: 'string',
-          description: 'Name of the agent to get info for'
+          description: 'Path to the TypeScript agent file (e.g., "agents/builder.ts")'
         }
       },
-      required: ['agent_name']
+      required: ['agentPath'],
+      additionalProperties: false
+    }
+  },
+  {
+    name: 'mcp__levys-awesome-mcp__mcp__agent-generator__convert_all_agents_ts_to_claude_md',
+    description: 'Convert all TypeScript agent files in agents/ directory to Claude agent markdown format',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+      additionalProperties: false
+    }
+  },
+  {
+    name: 'mcp__levys-awesome-mcp__mcp__agent-generator__remove_all_agent_md_files',
+    description: 'Remove all generated agent markdown files from .claude/agents/ directory',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+      additionalProperties: false
     }
   }
 ];
 
-class AgentLoader {
-  static async loadAgentConfig(agentPath: string): Promise<AgentConfig | null> {
-    try {
-      // Convert to file:// URL for Windows compatibility and add timestamp to avoid cache
-      const resolvedPath = path.resolve(agentPath);
-      const fileUrl = `file:///${resolvedPath.replace(/\\/g, '/').replace(/^[A-Z]:/, (match) => match.toLowerCase())}?t=${Date.now()}`;
-      
-      // Clear require cache if it exists
-      delete require.cache[resolvedPath];
-      
-      const agentModule = await import(fileUrl);
-      
-      // Try different export patterns
-      let config = agentModule.default;
-      if (!config) {
-        // Try named exports based on filename
-        const agentName = path.basename(agentPath, '.ts').replace('-', '');
-        const possibleNames = [
-          agentName + 'Agent',
-          agentName.charAt(0).toUpperCase() + agentName.slice(1) + 'Agent',
-          'agent',
-          agentName,
-          'config'
-        ];
-        
-        for (const name of possibleNames) {
-          if (agentModule[name]) {
-            config = agentModule[name];
-            break;
-          }
-        }
-      }
-      
-      return config || null;
-    } catch (error) {
-      console.error(`Error loading agent from ${agentPath}:`, error instanceof Error ? error.message : String(error));
-      return null;
-    }
+async function convertTSAgentToMD(agentPath: string): Promise<string> {
+  const fileContent = await readFile(agentPath, 'utf8');
+  
+  // Extract basic properties using regex
+  const nameMatch = fileContent.match(/name:\s*['"`]([^'"`]+)['"`]/);
+  const descMatch = fileContent.match(/description:\s*['"`]([^'"`]+)['"`]/);
+  const modelMatch = fileContent.match(/model[?]?:\s*['"`]([^'"`]+)['"`]/);
+  
+  // Extract systemPrompt (handle multiline template literals)
+  const systemPromptMatch = fileContent.match(/systemPrompt:\s*`([\s\S]*?)`/);
+  
+  if (!nameMatch) {
+    throw new Error('Could not find agent name in file');
   }
-
-  static async getAvailableAgents(): Promise<string[]> {
-    const agentsDir = path.join(process.cwd(), 'agents');
-    if (!existsSync(agentsDir)) {
-      return [];
-    }
-
-    try {
-      const files = await readdir(agentsDir);
-      return files.filter(file => file.endsWith('.ts')).map(file => file.replace('.ts', ''));
-    } catch (error) {
-      console.error('Error reading agents directory:', error);
-      return [];
-    }
-  }
-}
-
-class MarkdownConverter {
-  static convertTSAgentToMD(config: AgentConfig): string {
-    if (isAgentConfigOld(config)) {
-      const oldConfig = config as AgentConfigOld;
-      return `---
-name: ${oldConfig.name}
-description: ${oldConfig.description.replace(/\n/g, '\\n')}
-tools: ${oldConfig.permissions.tools.allowed.join(', ') || 'default'}
-model: ${oldConfig.model}
-color: ${oldConfig.color || 'default'}
+  
+  const name = nameMatch[1];
+  const description = descMatch ? descMatch[1] : 'Agent description';
+  const model = modelMatch ? modelMatch[1] : 'sonnet';
+  const systemPrompt = systemPromptMatch ? systemPromptMatch[1].trim() : '';
+  
+  // Format like demo.md
+  return `---
+name: ${name}
+description: ${description}
+model: ${model}
 ---
 
-${oldConfig.systemPrompt}`;
-    } else if (isAgentConfigNew(config)) {
-      const newConfig = config as AgentConfigNew;
-      return `---
-name: ${newConfig.name}
-description: ${newConfig.description.replace(/\n/g, '\\n')}
-tools: ${newConfig.options.tools?.join(', ') || 'default'}
-model: ${newConfig.options.model || 'default'}
-color: default
----
-
-${newConfig.options.systemPrompt}`;
-    }
-    return `---
-name: ${config.name}
-description: Unsupported configuration format
-tools: default
-model: default
-color: default
----
-
-Unsupported configuration format.`;
-  }
+${systemPrompt}`;
 }
 
 export async function handleAgentGeneratorTool(name: string, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     switch (name) {
-      case 'mcp__levys-awesome-mcp__mcp__agent-generator__list_available_agents': {
-        const agents = await AgentLoader.getAvailableAgents();
-        return {
-          content: [{
-            type: 'text',
-            text: `Available agents:\n${agents.map(agent => `- ${agent}`).join('\n') || 'No agents found'}`
-          }]
-        };
-      }
-
-      case 'mcp__levys-awesome-mcp__mcp__agent-generator__generate_all_agents': {
-        console.log('Current working directory:', process.cwd());
-        const agents = await AgentLoader.getAvailableAgents();
-        console.log('Found agents:', agents);
-        const results = [];
+      case 'mcp__levys-awesome-mcp__mcp__agent-generator__convert_agent_ts_to_claude_md': {
+        const { agentPath } = args;
+        
+        // Resolve full path
+        const fullPath = path.resolve(agentPath);
+        
+        // Generate markdown content
+        const markdown = await convertTSAgentToMD(fullPath);
         
         // Ensure .claude/agents directory exists
         const outputDir = path.join(process.cwd(), '.claude', 'agents');
         if (!existsSync(outputDir)) {
           await mkdir(outputDir, { recursive: true });
         }
-
-        for (const agentName of agents) {
-          const agentPath = path.join(process.cwd(), 'agents', `${agentName}.ts`);
-          const config = await AgentLoader.loadAgentConfig(agentPath);
-          
-          if (config) {
-            const markdown = MarkdownConverter.convertTSAgentToMD(config);
-            const outputPath = path.join(outputDir, `${agentName}.md`);
-            await writeFile(outputPath, markdown);
-            results.push(`Generated ${agentName}.md`);
-          } else {
-            results.push(`Failed to load ${agentName}`);
-          }
-        }
-
+        
+        // Generate output filename
+        const fileName = path.basename(agentPath, '.ts') + '.md';
+        const outputPath = path.join(outputDir, fileName);
+        
+        // Write the markdown file
+        await writeFile(outputPath, markdown, 'utf8');
+        
         return {
           content: [{
             type: 'text',
-            text: `Generated ${results.filter(r => r.startsWith('Generated')).length} markdown files:\n${results.join('\n')}`
+            text: `Successfully converted ${agentPath} to ${outputPath}`
           }]
         };
       }
 
-      case 'mcp__levys-awesome-mcp__mcp__agent-generator__remove_agent_markdowns': {
+      case 'mcp__levys-awesome-mcp__mcp__agent-generator__convert_all_agents_ts_to_claude_md': {
+        const agentsDir = path.join(process.cwd(), 'agents');
         const outputDir = path.join(process.cwd(), '.claude', 'agents');
+        
+        // Ensure agents directory exists
+        if (!existsSync(agentsDir)) {
+          return {
+            content: [{
+              type: 'text',
+              text: `Agents directory not found: ${agentsDir}`
+            }],
+            isError: true
+          };
+        }
+        
+        // Ensure output directory exists
+        if (!existsSync(outputDir)) {
+          await mkdir(outputDir, { recursive: true });
+        }
+        
+        // Get all .ts files in agents directory
+        const files = await readdir(agentsDir);
+        const tsFiles = files.filter(file => file.endsWith('.ts'));
+        
+        const results = [];
+        let successCount = 0;
+        
+        for (const tsFile of tsFiles) {
+          try {
+            const agentPath = path.join(agentsDir, tsFile);
+            const markdown = await convertTSAgentToMD(agentPath);
+            
+            const fileName = path.basename(tsFile, '.ts') + '.md';
+            const outputPath = path.join(outputDir, fileName);
+            
+            await writeFile(outputPath, markdown, 'utf8');
+            results.push(`✓ ${tsFile} → ${fileName}`);
+            successCount++;
+          } catch (error) {
+            results.push(`✗ ${tsFile} → Error: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+        
+        return {
+          content: [{
+            type: 'text',
+            text: `Build complete: ${successCount}/${tsFiles.length} agents converted\n\n${results.join('\n')}\n\nOutput directory: ${outputDir}`
+          }]
+        };
+      }
+
+      case 'mcp__levys-awesome-mcp__mcp__agent-generator__remove_all_agent_md_files': {
+        const outputDir = path.join(process.cwd(), '.claude', 'agents');
+        
+        // Check if output directory exists
         if (!existsSync(outputDir)) {
           return {
             content: [{
               type: 'text',
-              text: 'No markdown files to remove - .claude/agents directory does not exist'
+              text: `No agent files to remove - directory does not exist: ${outputDir}`
             }]
           };
         }
-
-        try {
-          const files = await readdir(outputDir);
-          const mdFiles = files.filter(file => file.endsWith('.md'));
-          
-          for (const file of mdFiles) {
-            await import('fs/promises').then(fs => fs.unlink(path.join(outputDir, file)));
-          }
-
-          return {
-            content: [{
-              type: 'text',
-              text: `Removed ${mdFiles.length} markdown files`
-            }]
-          };
-        } catch (error) {
-          return {
-            content: [{
-              type: 'text',
-              text: `Error removing files: ${error instanceof Error ? error.message : String(error)}`
-            }],
-            isError: true
-          };
-        }
-      }
-
-      case 'mcp__levys-awesome-mcp__mcp__agent-generator__get_agent_info': {
-        const { agent_name } = args;
-        const agentPath = path.join(process.cwd(), 'agents', `${agent_name}.ts`);
-        const config = await AgentLoader.loadAgentConfig(agentPath);
         
-        if (!config) {
+        // Get all .md files in the directory
+        const files = await readdir(outputDir);
+        const mdFiles = files.filter(file => file.endsWith('.md'));
+        
+        if (mdFiles.length === 0) {
           return {
             content: [{
               type: 'text',
-              text: `Agent '${agent_name}' not found or failed to load`
-            }],
-            isError: true
+              text: `No agent markdown files found in ${outputDir}`
+            }]
           };
         }
-
-        const markdown = MarkdownConverter.convertTSAgentToMD(config);
+        
+        // Remove all .md files
+        const results = [];
+        let removedCount = 0;
+        
+        for (const mdFile of mdFiles) {
+          try {
+            const filePath = path.join(outputDir, mdFile);
+            await unlink(filePath);
+            results.push(`✓ Removed ${mdFile}`);
+            removedCount++;
+          } catch (error) {
+            results.push(`✗ Failed to remove ${mdFile}: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+        
         return {
           content: [{
             type: 'text',
-            text: markdown
+            text: `Cleanup complete: ${removedCount}/${mdFiles.length} agent files removed\n\n${results.join('\n')}`
           }]
         };
       }
 
       default:
-        throw new Error(`Unknown agent generator tool: ${name}`);
+        return {
+          content: [{
+            type: 'text',
+            text: `Unknown agent generator tool: ${name}`
+          }],
+          isError: true
+        };
     }
   } catch (error) {
     return {
       content: [{
         type: 'text',
-        text: `Error in agent generator tool: ${error instanceof Error ? error.message : String(error)}`
+        text: `Agent generator error: ${error instanceof Error ? error.message : String(error)}`
       }],
       isError: true
     };

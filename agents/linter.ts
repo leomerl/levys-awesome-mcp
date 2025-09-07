@@ -1,3 +1,7 @@
+#!/usr/bin/env tsx
+
+import { query } from "@anthropic-ai/claude-code";
+
 // Linter Agent - Follows Claude Code TypeScript SDK Schema
 // Reference: https://github.com/instantlyeasy/claude-code-sdk-ts
 
@@ -27,8 +31,9 @@ const linterAgent: LinterAgentConfig = {
       'mcp__levys-awesome-mcp__mcp__code-analyzer__dependency_check',
       'mcp__levys-awesome-mcp__mcp__code-analyzer__code_quality_scan',
       'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
-      'Read',
-      'Bash'
+      'Glob',
+      'Grep',
+      'Read'
     ],
     mcpServers: [
       'levys-awesome-mcp'
@@ -112,3 +117,9 @@ You cannot edit code, only analyze it.`
 // Export using ES6 for agent loader compatibility
 export { linterAgent };
 export default linterAgent;
+
+// Main execution for direct invocation
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const prompt = process.argv[2] || linterAgent.prompt;
+  query(prompt, linterAgent.options);
+}

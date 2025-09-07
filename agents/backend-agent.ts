@@ -55,15 +55,10 @@ Remember: You are focused on backend development and can only modify files in th
     allowedTools: [
       'mcp__levys-awesome-mcp__mcp__content-writer__backend_write',
       'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
-      'mcp__levys-awesome-mcp__mcp__language-server__definition',
-      'mcp__levys-awesome-mcp__mcp__language-server__diagnostics',
-      'mcp__levys-awesome-mcp__mcp__language-server__edit_file',
-      'mcp__levys-awesome-mcp__mcp__language-server__hover',
-      'mcp__levys-awesome-mcp__mcp__language-server__references',
-      'mcp__levys-awesome-mcp__mcp__language-server__rename_symbol',
-      'Read',
+      'mcp__levys-awesome-mcp__mcp__content-writer__get_summary',
       'Glob',
-      'Grep'
+      'Grep',
+      'Read'
     ],
     mcpServers: [
       'levys-awesome-mcp'

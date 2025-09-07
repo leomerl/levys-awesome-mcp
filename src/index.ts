@@ -19,7 +19,6 @@ import { buildExecutorTools, handleBuildExecutorTool } from './handlers/build-ex
 import { contentWriterTools, handleContentWriterTool } from './handlers/content-writer.js';
 import { codeAnalyzerTools, handleCodeAnalyzerTool } from './handlers/code-analyzer.js';
 import { serverRunnerTools, handleServerRunnerTool } from './handlers/server-runner.js';
-import { testRunnerTools, handleTestRunnerTool } from './handlers/test-runner.js';
 import { testExecutorTools, handleTestExecutorTool } from './handlers/test-executor.js';
 import { planCreatorTools, handlePlanCreatorTool } from './handlers/plan-creator.js';
 
@@ -44,7 +43,6 @@ const allTools = [
   ...contentWriterTools,
   ...codeAnalyzerTools,
   ...serverRunnerTools,
-  ...testRunnerTools,
   ...testExecutorTools,
   ...planCreatorTools
 ];
@@ -74,8 +72,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return await handleCodeAnalyzerTool(name, args);
     } else if (name.includes('server-runner')) {
       return await handleServerRunnerTool(name, args);
-    } else if (name.includes('test-runner')) {
-      return await handleTestRunnerTool(name, args);
     } else if (name.includes('test-executor')) {
       return await handleTestExecutorTool(name, args);
     } else if (name.includes('plan-creator')) {
