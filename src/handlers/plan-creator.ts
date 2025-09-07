@@ -24,21 +24,40 @@ interface PlanDocument {
 export const planCreatorTools = [
   {
     name: 'mcp__levys-awesome-mcp__mcp__plan-creator__create_plan',
-    description: 'Analyzes a task and creates a detailed execution plan with task breakdown, agent assignments, and dependencies. Saves the plan to reports/$git_commit_hash/',
+    description: 'Creates a detailed execution plan from AI-generated task breakdown, agent assignments, and dependencies. Saves the plan to plan_and_progress/$git_commit_hash/',
     inputSchema: {
       type: 'object' as const,
       properties: {
         task_description: {
           type: 'string',
-          description: 'The main task or project description to analyze and create a plan for'
+          description: 'The main task or project description'
         },
-        context: {
+        synopsis: {
           type: 'string',
-          description: 'Additional context about the current codebase, project structure, or requirements (optional)',
+          description: 'Brief summary of what the task involves'
+        },
+        tasks: {
+          type: 'array',
+          description: 'Array of task objects with id, designated_agent, description, files_to_modify, and dependencies',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', description: 'Unique task ID (e.g., TASK-001)' },
+              designated_agent: { type: 'string', description: 'Agent assigned to this task (backend-agent, frontend-agent, builder, linter, testing-agent)' },
+              description: { type: 'string', description: 'What this task accomplishes' },
+              files_to_modify: { type: 'array', items: { type: 'string' }, description: 'Specific files that need to be created or modified' },
+              dependencies: { type: 'array', items: { type: 'string' }, description: 'Task IDs this task depends on' }
+            },
+            required: ['id', 'designated_agent', 'description', 'files_to_modify', 'dependencies']
+          }
+        },
+        session_id: {
+          type: 'string',
+          description: 'Optional session ID for tracking (will be generated if not provided)',
           default: ''
         }
       },
-      required: ['task_description']
+      required: ['task_description', 'synopsis', 'tasks']
     }
   }
 ];
@@ -68,296 +87,46 @@ function generateSessionId(): string {
   return `session-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 }
 
-async function analyzeTaskAndCreatePlan(taskDescription: string, context: string = '', sessionId: string = ''): Promise<PlanDocument> {
-  // This is a simplified planning algorithm. In a real implementation,
-  // you might want to integrate with an AI model (like Opus) for more sophisticated analysis
-  
+async function createPlanFromAIData(
+  taskDescription: string, 
+  synopsis: string,
+  tasks: Omit<Task, 'session_id' | 'state'>[],
+  sessionId: string = ''
+): Promise<PlanDocument> {
   const gitHash = await getGitCommitHash();
   const createdAt = new Date().toISOString();
   
   // Generate session_id if not provided
   const finalSessionId = sessionId || generateSessionId();
   
-  // Analyze the task and break it down into components
+  // Add session_id and state to each task
+  const tasksWithSession: Task[] = tasks.map(task => ({
+    ...task,
+    session_id: finalSessionId,
+    state: 'pending' as const
+  }));
+  
   const plan: PlanDocument = {
     task_description: taskDescription,
-    synopsis: generateSynopsis(taskDescription),
+    synopsis: synopsis,
     created_at: createdAt,
     git_commit_hash: gitHash,
-    tasks: generateTaskBreakdown(taskDescription, context, finalSessionId)
+    tasks: tasksWithSession
   };
-
 
   return plan;
 }
 
-function generateSynopsis(taskDescription: string): string {
-  // Simple synopsis generation based on task analysis
-  const lowerTask = taskDescription.toLowerCase();
-  
-  if (lowerTask.includes('api') || lowerTask.includes('endpoint')) {
-    return 'This task involves backend API development, requiring database models, API endpoints, validation, and testing.';
-  } else if (lowerTask.includes('component') || lowerTask.includes('ui') || lowerTask.includes('frontend')) {
-    return 'This task involves frontend development, requiring component creation, state management, styling, and user interaction handling.';
-  } else if (lowerTask.includes('database') || lowerTask.includes('migration')) {
-    return 'This task involves database work, requiring schema design, migration scripts, and data validation.';
-  } else if (lowerTask.includes('test') || lowerTask.includes('testing')) {
-    return 'This task focuses on testing implementation, requiring test case design, automation setup, and validation scripts.';
-  } else if (lowerTask.includes('refactor') || lowerTask.includes('optimize')) {
-    return 'This task involves code refactoring and optimization, requiring code analysis, restructuring, and performance improvements.';
-  } else {
-    return 'This task requires analysis of requirements, implementation of core functionality, and comprehensive testing.';
-  }
-}
-
-function generateTaskBreakdown(taskDescription: string, context: string, sessionId: string): Task[] {
-  const tasks: Task[] = [];
-  const lowerTask = taskDescription.toLowerCase();
-  
-  // Analysis phase (always first)
-  tasks.push({
-    id: 'TASK-001',
-    session_id: sessionId,
-    designated_agent: determineAgent(context, 'analysis'),
-    state: 'pending',
-    dependencies: [],
-    description: 'Analyze requirements and current codebase structure',
-    files_to_modify: []
-  });
-
-  let taskCounter = 2;
-
-  // Authentication-specific tasks
-  if (lowerTask.includes('auth') || lowerTask.includes('login') || lowerTask.includes('register') || lowerTask.includes('password')) {
-    tasks.push({
-      id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
-      session_id: sessionId,
-      designated_agent: determineAgent(context, 'backend'),
-      state: 'pending',
-      dependencies: ['TASK-001'],
-      description: 'Design authentication database schema and models',
-      files_to_modify: ['src/models/User.js', 'migrations/', 'src/models/Session.js'],
-    });
-    taskCounter++;
-
-    tasks.push({
-      id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
-      session_id: sessionId,
-      designated_agent: determineAgent(context, 'backend'),
-      state: 'pending',
-      dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
-      description: 'Implement registration and login API endpoints',
-      files_to_modify: ['src/routes/auth.js', 'src/controllers/auth.js', 'src/middleware/auth.js'],
-    });
-    taskCounter++;
-
-    if (lowerTask.includes('password') && lowerTask.includes('reset')) {
-      tasks.push({
-        id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
-        session_id: sessionId,
-        designated_agent: determineAgent(context, 'backend'),
-        state: 'pending',
-        dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
-        description: 'Implement password reset functionality with email verification',
-        files_to_modify: ['src/routes/auth.js', 'src/services/email.js', 'src/controllers/auth.js'],
-      });
-      taskCounter++;
-    }
-
-    tasks.push({
-      id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
-      session_id: sessionId,
-      designated_agent: determineAgent(context, 'backend'),
-      state: 'pending',
-      dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
-      description: 'Add input validation and security middleware',
-      files_to_modify: ['src/validation/auth.js', 'src/middleware/security.js'],
-    });
-    taskCounter++;
-
-    if (lowerTask.includes('frontend') || lowerTask.includes('react') || context.toLowerCase().includes('react')) {
-      tasks.push({
-        id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
-        session_id: sessionId,
-        designated_agent: determineAgent(context, 'frontend'),
-        state: 'pending',
-        dependencies: ['TASK-001'],
-        description: 'Create authentication UI components (login, register, password reset forms)',
-        files_to_modify: ['src/components/auth/', 'src/pages/Login.jsx', 'src/pages/Register.jsx'],
-        });
-      taskCounter++;
-
-      tasks.push({
-        id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
-        session_id: sessionId,
-        designated_agent: determineAgent(context, 'frontend'),
-        state: 'pending',
-        dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
-        description: 'Implement authentication state management and API integration',
-        files_to_modify: ['src/context/AuthContext.jsx', 'src/hooks/useAuth.js', 'src/services/authService.js'],
-      });
-      taskCounter++;
-    }
-  }
-  // Backend/API development tasks  
-  else if (lowerTask.includes('api') || lowerTask.includes('endpoint') || lowerTask.includes('backend')) {
-    tasks.push({
-      id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
-      session_id: sessionId,
-      designated_agent: determineAgent(context, 'backend'),
-      state: 'pending',
-      dependencies: ['TASK-001'],
-      description: 'Design and implement API endpoints',
-      files_to_modify: inferFilesToModify(taskDescription, 'backend'),
-    });
-    taskCounter++;
-
-    tasks.push({
-      id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
-      session_id: sessionId,
-      designated_agent: determineAgent(context, 'backend'),
-      state: 'pending',
-      dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
-      description: 'Add input validation and error handling',
-      files_to_modify: inferFilesToModify(taskDescription, 'validation'),
-    });
-    taskCounter++;
-  }
-
-  // Frontend/UI development tasks
-  if (lowerTask.includes('component') || lowerTask.includes('ui') || lowerTask.includes('frontend')) {
-    tasks.push({
-      id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
-      session_id: sessionId,
-      designated_agent: determineAgent(context, 'frontend'),
-      state: 'pending',
-      dependencies: ['TASK-001'],
-      description: 'Create frontend components and user interface',
-      files_to_modify: inferFilesToModify(taskDescription, 'frontend'),
-    });
-    taskCounter++;
-
-    tasks.push({
-      id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
-      session_id: sessionId,
-      designated_agent: determineAgent(context, 'frontend'),
-      state: 'pending',
-      dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
-      description: 'Implement state management and data flow',
-      files_to_modify: inferFilesToModify(taskDescription, 'state'),
-      });
-    taskCounter++;
-  }
-
-  // Database tasks
-  if (lowerTask.includes('database') || lowerTask.includes('migration') || lowerTask.includes('model')) {
-    tasks.push({
-      id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
-      session_id: sessionId,
-      designated_agent: determineAgent(context, 'backend'),
-      state: 'pending',
-      dependencies: ['TASK-001'],
-      description: 'Design database schema and create migration scripts',
-      files_to_modify: inferFilesToModify(taskDescription, 'database'),
-    });
-    taskCounter++;
-  }
-
-  // Testing tasks (always added)
-  tasks.push({
-    id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
-    session_id: sessionId,
-    designated_agent: determineAgent(context, 'testing'),
-    state: 'pending',
-    dependencies: tasks.slice(1, -1).map(t => t.id), // Depends on all implementation tasks
-    description: 'Write comprehensive tests for the implemented functionality',
-    files_to_modify: inferFilesToModify(taskDescription, 'tests'),
-  });
-  taskCounter++;
-
-  // Documentation task
-  tasks.push({
-    id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
-    session_id: sessionId,
-    designated_agent: determineAgent(context, 'general'),
-    state: 'pending',
-    dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
-    description: 'Update documentation and add usage examples',
-    files_to_modify: ['README.md', 'docs/'],
-  });
-
-  return tasks;
-}
-
-function determineAgent(context: string, taskType: string): string {
-  // Use the actual available agents from the system
-  switch (taskType) {
-    case 'backend':
-      return 'backend-agent';
-    case 'frontend':
-      return 'frontend-agent';
-    case 'testing':
-      return 'testing-agent';
-    case 'analysis':
-      return 'general-purpose';
-    case 'build':
-      return 'builder';
-    case 'lint':
-      return 'linter';
-    case 'orchestration':
-      return 'orchestrator';
-    case 'planning':
-      return 'planner';
-    case 'general':
-    default:
-      return 'general-purpose';
-  }
-}
-
-function inferFilesToModify(taskDescription: string, category: string): string[] {
-  const lowerTask = taskDescription.toLowerCase();
-  
-  switch (category) {
-    case 'backend':
-      if (lowerTask.includes('user') || lowerTask.includes('auth')) {
-        return ['src/routes/auth.js', 'src/models/User.js', 'src/middleware/auth.js'];
-      } else if (lowerTask.includes('api')) {
-        return ['src/routes/', 'src/controllers/', 'src/models/'];
-      }
-      return ['src/'];
-    
-    case 'frontend':
-      if (lowerTask.includes('component')) {
-        return ['src/components/', 'src/pages/'];
-      } else if (lowerTask.includes('dashboard')) {
-        return ['src/pages/Dashboard.jsx', 'src/components/'];
-      }
-      return ['src/components/', 'src/pages/'];
-    
-    case 'database':
-      return ['migrations/', 'src/models/', 'database/'];
-    
-    case 'tests':
-      return ['tests/', 'src/__tests__/', '*.test.js'];
-    
-    case 'validation':
-      return ['src/validation/', 'src/middleware/'];
-    
-    case 'state':
-      return ['src/store/', 'src/context/', 'src/hooks/'];
-    
-    default:
-      return [];
-  }
-}
+// All hardcoded logic removed - AI now provides the plan structure directly
 
 
 export async function handlePlanCreatorTool(name: string, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     switch (name) {
       case 'mcp__levys-awesome-mcp__mcp__plan-creator__create_plan': {
-        const { task_description, context = '', session_id = '' } = args;
+        const { task_description, synopsis, tasks, session_id = '' } = args;
         
+        // Validate required parameters
         if (!task_description || task_description.trim().length === 0) {
           return {
             content: [{
@@ -368,8 +137,61 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
           };
         }
 
-        // Generate the plan
-        const plan = await analyzeTaskAndCreatePlan(task_description, context, session_id);
+        if (!synopsis || synopsis.trim().length === 0) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Error: synopsis is required and cannot be empty'
+            }],
+            isError: true
+          };
+        }
+
+        if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Error: tasks array is required and cannot be empty'
+            }],
+            isError: true
+          };
+        }
+
+        // Validate each task has required fields
+        for (const task of tasks) {
+          if (!task.id || !task.designated_agent || !task.description) {
+            return {
+              content: [{
+                type: 'text',
+                text: 'Error: Each task must have id, designated_agent, and description'
+              }],
+              isError: true
+            };
+          }
+          
+          if (!Array.isArray(task.files_to_modify)) {
+            return {
+              content: [{
+                type: 'text',
+                text: 'Error: Each task must have files_to_modify as an array'
+              }],
+              isError: true
+            };
+          }
+          
+          if (!Array.isArray(task.dependencies)) {
+            return {
+              content: [{
+                type: 'text',
+                text: 'Error: Each task must have dependencies as an array'
+              }],
+              isError: true
+            };
+          }
+        }
+
+        // Create the plan from AI-provided data
+        const plan = await createPlanFromAIData(task_description, synopsis, tasks, session_id);
         
         // Create the plan_and_progress directory structure
         const gitHash = plan.git_commit_hash || 'no-commit';
