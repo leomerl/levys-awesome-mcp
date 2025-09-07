@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { executeCommand, executeParallel } from '../../utilities/process/command-executor.js';
+import { CommandExecutor } from '../../src/utilities/process/command-executor.ts';
+
+const executeCommand = (cmd: string, options?: any) => CommandExecutor.runCommand(cmd, [], options);
+const executeParallel = (cmds: string[], options?: any) =>
+  CommandExecutor.runCommandsParallel(
+    cmds.map(command => ({ command, args: [], options }))
+  );
 
 describe('Command Executor Unit Tests', () => {
   describe('executeCommand', () => {
@@ -23,9 +29,9 @@ describe('Command Executor Unit Tests', () => {
       const start = Date.now();
       const result = await executeCommand('sleep 5', { timeout: 1000 });
       const duration = Date.now() - start;
-      
+
       expect(result.success).toBe(false);
-      expect(result.error).toContain('timeout');
+      expect(result.stderr).toContain('timed out');
       expect(duration).toBeLessThan(2000);
     });
 
@@ -86,7 +92,7 @@ describe('Command Executor Unit Tests', () => {
       
       expect(results[0].success).toBe(true);
       expect(results[1].success).toBe(false);
-      expect(results[1].error).toContain('timeout');
+      expect(results[1].stderr).toContain('timed out');
     });
   });
 });
