@@ -134,9 +134,46 @@ OUTPUT_DIR: output_streams/${sessionId}/
           }
 
           // Execute agent with Claude Code query - Enforce strict tool permissions
-          const permissions = PermissionManager.getAgentPermissions({
-            allowedTools: agentConfig.options?.allowedTools || []
-          });
+          // Support both legacy TypeScript configs and new awesome-claude-code patterns
+          let permissions;
+          
+          if (agentConfig.options?.allowedTools) {
+            // Legacy TypeScript agent config
+            permissions = PermissionManager.getAgentPermissions({
+              allowedTools: agentConfig.options.allowedTools,
+              agentRole: 'write-restricted' // Default role for legacy configs
+            });
+          } else {
+            // For agents without explicit tools, try to load from .claude/agents/*.md files
+            try {
+              const fs = await import('fs/promises');
+              const path = await import('path');
+              const agentMarkdownPath = path.resolve('.claude', 'agents', `${agentName}.md`);
+              
+              try {
+                const markdownContent = await fs.readFile(agentMarkdownPath, 'utf-8');
+                const permissionConfig = PermissionManager.fromMarkdownFile(
+                  markdownContent,
+                  [] // No fallback MCP tools for markdown-based agents
+                );
+                permissions = PermissionManager.getAgentPermissions(permissionConfig);
+                console.log(`[DEBUG] Loaded permissions from markdown file: ${agentMarkdownPath}`);
+              } catch (fileError) {
+                console.log(`[DEBUG] No markdown agent file found at ${agentMarkdownPath}, using default permissions`);
+                // Fall back to default read-only permissions for security
+                permissions = PermissionManager.getAgentPermissions({
+                  allowedTools: [],
+                  agentRole: 'read-only'
+                });
+              }
+            } catch (importError) {
+              console.warn(`[WARN] Could not load fs/path modules, using default permissions:`, importError);
+              permissions = PermissionManager.getAgentPermissions({
+                allowedTools: [],
+                agentRole: 'read-only'
+              });
+            }
+          }
 
           for await (const message of query({
             prompt: enhancedPrompt,

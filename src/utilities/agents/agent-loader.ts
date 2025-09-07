@@ -8,6 +8,7 @@ import * as path from 'path';
 import { PathConfig } from '../config/paths.js';
 import { ValidationUtils } from '../config/validation.js';
 import { AgentConfig } from '../../types/agent-config.js';
+import { PermissionManager } from './permission-manager.js';
 
 export class AgentLoader {
   /**

@@ -1,24 +1,101 @@
 /**
  * Agent Permission Manager
  * Centralizes tool permission management for consistent security across agents
+ * Implements awesome-claude-code patterns for tool restriction
  */
 
 export interface AgentPermissionConfig {
   allowedTools: string[];
   deniedTools?: string[];
   restrictBuiltInTools?: boolean;
+  agentRole?: 'read-only' | 'write-restricted' | 'full-access' | 'security-sensitive';
+}
+
+export interface YAMLAgentConfig {
+  name: string;
+  description: string;
+  tools?: string[]; // If omitted, inherits all tools (awesome-claude-code pattern)
+  role?: string;
 }
 
 export class PermissionManager {
   /**
+   * Security profiles based on awesome-claude-code patterns
+   */
+  private static readonly SECURITY_PROFILES = {
+    'read-only': {
+      description: 'Code reviewers, analyzers - read-only tools for safety',
+      allowedBuiltInTools: ['Read', 'Grep', 'Glob', 'WebFetch'],
+      deniedBuiltInTools: ['Bash', 'Write', 'Edit', 'MultiEdit', 'Task', 'TodoWrite']
+    },
+    'write-restricted': {
+      description: 'Frontend/backend agents - restricted write access to specific folders',
+      allowedBuiltInTools: ['Read', 'Grep', 'Glob', 'WebFetch'],
+      deniedBuiltInTools: ['Bash', 'Write', 'Edit', 'MultiEdit', 'Task', 'TodoWrite']
+    },
+    'security-sensitive': {
+      description: 'Minimal tools for security-critical operations',
+      allowedBuiltInTools: ['Read', 'Grep'], 
+      deniedBuiltInTools: ['Bash', 'Write', 'Edit', 'MultiEdit', 'Task', 'TodoWrite', 'WebFetch', 'WebSearch']
+    },
+    'full-access': {
+      description: 'Orchestrators and planners - access to most tools but not Write/Edit',
+      allowedBuiltInTools: ['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch', 'Bash'],
+      deniedBuiltInTools: ['Write', 'Edit', 'MultiEdit'] // Still block direct file operations
+    }
+  } as const;
+
+  /**
+   * Converts YAML-style agent config to permission config (awesome-claude-code pattern)
+   */
+  static fromYAMLConfig(yamlConfig: YAMLAgentConfig): AgentPermissionConfig {
+    // If tools field is omitted, inherit all tools (awesome-claude-code pattern)
+    if (!yamlConfig.tools) {
+      console.log(`[DEBUG] Agent '${yamlConfig.name}' omitted tools field - inheriting all tools`);
+      return {
+        allowedTools: [], // Will be populated by role-based logic
+        agentRole: 'full-access'
+      };
+    }
+
+    // If tools are explicitly specified, use them
+    console.log(`[DEBUG] Agent '${yamlConfig.name}' explicitly specified tools:`, yamlConfig.tools);
+    return {
+      allowedTools: yamlConfig.tools,
+      agentRole: yamlConfig.role as any || 'write-restricted'
+    };
+  }
+
+  /**
+   * Gets tools for a security role profile
+   */
+  static getToolsForRole(role: AgentPermissionConfig['agentRole'], customTools: string[] = []): string[] {
+    if (!role || role === 'full-access') {
+      // For full access, combine custom tools with allowed built-ins
+      const profile = this.SECURITY_PROFILES['full-access'];
+      return [...customTools, ...profile.allowedBuiltInTools];
+    }
+
+    const profile = this.SECURITY_PROFILES[role];
+    if (!profile) {
+      console.warn(`[WARN] Unknown security role: ${role}, defaulting to read-only`);
+      return [...customTools, ...this.SECURITY_PROFILES['read-only'].allowedBuiltInTools];
+    }
+
+    return [...customTools, ...profile.allowedBuiltInTools];
+  }
+
+  /**
    * Gets standardized tool permissions for agent execution
-   * Blocks TodoWrite and Task tools by default for security
+   * Enforces WHITELIST-BASED security: only explicitly allowed tools are permitted
+   * Implements awesome-claude-code patterns with role-based restrictions
    */
   static getAgentPermissions(config: AgentPermissionConfig): {
     allowedTools: string[];
     disallowedTools: string[];
   } {
-    const standardDeniedTools = [
+    // Standard tools that are always denied regardless of config
+    const alwaysDeniedTools = [
       'TodoWrite',  // Block built-in TodoWrite tool - agents shouldn't create todos
       'Task',       // Block Task tool that could invoke other agents - prevents infinite loops
       'Write',      // Block regular Write tool - agents should use restricted write tools
@@ -26,13 +103,59 @@ export class PermissionManager {
       'MultiEdit'   // Block MultiEdit tool - agents should use restricted edit tools
     ];
 
-    console.log(`[DEBUG] getAgentPermissions input:`, config.allowedTools);
+    // All available Claude Code built-in tools that need to be controlled
+    const allBuiltInTools = [
+      'Bash',          // Shell command execution - high risk
+      'Read',          // File reading - controlled access
+      'Write',         // File writing - blocked by default
+      'Edit',          // File editing - blocked by default
+      'MultiEdit',     // Multi-file editing - blocked by default
+      'Glob',          // File pattern matching - controlled access
+      'Grep',          // Content search - controlled access
+      'TodoWrite',     // Todo management - blocked by default
+      'Task',          // Agent invocation - blocked by default
+      'WebFetch',      // Web content fetching - controlled access
+      'WebSearch',     // Web search - controlled access
+      'NotebookEdit',  // Jupyter notebook editing - controlled access
+      'ExitPlanMode',  // Plan mode control - controlled access
+      'BashOutput',    // Background bash output - controlled access
+      'KillBash'       // Background bash termination - controlled access
+    ];
+
+    // Determine final allowed tools based on role and explicit configuration
+    let finalAllowedTools: string[];
+    
+    if (config.agentRole) {
+      // Use role-based permissions with custom tools
+      const customMCPTools = config.allowedTools.filter(tool => tool.startsWith('mcp__'));
+      const roleBasedBuiltIns = this.getToolsForRole(config.agentRole, []);
+      finalAllowedTools = [...customMCPTools, ...roleBasedBuiltIns];
+      
+      console.log(`[DEBUG] Role-based permissions for '${config.agentRole}':`, roleBasedBuiltIns);
+      console.log(`[DEBUG] Custom MCP tools:`, customMCPTools);
+    } else {
+      // Use explicitly allowed tools (legacy behavior)
+      finalAllowedTools = config.allowedTools || [];
+    }
+    
+    // Calculate tools to deny: all built-ins not in final allowed + always denied + config denied
+    const toolsToDeny = [
+      ...allBuiltInTools.filter(tool => !finalAllowedTools.includes(tool)),
+      ...alwaysDeniedTools,
+      ...(config.deniedTools || [])
+    ];
+
+    // Remove duplicates from denied tools list
+    const uniqueDisallowedTools = [...new Set(toolsToDeny)];
+
+    console.log(`[DEBUG] getAgentPermissions input - allowedTools:`, config.allowedTools);
+    console.log(`[DEBUG] getAgentPermissions input - agentRole:`, config.agentRole);
+    console.log(`[DEBUG] Final allowed tools:`, finalAllowedTools);
+    console.log(`[DEBUG] Built-in tools being denied:`, allBuiltInTools.filter(tool => !finalAllowedTools.includes(tool)));
+    
     const result = {
-      allowedTools: config.allowedTools || [],
-      disallowedTools: [
-        ...standardDeniedTools,
-        ...(config.deniedTools || [])
-      ]
+      allowedTools: finalAllowedTools,
+      disallowedTools: uniqueDisallowedTools
     };
     console.log(`[DEBUG] getAgentPermissions output:`, result);
 
@@ -70,5 +193,101 @@ export class PermissionManager {
       allowedTools: this.ensureSummaryPermission(basePermissions.allowedTools),
       disallowedTools: basePermissions.disallowedTools
     };
+  }
+
+  /**
+   * Parses YAML frontmatter from markdown agent files (awesome-claude-code pattern)
+   */
+  static parseYAMLFrontmatter(markdownContent: string): YAMLAgentConfig | null {
+    const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n/;
+    const match = markdownContent.match(frontmatterRegex);
+    
+    if (!match) {
+      console.log(`[DEBUG] No YAML frontmatter found in agent file`);
+      return null;
+    }
+
+    try {
+      // Simple YAML parser for basic key-value pairs
+      const yamlContent = match[1];
+      const config: Partial<YAMLAgentConfig> = {};
+      
+      const lines = yamlContent.split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        
+        if (trimmed.includes(':')) {
+          const [key, ...valueParts] = trimmed.split(':');
+          const value = valueParts.join(':').trim();
+          
+          if (key.trim() === 'name') {
+            config.name = value.replace(/['"]/g, '');
+          } else if (key.trim() === 'description') {
+            config.description = value.replace(/['"]/g, '');
+          } else if (key.trim() === 'tools') {
+            // Parse tools array: "Read, Write, Edit" or ["Read", "Write", "Edit"]
+            if (value.startsWith('[') && value.endsWith(']')) {
+              // Array format
+              config.tools = value
+                .slice(1, -1)
+                .split(',')
+                .map(t => t.trim().replace(/['"]/g, ''))
+                .filter(t => t);
+            } else if (value && value !== '[]') {
+              // Comma-separated format
+              config.tools = value.split(',').map(t => t.trim().replace(/['"]/g, '')).filter(t => t);
+            }
+            // If tools is empty or [], it will remain undefined (awesome-claude-code pattern)
+          } else if (key.trim() === 'role') {
+            config.role = value.replace(/['"]/g, '');
+          }
+        }
+      }
+
+      if (!config.name) {
+        console.warn(`[WARN] Agent config missing required 'name' field`);
+        return null;
+      }
+
+      console.log(`[DEBUG] Parsed YAML config:`, config);
+      return config as YAMLAgentConfig;
+    } catch (error) {
+      console.error(`[ERROR] Failed to parse YAML frontmatter:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Creates agent permission config from markdown file content (awesome-claude-code pattern)
+   */
+  static fromMarkdownFile(markdownContent: string, fallbackMCPTools: string[] = []): AgentPermissionConfig {
+    const yamlConfig = this.parseYAMLFrontmatter(markdownContent);
+    
+    if (!yamlConfig) {
+      // No YAML frontmatter - default to write-restricted with provided MCP tools
+      console.log(`[DEBUG] No YAML frontmatter found, using write-restricted profile with MCP tools:`, fallbackMCPTools);
+      return {
+        allowedTools: fallbackMCPTools,
+        agentRole: 'write-restricted'
+      };
+    }
+
+    // Convert YAML config to permission config
+    const permissionConfig = this.fromYAMLConfig(yamlConfig);
+    
+    // Add fallback MCP tools if not explicitly provided
+    if (fallbackMCPTools.length > 0) {
+      permissionConfig.allowedTools = [...(permissionConfig.allowedTools || []), ...fallbackMCPTools];
+    }
+
+    return permissionConfig;
+  }
+
+  /**
+   * Get security profile examples for documentation
+   */
+  static getSecurityProfiles() {
+    return this.SECURITY_PROFILES;
   }
 }
