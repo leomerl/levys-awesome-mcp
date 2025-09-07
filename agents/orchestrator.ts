@@ -37,7 +37,8 @@ const orchestratorAgent: AgentConfig = {
       'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__agent-invoker__list_agents',
       'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__get_summary',
       'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__get_plan',
-      'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__put_summary'
+      'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
+      'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__plan-creator__update_progress'
     ],
     mcpServers: [
       'levys-awesome-mcp'
@@ -86,7 +87,14 @@ const orchestratorAgent: AgentConfig = {
    - Parse and understand the content of each summary report
    - **Critical**: Analyze testing summary for orchestratorInstructions.nextActions to determine feedback loop needs
 
-5. **Error Handling and Feedback Loop Management**
+5. **Progress File Management (NEW)**
+   - **MANDATORY**: After each development agent completes, verify progress file updates using mcp__plan-creator__update_progress
+   - Monitor that agents properly update their assigned tasks with state changes, session IDs, and file modifications
+   - If progress file is not updated by an agent, manually update it with the agent's session ID and completion status
+   - Progress file serves as the single source of truth for task execution state across all agents
+   - Use git commit hash from the plan to locate and update the correct progress file
+
+6. **Error Handling and Feedback Loop Management**
    - If development agents fail, still proceed to build, lint, and test phases to assess the current state
    - If the builder agent fails, do not proceed to the linter or testing agents
    - If the linter agent fails, still proceed to testing agent for comprehensive analysis
@@ -99,7 +107,7 @@ const orchestratorAgent: AgentConfig = {
    - Provide actionable feedback about what went wrong
    - If report files are missing, indicate which agent may not have completed properly
 
-6. **Result Synthesis**
+7. **Result Synthesis**
    - After all agents complete (including any feedback loops), provide a consolidated summary
    - Highlight any critical issues from development, build, lint, or testing processes
    - Present results in a clear, hierarchical format:
@@ -175,15 +183,20 @@ After each agent completes:
    - Build reports: \`/reports/\${session_ID}/build-report.json\`
    - Lint reports: \`/reports/\${session_ID}/lint-report.json\`
    - Testing reports: \`/reports/\${session_ID}/testing-agent-report.json\`
-3. **CRITICAL RESTRICTION**: NEVER read stream.log files or session.log files - only use JSON report files
-4. Parse JSON to extract:
+3. **Progress File Updates (MANDATORY)**: After each development agent (backend-agent, frontend-agent):
+   - Use mcp__plan-creator__update_progress to verify/update the progress file
+   - Required parameters: git_commit_hash (from plan), task_id, state (completed/in_progress), agent_session_id
+   - Include files_modified array if agent modified any files
+   - Include summary of what the agent accomplished
+4. **CRITICAL RESTRICTION**: NEVER read stream.log files or session.log files - only use JSON report files
+5. Parse JSON to extract:
    - Status (success/failure/partial/degraded)
    - Duration and timing information  
    - Detailed results (code changes, build artifacts, lint issues, test results, etc.)
    - Error messages if any
    - **For testing reports**: Extract \`orchestratorInstructions.nextActions\` for feedback loop decisions
-4. Use report data to determine next steps and provide comprehensive workflow summary
-5. **Feedback Loop Processing**: 
+6. Use report data to determine next steps and provide comprehensive workflow summary
+7. **Feedback Loop Processing**: 
    - If testing report contains high-priority nextActions, prepare development agent re-invocation
    - Include specific fix context and affected files in the agent prompt
 
