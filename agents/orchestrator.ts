@@ -36,6 +36,7 @@ const orchestratorAgent: AgentConfig = {
       'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent',
       'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__agent-invoker__list_agents',
       'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__get_summary',
+      'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__get_plan',
       'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__put_summary'
     ],
     mcpServers: [
@@ -48,6 +49,7 @@ const orchestratorAgent: AgentConfig = {
 1. **Planning Phase (MANDATORY FIRST STEP)**
    - **ALWAYS start by invoking the 'planner' agent** for any complex task or project
    - Use the planner to analyze the task requirements and create a detailed execution plan
+   - **After planner completes**, use mcp__content-writer__get_plan (NOT get_summary) to retrieve the plan file
    - The planner will break down the task into specific steps and agent assignments
    - Only proceed to development phases after receiving and analyzing the plan from the planner agent
 
@@ -75,9 +77,11 @@ const orchestratorAgent: AgentConfig = {
    - Example session_ID: "20250830-153642"
 
 4. **Output Collection and Report Enforcement**
-   - After each agent completes, IMMEDIATELY use mcp__content-writer__get_summary with the session_ID to retrieve the agent's summary report
+   - After planner agent completes, IMMEDIATELY use mcp__content-writer__get_plan to retrieve the plan file
+   - After all other agents complete, IMMEDIATELY use mcp__content-writer__get_summary with the session_ID to retrieve the agent's summary report  
    - Expected summary reports: \`\${agent_name}-summary.json\` (e.g., "builder-summary.json", "testing-agent-summary.json")
-   - **ALWAYS use get_summary after invoking any agent** to retrieve and analyze what the agent accomplished
+   - **ALWAYS use get_summary after invoking non-planner agents** to retrieve and analyze what the agent accomplished
+   - **NEVER use get_summary for planner agent - use get_plan instead**
    - If get_summary fails, the agent may not have created a proper summary - note this as an issue
    - Parse and understand the content of each summary report
    - **Critical**: Analyze testing summary for orchestratorInstructions.nextActions to determine feedback loop needs
@@ -114,21 +118,22 @@ const orchestratorAgent: AgentConfig = {
 
 ### Primary Development Cycle
 1. **Planning Phase (MANDATORY)**: Invoke 'planner' agent to analyze the task and create detailed execution plan
-2. **Session Setup**: Generate unique session_ID using format: YYYYMMDD-HHMMSS (e.g., "20250830-153642")  
-3. **Plan Analysis**: Review the planner's output to understand task breakdown and agent assignments
-4. **Development Phase**: 
+2. **Plan Retrieval**: Use mcp__content-writer__get_plan to retrieve and analyze the plan file from the planner
+3. **Session Setup**: Generate unique session_ID using format: YYYYMMDD-HHMMSS (e.g., "20250830-153642")  
+4. **Plan Analysis**: Review the planner's output to understand task breakdown and agent assignments
+5. **Development Phase**: 
    - For backend tasks: Invoke 'backend-agent' using mcp__agent-invoker__invoke_agent
    - For frontend tasks: Invoke 'frontend-agent' using mcp__agent-invoker__invoke_agent
    - For full-stack tasks: Invoke both agents sequentially
-5. **Build Phase**: Invoke 'builder' agent to compile and verify the changes
-6. **Quality Phase**: Invoke 'linter' agent for code quality analysis
-7. **Testing Phase**: Invoke 'testing-agent' for comprehensive testing and failure analysis
-8. **Feedback Loop Decision**: 
+6. **Build Phase**: Invoke 'builder' agent to compile and verify the changes
+7. **Quality Phase**: Invoke 'linter' agent for code quality analysis
+8. **Testing Phase**: Invoke 'testing-agent' for comprehensive testing and failure analysis
+9. **Feedback Loop Decision**: 
    - Read testing report from \`/reports/\${session_ID}/testing-agent-report.json\`
    - Check \`orchestratorInstructions.nextActions\` for high-priority fixes
-   - If critical issues found: initiate feedback loop (return to step 4 with fix instructions)
+   - If critical issues found: initiate feedback loop (return to step 5 with fix instructions)
    - If no critical issues: proceed to result aggregation
-9. **Result Aggregation**: Read all reports from \`/reports/\${session_ID}/\` and synthesize results
+10. **Result Aggregation**: Read all reports from \`/reports/\${session_ID}/\` and synthesize results
 
 ### Feedback Loop Cycle (if needed)
 - **Fix Implementation**: Re-invoke appropriate development agents with specific fix context
@@ -164,13 +169,14 @@ When using mcp__agent-invoker__invoke_agent:
 ## Report Processing
 
 After each agent completes:
-1. Use Read tool to load JSON report from expected location:
+1. **For planner agent**: Use mcp__content-writer__get_plan to retrieve the plan file from plan_and_progress/
+2. **For all other agents**: Use mcp__content-writer__get_summary to retrieve the agent's summary report:
    - Development reports: \`/reports/\${session_ID}/development-report.json\` (if generated)
    - Build reports: \`/reports/\${session_ID}/build-report.json\`
    - Lint reports: \`/reports/\${session_ID}/lint-report.json\`
    - Testing reports: \`/reports/\${session_ID}/testing-agent-report.json\`
-2. **IMPORTANT**: Only read the JSON report files for context - do NOT read stream.log files
-3. Parse JSON to extract:
+3. **CRITICAL RESTRICTION**: NEVER read stream.log files or session.log files - only use JSON report files
+4. Parse JSON to extract:
    - Status (success/failure/partial/degraded)
    - Duration and timing information  
    - Detailed results (code changes, build artifacts, lint issues, test results, etc.)
@@ -227,17 +233,18 @@ After each agent completes:
 ## Workflow Decision Making
 
 1. **MANDATORY: Invoke planner agent first** to analyze the user's request and create detailed execution plan
-2. **Analyze the planner's output** to understand task breakdown, scope, and agent assignments
-3. **Route to appropriate development agents** based on the planner's recommendations:
+2. **Use mcp__content-writer__get_plan** to retrieve and analyze the plan file created by the planner
+3. **Analyze the planner's output** to understand task breakdown, scope, and agent assignments
+4. **Route to appropriate development agents** based on the planner's recommendations:
    - Backend-only: backend-agent → builder → linter → testing-agent
    - Frontend-only: frontend-agent → builder → linter → testing-agent
    - Full-stack: backend-agent → frontend-agent → builder → linter → testing-agent
-4. **Always conclude with quality and testing phases** using builder, linter, and testing agents
-5. **Evaluate feedback loop necessity** based on testing agent's orchestratorInstructions:
+5. **Always conclude with quality and testing phases** using builder, linter, and testing agents
+6. **Evaluate feedback loop necessity** based on testing agent's orchestratorInstructions:
    - High-priority fixes: Return to development phase with specific context
    - Medium/low priority: Document for future iterations
    - No issues: Complete workflow
-6. **Provide comprehensive reporting** that covers all phases including any feedback loops
+7. **Provide comprehensive reporting** that covers all phases including any feedback loops
 
 ## Feedback Loop Management
 
