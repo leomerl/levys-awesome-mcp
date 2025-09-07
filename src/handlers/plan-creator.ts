@@ -5,6 +5,7 @@ import { executeCommand } from '../shared/utils.js';
 
 interface Task {
   id: string;
+  session_id: string;
   designated_agent: string;
   state: 'pending' | 'completed' | 'in_progress';
   dependencies: string[];
@@ -57,12 +58,25 @@ async function getGitCommitHash(): Promise<string | null> {
   return `no-commit-${timestamp}`;
 }
 
-async function analyzeTaskAndCreatePlan(taskDescription: string, context: string = ''): Promise<PlanDocument> {
+function generateSessionId(): string {
+  // Use crypto.randomUUID if available, fallback to timestamp-based
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  
+  // Fallback method
+  return `session-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+}
+
+async function analyzeTaskAndCreatePlan(taskDescription: string, context: string = '', sessionId: string = ''): Promise<PlanDocument> {
   // This is a simplified planning algorithm. In a real implementation,
   // you might want to integrate with an AI model (like Opus) for more sophisticated analysis
   
   const gitHash = await getGitCommitHash();
   const createdAt = new Date().toISOString();
+  
+  // Generate session_id if not provided
+  const finalSessionId = sessionId || generateSessionId();
   
   // Analyze the task and break it down into components
   const plan: PlanDocument = {
@@ -70,7 +84,7 @@ async function analyzeTaskAndCreatePlan(taskDescription: string, context: string
     synopsis: generateSynopsis(taskDescription),
     created_at: createdAt,
     git_commit_hash: gitHash,
-    tasks: generateTaskBreakdown(taskDescription, context)
+    tasks: generateTaskBreakdown(taskDescription, context, finalSessionId)
   };
 
 
@@ -96,13 +110,14 @@ function generateSynopsis(taskDescription: string): string {
   }
 }
 
-function generateTaskBreakdown(taskDescription: string, context: string): Task[] {
+function generateTaskBreakdown(taskDescription: string, context: string, sessionId: string): Task[] {
   const tasks: Task[] = [];
   const lowerTask = taskDescription.toLowerCase();
   
   // Analysis phase (always first)
   tasks.push({
     id: 'TASK-001',
+    session_id: sessionId,
     designated_agent: determineAgent(context, 'analysis'),
     state: 'pending',
     dependencies: [],
@@ -116,6 +131,7 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
   if (lowerTask.includes('auth') || lowerTask.includes('login') || lowerTask.includes('register') || lowerTask.includes('password')) {
     tasks.push({
       id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
+      session_id: sessionId,
       designated_agent: determineAgent(context, 'backend'),
       state: 'pending',
       dependencies: ['TASK-001'],
@@ -126,6 +142,7 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
 
     tasks.push({
       id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
+      session_id: sessionId,
       designated_agent: determineAgent(context, 'backend'),
       state: 'pending',
       dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
@@ -137,6 +154,7 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
     if (lowerTask.includes('password') && lowerTask.includes('reset')) {
       tasks.push({
         id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
+        session_id: sessionId,
         designated_agent: determineAgent(context, 'backend'),
         state: 'pending',
         dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
@@ -148,6 +166,7 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
 
     tasks.push({
       id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
+      session_id: sessionId,
       designated_agent: determineAgent(context, 'backend'),
       state: 'pending',
       dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
@@ -159,6 +178,7 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
     if (lowerTask.includes('frontend') || lowerTask.includes('react') || context.toLowerCase().includes('react')) {
       tasks.push({
         id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
+        session_id: sessionId,
         designated_agent: determineAgent(context, 'frontend'),
         state: 'pending',
         dependencies: ['TASK-001'],
@@ -169,6 +189,7 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
 
       tasks.push({
         id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
+        session_id: sessionId,
         designated_agent: determineAgent(context, 'frontend'),
         state: 'pending',
         dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
@@ -182,6 +203,7 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
   else if (lowerTask.includes('api') || lowerTask.includes('endpoint') || lowerTask.includes('backend')) {
     tasks.push({
       id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
+      session_id: sessionId,
       designated_agent: determineAgent(context, 'backend'),
       state: 'pending',
       dependencies: ['TASK-001'],
@@ -192,6 +214,7 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
 
     tasks.push({
       id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
+      session_id: sessionId,
       designated_agent: determineAgent(context, 'backend'),
       state: 'pending',
       dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
@@ -205,6 +228,7 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
   if (lowerTask.includes('component') || lowerTask.includes('ui') || lowerTask.includes('frontend')) {
     tasks.push({
       id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
+      session_id: sessionId,
       designated_agent: determineAgent(context, 'frontend'),
       state: 'pending',
       dependencies: ['TASK-001'],
@@ -215,6 +239,7 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
 
     tasks.push({
       id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
+      session_id: sessionId,
       designated_agent: determineAgent(context, 'frontend'),
       state: 'pending',
       dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
@@ -228,6 +253,7 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
   if (lowerTask.includes('database') || lowerTask.includes('migration') || lowerTask.includes('model')) {
     tasks.push({
       id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
+      session_id: sessionId,
       designated_agent: determineAgent(context, 'backend'),
       state: 'pending',
       dependencies: ['TASK-001'],
@@ -240,6 +266,7 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
   // Testing tasks (always added)
   tasks.push({
     id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
+    session_id: sessionId,
     designated_agent: determineAgent(context, 'testing'),
     state: 'pending',
     dependencies: tasks.slice(1, -1).map(t => t.id), // Depends on all implementation tasks
@@ -251,6 +278,7 @@ function generateTaskBreakdown(taskDescription: string, context: string): Task[]
   // Documentation task
   tasks.push({
     id: `TASK-${taskCounter.toString().padStart(3, '0')}`,
+    session_id: sessionId,
     designated_agent: determineAgent(context, 'general'),
     state: 'pending',
     dependencies: [`TASK-${(taskCounter-1).toString().padStart(3, '0')}`],
@@ -328,7 +356,7 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
   try {
     switch (name) {
       case 'mcp__levys-awesome-mcp__mcp__plan-creator__create_plan': {
-        const { task_description, context = '' } = args;
+        const { task_description, context = '', session_id = '' } = args;
         
         if (!task_description || task_description.trim().length === 0) {
           return {
@@ -341,7 +369,7 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
         }
 
         // Generate the plan
-        const plan = await analyzeTaskAndCreatePlan(task_description, context);
+        const plan = await analyzeTaskAndCreatePlan(task_description, context, session_id);
         
         // Create the reports directory structure
         const gitHash = plan.git_commit_hash || 'no-commit';
@@ -405,6 +433,7 @@ function generatePlanSummary(plan: PlanDocument): string {
     
     summary.push(`  ${status} ${task.id}: ${task.description}`);
     summary.push(`     👤 Agent: ${task.designated_agent}`);
+    summary.push(`     🔖 Session: ${task.session_id}`);
     
     if (task.files_to_modify.length > 0) {
       summary.push(`     📁 Files: ${task.files_to_modify.join(', ')}`);
