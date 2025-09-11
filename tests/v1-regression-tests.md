@@ -4,7 +4,7 @@ Critical tests to ensure core v1.0.0 functionality doesn't break in future relea
 
 ## Agent System Tests
 
-- **Agent Invocation**: All 6 agents (backend, frontend, builder, linter, orchestrator, planner) can be invoked successfully
+- **Agent Invocation**: All 6 agents (backend-agent, frontend-agent, builder-agent, linter-agent, orchestrator-agent, planner-agent) can be invoked successfully
 - **Session Logging**: Every agent invocation creates session.log files
 - **Report Creation**: All agents generate JSON summary reports automatically
 

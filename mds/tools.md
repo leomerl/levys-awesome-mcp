@@ -118,6 +118,7 @@ Levy's Awesome MCP Toolkit provides 8 core tools unified in a single MCP server 
 **Parameters**:
 - `git_commit_hash` (string): Commit hash to identify the plan
 - `task_id` (string): Task being worked on
+- `session_id` (string): Session ID that matches session.log
 - `state` (string): Task state (pending, in_progress, completed)
 - `agent_name` (string): Agent working on the task
 - `modified_files` (array, optional): List of files modified

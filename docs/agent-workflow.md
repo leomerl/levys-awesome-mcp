@@ -34,7 +34,8 @@
 ### 3. **orchestrator**
 - **Purpose**: Coordinates multiple agents, manages complex workflows
 - **Special Ability**: Can invoke other agents
-- **Key Tools**: `invoke_agent`, `list_agents`, `plan_creator`, `put_summary`
+- **Workflow**: ALWAYS starts by invoking planner agent first before any development work
+- **Key Tools**: `invoke_agent`, `list_agents`, `plan_creator`, `put_summary`, `get_summary`, `get_plan`
 
 ### 4. **builder**
 - **Purpose**: Build processes, compilation, type checking
@@ -50,6 +51,17 @@
 
 ## Workflow Process
 
+### Orchestrator Workflow (Complex Tasks)
+1. **Planning Phase**: Orchestrator MUST first invoke `planner` agent to analyze task and create execution plan
+2. **Plan Analysis**: Review planner's output to understand task breakdown and agent assignments
+3. **Agent Invocation**: Use `invoke_agent` tool to invoke development agents based on plan
+4. **Session Creation**: System creates unique session ID and session.log for each agent
+5. **Task Execution**: Agents perform work within permission boundaries following the plan
+6. **Report Generation**: Each agent creates summary report (enforced if forgotten)
+7. **Quality Assurance**: Builder, linter, and testing agents run sequentially
+8. **Session Completion**: Final status logged to session.log
+
+### Single Agent Workflow (Simple Tasks)
 1. **Agent Invocation**: Use `invoke_agent` tool with agent name and prompt
 2. **Session Creation**: System creates unique session ID and session.log
 3. **Task Execution**: Agent performs work within permission boundaries

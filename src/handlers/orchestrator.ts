@@ -1,97 +1,108 @@
 // Removed agent-invocation imports - using tools/agent_invoker.ts instead
 import { existsSync } from 'fs';
 import { join } from 'path';
+import { AgentLoader } from '../utilities/agents/agent-loader.js';
 
-export const orchestratorTools = [
-  {
-    name: 'mcp__levys-awesome-mcp__mcp__orchestrator__invoke_agent',
-    description: 'Invoke a specialized agent to handle specific tasks',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        agent_type: {
-          type: 'string',
-          enum: ['backend-agent', 'frontend-agent', 'testing-agent', 'builder', 'linter'],
-          description: 'Type of agent to invoke'
-        },
-        task_description: {
-          type: 'string',
-          description: 'Description of the task for the agent'
-        },
-        detailed_prompt: {
-          type: 'string',
-          description: 'Detailed prompt/instructions for the agent'
-        },
-        options: {
-          type: 'object',
-          properties: {
-            model: {
-              type: 'string',
-              default: 'sonnet',
-              description: 'Model to use for the agent'
-            },
-            skip_permissions: {
-              type: 'boolean',
-              default: false,
-              description: 'Skip permission prompts for the agent'
-            },
-            allowed_tools: {
-              type: 'array',
-              items: { type: 'string' },
-              description: 'Tools the agent is allowed to use'
-            },
-            denied_tools: {
-              type: 'array',
-              items: { type: 'string' },
-              description: 'Tools the agent is not allowed to use'
-            }
+/**
+ * Generate orchestrator tools dynamically based on available agents
+ */
+export async function getOrchestratorTools() {
+  const availableAgents = AgentLoader.listAvailableAgents();
+  
+  return [
+    {
+      name: 'mcp__levys-awesome-mcp__mcp__orchestrator__invoke_agent',
+      description: 'Invoke a specialized agent to handle specific tasks',
+      inputSchema: {
+        type: 'object' as const,
+        properties: {
+          agent_type: {
+            type: 'string',
+            enum: availableAgents,
+            description: 'Type of agent to invoke'
           },
-          additionalProperties: false
-        }
-      },
-      required: ['agent_type', 'task_description', 'detailed_prompt'],
-      additionalProperties: false
-    }
-  },
-  {
-    name: 'mcp__levys-awesome-mcp__mcp__orchestrator__coordinate_workflow',
-    description: 'Coordinate a multi-agent workflow for complex tasks',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        workflow_description: {
-          type: 'string',
-          description: 'Description of the overall workflow'
-        },
-        agents: {
-          type: 'array',
-          items: {
+          task_description: {
+            type: 'string',
+            description: 'Description of the task for the agent'
+          },
+          detailed_prompt: {
+            type: 'string',
+            description: 'Detailed prompt/instructions for the agent'
+          },
+          options: {
             type: 'object',
             properties: {
-              agent_type: {
+              model: {
                 type: 'string',
-                enum: ['backend-agent', 'frontend-agent', 'testing-agent', 'builder', 'linter']
+                default: 'sonnet',
+                description: 'Model to use for the agent'
               },
-              task: {
-                type: 'string',
-                description: 'Task for this agent'
+              skip_permissions: {
+                type: 'boolean',
+                default: false,
+                description: 'Skip permission prompts for the agent'
               },
-              depends_on: {
+              allowed_tools: {
                 type: 'array',
                 items: { type: 'string' },
-                description: 'Agent types this agent depends on'
+                description: 'Tools the agent is allowed to use'
+              },
+              denied_tools: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Tools the agent is not allowed to use'
               }
             },
-            required: ['agent_type', 'task']
+            additionalProperties: false
+          }
+        },
+        required: ['agent_type', 'task_description', 'detailed_prompt'],
+        additionalProperties: false
+      }
+    },
+    {
+      name: 'mcp__levys-awesome-mcp__mcp__orchestrator__coordinate_workflow',
+      description: 'Coordinate a multi-agent workflow for complex tasks',
+      inputSchema: {
+        type: 'object' as const,
+        properties: {
+          workflow_description: {
+            type: 'string',
+            description: 'Description of the overall workflow'
           },
-          description: 'List of agents and their tasks'
-        }
-      },
-      required: ['workflow_description', 'agents'],
-      additionalProperties: false
+          agents: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                agent_type: {
+                  type: 'string',
+                  enum: availableAgents
+                },
+                task: {
+                  type: 'string',
+                  description: 'Task for this agent'
+                },
+                depends_on: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Agent types this agent depends on'
+                }
+              },
+              required: ['agent_type', 'task']
+            },
+            description: 'List of agents and their tasks'
+          }
+        },
+        required: ['workflow_description', 'agents'],
+        additionalProperties: false
+      }
     }
-  }
-];
+  ];
+}
+
+// Legacy export for backwards compatibility (now returns empty array and logs warning)
+export const orchestratorTools = [];
 
 interface AgentCapabilities {
   [key: string]: {
@@ -102,6 +113,11 @@ interface AgentCapabilities {
 }
 
 const AGENT_CAPABILITIES: AgentCapabilities = {
+  'planner': {
+    role: 'strategic-planner',
+    defaultTools: ['Read', 'Glob', 'Grep', 'plan-creator'],
+    specialization: 'Strategic planning, task analysis, execution plan generation, codebase analysis'
+  },
   'backend-agent': {
     role: 'backend-developer',
     defaultTools: ['Read', 'Write', 'Edit', 'Bash', 'test-runner'],
@@ -126,6 +142,11 @@ const AGENT_CAPABILITIES: AgentCapabilities = {
     role: 'code-quality-engineer',
     defaultTools: ['code-analyzer', 'Read'],
     specialization: 'Code quality, linting, static analysis, code standards, best practices'
+  },
+  'orchestrator': {
+    role: 'workflow-coordinator',
+    defaultTools: ['agent-invoker', 'content-writer', 'Read'],
+    specialization: 'Workflow coordination, agent management, task routing, result aggregation'
   }
 };
 

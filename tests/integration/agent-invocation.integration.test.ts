@@ -65,13 +65,12 @@ describe('Agent Invocation Integration Tests', () => {
     expect(response.result).toBeDefined();
   });
 
-  it('should handle max turns limit', async () => {
+  it('should handle agent invocation without turn limits', async () => {
     const response = await client.call('tools/call', {
       name: 'mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent',
       arguments: {
         agentName: 'testing-agent',
-        prompt: 'Limited turns test',
-        maxTurns: 1
+        prompt: 'Test without turn limits'
       }
     });
 

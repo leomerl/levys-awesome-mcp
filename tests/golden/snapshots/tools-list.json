@@ -40,7 +40,6 @@
           "properties": [
             "agentName",
             "continueSessionId",
-            "maxTurns",
             "prompt",
             "saveStreamToFile",
             "streaming"

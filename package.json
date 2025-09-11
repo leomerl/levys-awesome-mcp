@@ -32,9 +32,10 @@
     "backend-agent": "npx tsx agents/backend-agent.ts --",
     "frontend-agent": "npx tsx agents/frontend-agent.ts --",
     "testing-agent": "npx tsx agents/testing-agent.ts --",
-    "orchestrator": "npx tsx agents/orchestrator.ts --",
-    "linter": "npx tsx agents/linter.ts --",
-    "builder": "npx tsx agents/builder.ts --"
+    "orchestrator-agent": "npx tsx agents/orchestrator-agent.ts --",
+    "linter-agent": "npx tsx agents/linter-agent.ts --",
+    "builder-agent": "npx tsx agents/builder.ts --",
+    "planner-agent": "npx tsx agents/planner-agent.ts --"
   },
   "keywords": [
     "mcp",

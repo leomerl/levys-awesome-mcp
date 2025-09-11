@@ -8,6 +8,7 @@ import * as path from 'path';
 import { PathConfig } from '../config/paths.js';
 import { ValidationUtils } from '../config/validation.js';
 import { AgentConfig } from '../../types/agent-config.js';
+import { PermissionManager } from './permission-manager.js';
 
 export class AgentLoader {
   /**
@@ -184,7 +185,6 @@ export class AgentLoader {
     if (!normalizedConfig.options) {
       normalizedConfig.options = {
         systemPrompt: normalizedConfig.systemPrompt || '',
-        maxTurns: 10,
         model: normalizedConfig.model,
         allowedTools: allowedTools,
         mcpServers: []
