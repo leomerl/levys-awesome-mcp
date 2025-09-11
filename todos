@@ -1,18 +1,18 @@
 *CRITICAL
-✅ resume conversation functionality (COMPLETED)
-✅ put_summary tool access fix (COMPLETED)
 generating restricted tools is written more than 5 times in code
 
 builder-agent || planner-agent not found 
-agent names XXX-agent
 make unified agent interface
+
 plan include maxTurns
 independent tasks run in parallel
+
 add get_next_task
 add generate agent from md tool
 move commands and agents to .claude/ on installation
 
 add logic to check agent is orchestrator-agent and if any progress task is not completed, re invoke
+
 remove double prefix
 advanced custom prompt interface
 self feedback loop
@@ -29,11 +29,6 @@ code redundancy agent
 reviewr agent
 
 tests:
-report enforcement logic
-streaming logs in realtime
-secret word passing
-forbidden tool explicit ask
-disallowed tools do not contain allowed tools
 
 to integrate:
 playwright
@@ -47,5 +42,13 @@ claudekit
 v1.0.0 DONE -
 agent names XXX-agent
 harden tools in agent prompts
-✅ multiple_plan_and_progress (COMPLETED)
-✅ summary enforcement (FIXED)
+multiple_plan_and_progres
+summary enforcement
+resume conversation functionality
+
+tests:
+forbidden tool explicit ask
+disallowed tools do not contain allowed tools
+streaming logs in realtime
+secret word passing
+report enforcement logic

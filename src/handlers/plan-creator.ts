@@ -378,15 +378,6 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
           return { planFilePath, progressFilePath };
         });
 
-        // Save the progress file (with state tracking)
-        const progressFileName = `progress-${timestamp}.json`;
-        const progressFilePath = path.join(reportsDir, progressFileName);
-        
-        // Update progress document with plan file reference
-        progress.plan_file = planFilePath;
-        
-        await writeFile(progressFilePath, JSON.stringify(progress, null, 2), 'utf8');
-
         // Generate a human-readable summary
         const summary = generatePlanSummary(plan, progress);
 
