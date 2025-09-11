@@ -79,3 +79,5 @@ backend/
 tools/
 
 .claude/
+
+worktrees/

@@ -1,0 +1,48 @@
+*CRITICAL
+resume conversation functionality
+Reason: No summary file found after agent execution
+remove maxTurns
+
+builder-agent || planner-agent not found 
+agent names XXX-agent
+make unified agent interface
+Claude requested permissions to use mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__put_summary, but you haven't granted it yet.
+
+plan include maxTurns
+independent tasks run in parallel
+add get_next_task
+add generate agent from md tool
+move commands and agents to .claude/ on installation
+
+add logic to check agent is orchestrator-agent and if any progress task is not completed, re invoke
+remove double prefix
+advanced custom prompt interface
+reviewr agent
+self feedback loop
+
+TDD iterations workflow
+apply strong tool use enforcement with canUsTool
+
+optimizer agent
+break down mcp servers
+
+
+tests:
+report enforcement logic
+streaming logs in realtime
+secret word passing
+forbidden tool explicit ask
+disallowed tools do not contain allowed tools
+
+to integrate:
+playwright
+context7
+language server
+serena
+crystal
+claudekit
+
+
+v1.0.0 DONE -
+agent names XXX-agent
+harden tools in agent prompts

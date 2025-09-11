@@ -1,59 +1,45 @@
 #!/usr/bin/env tsx
 
 import { query } from "@anthropic-ai/claude-code";
-import { StreamingManager } from '../src/utilities/session/streaming-utils.ts';
-import { v4 as uuidv4 } from 'uuid';
 
+// Agent configuration for SDK usage
 interface AgentConfig {
   name: string;
   description: string;
-  model: string;
-  permissions: {
-    mode: 'default' | 'acceptEdits' | 'ask';
-    tools: {
-      allowed: string[];
-      denied: string[];
-    };
-    mcpServers: Record<string, 'allow' | 'deny' | 'ask'>;
+  prompt: string;
+  model?: string;
+  options: {
+    maxTurns: number;
+    model?: string;
+    allowedTools?: string[];
+    mcpServers?: string[];
+    systemPrompt?: string;
   };
-  systemPrompt: string;
-  context: {
-    maxTokens: number;
-    temperature: number;
-  };
-  color?: string;
 }
 
 const plannerAgent: AgentConfig = {
-  name: 'planner',
+  name: 'planner-agent',
   description: 'Strategic planning agent that analyzes complex tasks and creates detailed execution plans using the plan-creator tool. Focuses purely on planning without execution - reads codebase for context and generates comprehensive plans with task breakdowns, agent assignments, and files to modify.',
+  prompt: 'Analyze the given task and create a comprehensive execution plan using the plan-creator tool.',
   model: 'opus',
-  permissions: {
-    mode: 'default',
-    tools: {
-      allowed: [
-        'Glob',
-        'Grep',
-        'Read',
-        'WebFetch',
-        'WebSearch',
-        'mcp__levys-awesome-mcp__mcp__plan-creator__create_plan',
-        'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
-        'mcp__levys-awesome-mcp__mcp__content-writer__get_summary'
-      ],
-      denied: [
-        'Edit',
-        'MultiEdit',
-        'Write',
-        'Bash',
-        'mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent'
-      ]
-    },
-    mcpServers: {
-      'levys-awesome-mcp': 'allow'
-    }
-  },
-  systemPrompt: `You are a strategic planning agent specialized in analyzing complex software development tasks and creating comprehensive execution plans. Your role is purely planning-focused - you do NOT execute tasks, modify code, or invoke other agents.
+  options: {
+    maxTurns: 10,
+    model: 'opus',
+    allowedTools: [
+      'Glob',
+      'Grep',
+      'Read',
+      'WebFetch',
+      'WebSearch',
+      'TodoWrite',
+      'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__plan-creator__create_plan',
+      'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
+      'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__get_summary'
+    ],
+    mcpServers: [
+      'levys-awesome-mcp'
+    ],
+    systemPrompt: `You are a strategic planning agent specialized in analyzing complex software development tasks and creating comprehensive execution plans. Your role is purely planning-focused - you do NOT execute tasks, modify code, or invoke other agents.
 
 ## CRITICAL: YOU MUST NOT EXECUTE OR MODIFY ANYTHING
 - You CANNOT install packages, run commands, or modify any files
@@ -178,12 +164,8 @@ Your planning session should result in:
 - Ensure consistent naming and file organization
 - Provide clear handoff documentation for the orchestrator
 
-Remember: You are the architect, not the builder. Your success is measured by the quality, completeness, and executability of your plans, not by implementation. Create plans that are so detailed and well-thought-out that other agents can execute them flawlessly.`,
-  context: {
-    maxTokens: 4000,
-    temperature: 0.2
-  },
-  color: 'blue'
+Remember: You are the architect, not the builder. Your success is measured by the quality, completeness, and executability of your plans, not by implementation. Create plans that are so detailed and well-thought-out that other agents can execute them flawlessly.`
+  }
 };
 
 export { plannerAgent };
@@ -192,81 +174,44 @@ export default plannerAgent;
 // Direct execution logic
 async function runAgent() {
   const prompt = process.argv[2];
-  const continueSessionId = process.argv[3];
 
   if (!prompt) {
-    console.error("Usage: npx tsx agents/planner.ts \"your task description here\" [sessionId]");
+    console.error("Usage: npx tsx agents/planner.ts \"your prompt here\"");
     process.exit(1);
   }
 
   console.log("🎯 Running Planner Agent...");
   console.log(`📝 Prompt: ${prompt}\n`);
 
-  // Use existing session ID or generate new one
-  const sessionId = continueSessionId || uuidv4();
-  const isSessionContinuation = !!continueSessionId;
-  
-  console.log(`📋 Session ID: ${sessionId}`);
-  if (isSessionContinuation) {
-    console.log("🔄 Continuing existing session");
-  } else {
-    console.log("🆕 Starting new planning session");
-  }
-
-  const streamingUtils = new StreamingManager(sessionId, 'planner', {
-    streaming: true,
-    saveStreamToFile: true,
-    verbose: true
-  });
-
-  // Initialize session.log file
-  const streamInitialized = streamingUtils.initStreamFile();
-  if (streamInitialized) {
-    console.log(`📝 Session logging enabled: output_streams/${sessionId}/stream.log`);
-  }
-
-  // Log the user prompt to session.log
-  const streamLogFile = streamingUtils.getStreamLogFile();
-  if (streamLogFile) {
-    const fs = await import('fs');
-    const timestamp = new Date().toISOString();
-    const promptLog = `[${timestamp}] USER PROMPT:\n${prompt}\n\n`;
-    fs.appendFileSync(streamLogFile, promptLog, 'utf8');
-  }
-
   try {
     // Execute the planner agent using Claude Code query
     for await (const message of query({
       prompt,
       options: {
-        systemPrompt: plannerAgent.systemPrompt,
-        maxTurns: 10,
-        model: plannerAgent.model,
-        allowedTools: plannerAgent.permissions.tools.allowed,
+        systemPrompt: plannerAgent.options.systemPrompt,
+        maxTurns: plannerAgent.options.maxTurns,
+        model: plannerAgent.options.model,
+        allowedTools: plannerAgent.options.allowedTools,
+        disallowedTools: ['Task'], // Block built-in Task tool
         pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
         mcpServers: {
-        "levys-awesome-mcp": {
-          command: "node",
-          args: ["dist/src/index.js"]
+          "levys-awesome-mcp": {
+            command: "node",
+            args: ["dist/src/index.js"]
+          }
         }
       }
+    })) {
+      if (message.type === "result") {
+        console.log(message.result);
+      } else if (message.type === "toolCall") {
+        console.log(`🔧 Tool: ${message.toolName}`);
+      } else if (message.type === "error") {
+        console.error(`❌ Error: ${message.error}`);
+      }
     }
-  })) {
-    // Log all messages to session.log
-    await streamingUtils.logConversationMessage(message);
-    
-    if (message.type === "result") {
-      console.log(message.result);
-    } else if (message.type === "toolCall") {
-      console.log(`🔧 Tool: ${message.toolName}`);
-    } else if (message.type === "error") {
-      console.error(`❌ Error: ${message.error}`);
-    }
-  }
-  
-  console.log(`\n✅ Planning session completed! Log saved to: output_streams/${sessionId}/stream.log`);
   } catch (error) {
-    console.error("Failed to execute planner agent:", error);
+    console.error("Failed to execute agent:", error);
   }
 }
 
