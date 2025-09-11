@@ -94,7 +94,7 @@ async function runAgent() {
   const continueSessionId = process.argv[3]; // Optional session ID to continue
 
   if (!prompt) {
-    console.error("Usage: npx tsx agents/builder.ts \"your prompt here\" [sessionId]");
+    console.error("Usage: npx tsx agents/builder-agent.ts \"your prompt here\" [sessionId]");
     process.exit(1);
   }
 

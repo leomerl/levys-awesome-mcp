@@ -86,8 +86,8 @@ const plannerAgent: AgentConfig = {
 - Assign each task to the most appropriate agent:
   - backend-agent: API endpoints, server logic, database work
   - frontend-agent: UI components, styling, client-side logic
-  - builder: Build and compilation tasks
-  - linter: Code quality and style checking
+  - builder-agent: Build and compilation tasks
+  - linter-agent: Code quality and style checking
   - testing-agent: Test creation and execution
 
 ### 4. File Specification
@@ -119,8 +119,8 @@ Each task in the plan must include detailed files_to_modify arrays:
 ### Agent Selection Guidelines
 - **backend-agent**: Use for server-side logic, APIs, databases, authentication
 - **frontend-agent**: Use for React components, UI/UX, client-side state management
-- **builder**: Use after code changes to compile and build the project
-- **linter**: Use after code changes to check code quality and style
+- **builder-agent**: Use after code changes to compile and build the project
+- **linter-agent**: Use after code changes to check code quality and style
 - **testing-agent**: Use to create and run tests for new functionality
 
 ### Context Analysis
@@ -174,7 +174,7 @@ async function runAgent() {
   const prompt = process.argv[2];
 
   if (!prompt) {
-    console.error("Usage: npx tsx agents/planner.ts \"your prompt here\"");
+    console.error("Usage: npx tsx agents/planner-agent.ts \"your prompt here\"");
     process.exit(1);
   }
 

@@ -18,7 +18,7 @@ interface AgentConfig {
 
 const orchestratorAgent: AgentConfig = {
   name: 'orchestrator-agent',
-  description: 'Use this agent when you need to coordinate development workflows including backend/frontend development, building, and linting. This agent intelligently routes tasks to appropriate specialized agents (backend-agent, frontend-agent, builder, linter) and manages the execution flow.',
+  description: 'Use this agent when you need to coordinate development workflows including backend/frontend development, building, and linting. This agent intelligently routes tasks to appropriate specialized agents (backend-agent, frontend-agent, builder-agent, linter-agent) and manages the execution flow.',
   prompt: 'Coordinate development workflows by routing tasks to appropriate specialized agents.',
   model: 'opus',
   options: {
@@ -62,7 +62,7 @@ const orchestratorAgent: AgentConfig = {
 
 2. **Sequential Execution Management**
    - Execute development agents first (backend-agent, frontend-agent)
-   - Then invoke the 'builder' agent for compilation and build verification
+   - Then invoke the 'builder-agent' agent for compilation and build verification
    - Next invoke the 'linter-agent' for code quality analysis
    - Finally invoke the 'testing-agent' for comprehensive testing and failure analysis
    - Analyze testing reports to determine if bug fixes are needed (feedback loop)
@@ -94,8 +94,8 @@ const orchestratorAgent: AgentConfig = {
 
 6. **Error Handling and Feedback Loop Management**
    - If development agents fail, still proceed to build, lint, and test phases to assess the current state
-   - If the builder agent fails, do not proceed to the linter or testing agents
-   - If the linter agent fails, still proceed to testing agent for comprehensive analysis
+   - If the builder-agent fails, do not proceed to the linter-agent or testing-agent
+   - If the linter-agent fails, still proceed to testing-agent for comprehensive analysis
    - **Testing Feedback Loop**: After testing completes, analyze \`orchestratorInstructions.nextActions\`:
      - If \`nextActions\` contains high-priority fixes: initiate feedback loop to development phase
      - Pass specific fix instructions and context to the appropriate development agent
@@ -131,7 +131,7 @@ const orchestratorAgent: AgentConfig = {
    - For backend tasks: Invoke 'backend-agent' using mcp__agent-invoker__invoke_agent
    - For frontend tasks: Invoke 'frontend-agent' using mcp__agent-invoker__invoke_agent
    - For full-stack tasks: Invoke both agents sequentially
-6. **Build Phase**: Invoke 'builder' agent to compile and verify the changes
+6. **Build Phase**: Invoke 'builder-agent' to compile and verify the changes
 7. **Quality Phase**: Invoke 'linter-agent' for code quality analysis
 8. **Testing Phase**: Invoke 'testing-agent' for comprehensive testing and failure analysis
 9. **Feedback Loop Decision**: 
@@ -244,10 +244,10 @@ After each agent completes:
 2. **Use mcp__content-writer__get_plan** to retrieve and analyze the plan file created by the planner
 3. **Analyze the planner's output** to understand task breakdown, scope, and agent assignments
 4. **Route to appropriate development agents** based on the planner's recommendations:
-   - Backend-only: backend-agent → builder → linter → testing-agent
-   - Frontend-only: frontend-agent → builder → linter → testing-agent
-   - Full-stack: backend-agent → frontend-agent → builder → linter → testing-agent
-5. **Always conclude with quality and testing phases** using builder, linter, and testing agents
+   - Backend-only: backend-agent → builder-agent → linter-agent → testing-agent
+   - Frontend-only: frontend-agent → builder-agent → linter-agent → testing-agent
+   - Full-stack: backend-agent → frontend-agent → builder-agent → linter-agent → testing-agent
+5. **Always conclude with quality and testing phases** using builder-agent, linter-agent, and testing-agent
 6. **Evaluate feedback loop necessity** based on testing agent's orchestratorInstructions:
    - High-priority fixes: Return to development phase with specific context
    - Medium/low priority: Document for future iterations
@@ -260,7 +260,7 @@ The orchestrator implements a **planning → development → review/build/qualit
 
 1. **Planning Phase**: Always start with planner agent to analyze task and create execution plan
 2. **Primary Development Phase**: Initial implementation by development agents based on plan
-3. **Review + Build + Quality + Testing Phase**: Sequential execution of builder → linter → testing-agent
+3. **Review + Build + Quality + Testing Phase**: Sequential execution of builder-agent → linter-agent → testing-agent
 4. **Feedback Loop Decision**: Based on testing-agent's \`orchestratorInstructions.nextActions\`
 5. **Secondary Development Phase** (if needed): Bug fixes based on testing analysis
 6. **Re-verification**: Re-run review + build + quality + testing phases
@@ -280,7 +280,7 @@ async function runAgent() {
   const prompt = process.argv[2];
 
   if (!prompt) {
-    console.error("Usage: npx tsx agents/orchestrator.ts \"your prompt here\"");
+    console.error("Usage: npx tsx agents/orchestrator-agent.ts \"your prompt here\"");
     process.exit(1);
   }
 
