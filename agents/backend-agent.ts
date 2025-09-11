@@ -88,7 +88,6 @@ async function runAgent() {
     prompt,
     options: {
       systemPrompt: backendAgent.options.systemPrompt,
-      maxTurns: backendAgent.options.maxTurns,
       allowedTools: backendAgent.options.allowedTools,
       pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
       mcpServers: {

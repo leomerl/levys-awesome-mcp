@@ -9,7 +9,6 @@ interface AgentConfig {
   prompt: string;
   model?: string;
   options: {
-    maxTurns: number;
     model?: string;
     allowedTools?: string[];
     mcpServers?: string[];
@@ -23,7 +22,6 @@ const orchestratorAgent: AgentConfig = {
   prompt: 'Coordinate development workflows by routing tasks to appropriate specialized agents.',
   model: 'opus',
   options: {
-    maxTurns: 15,
     model: 'opus',
     allowedTools: [
       'Glob',
@@ -169,10 +167,7 @@ When using mcp__agent-invoker__invoke_agent:
 - The tool executes synchronously and returns the agent's final result
 - Set includeOutput: false unless debugging (reduces noise)
 - Agent-specific timeouts:
-  - Development agents (backend/frontend): maxTurns: 10, abortTimeout: 600000 (10 minutes)
-  - Builder agent: maxTurns: 5, abortTimeout: 300000 (5 minutes)
-  - Linter agent: maxTurns: 3, abortTimeout: 180000 (3 minutes)
-  - Testing agent: maxTurns: 8, abortTimeout: 480000 (8 minutes)
+  - All agents run until completion without turn limits
 
 ## Report Processing
 
@@ -298,7 +293,6 @@ async function runAgent() {
       prompt,
       options: {
         systemPrompt: orchestratorAgent.options.systemPrompt,
-        maxTurns: orchestratorAgent.options.maxTurns,
         model: orchestratorAgent.options.model,
         allowedTools: orchestratorAgent.options.allowedTools,
         disallowedTools: ['Task'], // Block built-in Task tool

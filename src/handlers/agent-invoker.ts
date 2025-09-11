@@ -42,10 +42,6 @@ export const agentInvokerTools = [
           type: 'string',
           description: 'Prompt to send to the agent'
         },
-        maxTurns: {
-          type: 'number',
-          description: 'Maximum number of turns for the agent (optional, default: 10)'
-        },
         streaming: {
           type: 'boolean',
           description: 'Whether to enable real-time streaming output (optional, default: true)'
@@ -78,7 +74,7 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
   try {
     switch (name) {
       case 'mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent': {
-        const { agentName, prompt, maxTurns = 10, streaming = true, saveStreamToFile = true, continueSessionId } = args;
+        const { agentName, prompt, streaming = true, saveStreamToFile = true, continueSessionId } = args;
         
         if (!agentName || !prompt) {
           return {
@@ -291,7 +287,6 @@ OUTPUT_DIR: output_streams/${sessionId}/
           for await (const message of query({
             prompt: finalPrompt, // Use the final prompt with injected restrictions
             options: {
-              maxTurns,
               model: agentConfig.options?.model || 'sonnet',
               allowedTools: permissions.allowedTools, // Use managed permissions
               disallowedTools: finalDisallowedTools, // Use filtered disallowed tools
@@ -361,8 +356,7 @@ OUTPUT_DIR: output_streams/${sessionId}/
               for await (const message of query({
                 prompt: planPrompt,
                 options: {
-                  maxTurns: 5, // Limited turns for plan creation
-                  model: agentConfig.options?.model || 'sonnet',
+                    model: agentConfig.options?.model || 'sonnet',
                   allowedTools: planPermissions.allowedTools,
                   disallowedTools: planPermissions.disallowedTools,
                   permissionMode: 'acceptEdits',
@@ -423,7 +417,6 @@ OUTPUT_DIR: output_streams/${sessionId}/
             for await (const message of query({
               prompt: summaryPrompt,
               options: {
-                maxTurns: 3, // Limited turns for summary creation
                 model: agentConfig.options?.model || 'sonnet',
                 allowedTools: summaryPermissions.allowedTools, // Include put_summary tool for report creation
                 disallowedTools: summaryPermissions.disallowedTools, // Maintain same restrictions for summary creation

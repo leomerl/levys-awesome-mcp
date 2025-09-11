@@ -26,7 +26,6 @@ export interface AgentConfigNew {
   prompt: string;
   options: {
     systemPrompt: string;
-    maxTurns: number;
     model?: string;
     temperature?: number;
     maxTokens?: number;

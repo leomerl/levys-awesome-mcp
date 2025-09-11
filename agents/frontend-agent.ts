@@ -9,7 +9,6 @@ interface AgentConfig {
   prompt: string;
   options: {
     systemPrompt: string;
-    maxTurns: number;
     model?: string;
     allowedTools?: string[];
     mcpServers?: string[];
@@ -21,7 +20,6 @@ const frontendAgent: AgentConfig = {
   description: 'Agent specialized for frontend development with write access only to frontend/ folder',
   prompt: 'Work on frontend code, components, and styling. You can only write/edit files in the frontend/ folder.',
   options: {
-    maxTurns: 10,
     model: 'sonnet',
     allowedTools: [
       'mcp__levys-awesome-mcp__mcp__content-writer__frontend_write',
@@ -205,7 +203,6 @@ async function runAgent() {
     prompt,
     options: {
       systemPrompt: frontendAgent.options.systemPrompt,
-      maxTurns: frontendAgent.options.maxTurns,
       allowedTools: frontendAgent.options.allowedTools,
       pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
       mcpServers: {

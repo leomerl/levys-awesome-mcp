@@ -11,7 +11,6 @@ export interface LinterAgentConfig {
   prompt: string;
   options: {
     systemPrompt: string;
-    maxTurns: number;
     model?: string;
     allowedTools?: string[];
     mcpServers?: string[];
@@ -23,7 +22,6 @@ const linterAgent: LinterAgentConfig = {
   description: 'Performs comprehensive code quality analysis, linting, and security scanning. Creates detailed lint reports in JSON format.',
   prompt: 'Perform comprehensive code quality analysis, linting, and security scanning. Generate detailed reports with findings and recommendations.',
   options: {
-    maxTurns: 10,
     model: 'sonnet',
     allowedTools: [
       'mcp__levys-awesome-mcp__mcp__code-analyzer__lint_javascript',

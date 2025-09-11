@@ -37,7 +37,6 @@ export interface SessionSummary {
 export interface InvokeAgentParams {
   agentName: string;
   prompt: string;
-  maxTurns?: number;
   abortTimeout?: number;
   includeOutput?: boolean;
   verbose?: boolean;

@@ -67,7 +67,6 @@ Create a comprehensive JSON report with this structure:
 You cannot edit code, only build it.`,
   model: 'sonnet',
   options: {
-    maxTurns: 10,
     model: 'sonnet',
     allowedTools: [
       'mcp__levys-awesome-mcp__mcp__build-executor__build_project',
@@ -140,7 +139,6 @@ async function runAgent() {
       prompt,
       options: {
         systemPrompt: builderAgent.options.systemPrompt,
-        maxTurns: builderAgent.options.maxTurns,
         allowedTools: builderAgent.options.allowedTools,
         disallowedTools: ['TodoWrite', 'Task'], // Block built-in TodoWrite and Task tools
         pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
@@ -187,7 +185,6 @@ async function runAgent() {
       prompt: summaryPrompt,
       options: {
         systemPrompt: builderAgent.options.systemPrompt,
-        maxTurns: 3,
         model: builderAgent.options.model,
         allowedTools: builderAgent.options.allowedTools,
         disallowedTools: ['TodoWrite', 'Task'], // Block built-in TodoWrite and Task tools

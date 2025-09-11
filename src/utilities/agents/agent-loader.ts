@@ -185,7 +185,6 @@ export class AgentLoader {
     if (!normalizedConfig.options) {
       normalizedConfig.options = {
         systemPrompt: normalizedConfig.systemPrompt || '',
-        maxTurns: 10,
         model: normalizedConfig.model,
         allowedTools: allowedTools,
         mcpServers: []

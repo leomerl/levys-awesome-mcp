@@ -89,7 +89,6 @@ export class AgentConfigParser {
       // New format
       config.options = {
         systemPrompt: rawConfig.options.systemPrompt || rawConfig.systemPrompt || '',
-        maxTurns: rawConfig.options.maxTurns || 10,
         model: rawConfig.options.model || rawConfig.model || 'claude-3-5-sonnet-20241022',
         allowedTools: rawConfig.options.allowedTools || [],
         mcpServers: rawConfig.options.mcpServers || []
@@ -98,7 +97,6 @@ export class AgentConfigParser {
       // Legacy format - convert to new format
       config.options = {
         systemPrompt: rawConfig.systemPrompt || '',
-        maxTurns: rawConfig.context?.maxTokens ? Math.min(rawConfig.context.maxTokens / 1000, 50) : 10,
         model: rawConfig.model || 'claude-3-5-sonnet-20241022',
         allowedTools: rawConfig.permissions.tools?.allowed || [],
         mcpServers: Object.keys(rawConfig.permissions.mcpServers || {})
@@ -110,7 +108,6 @@ export class AgentConfigParser {
       // Basic format - create minimal options
       config.options = {
         systemPrompt: rawConfig.systemPrompt || rawConfig.prompt || '',
-        maxTurns: rawConfig.maxTurns || 10,
         model: rawConfig.model || 'claude-3-5-sonnet-20241022',
         allowedTools: rawConfig.allowedTools || [],
         mcpServers: rawConfig.mcpServers || []
@@ -142,10 +139,6 @@ export class AgentConfigParser {
       return errors;
     }
 
-    // Validate maxTurns
-    if (!ValidationUtils.validateMaxTurns(config.options.maxTurns)) {
-      errors.push('Invalid maxTurns value (must be 1-100)');
-    }
 
     // Validate model
     if (!config.options.model || typeof config.options.model !== 'string') {
@@ -188,10 +181,6 @@ export class AgentConfigParser {
       warnings.push('System prompt is very long - consider breaking it down');
     }
 
-    // Check for high maxTurns
-    if (config.options.maxTurns > 50) {
-      warnings.push('maxTurns is very high - may lead to long-running conversations');
-    }
 
     // Check for no allowed tools
     if (config.options.allowedTools && config.options.allowedTools.length === 0) {

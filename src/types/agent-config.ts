@@ -31,7 +31,6 @@ export interface AgentConfig {
     temperature: number;
   };
   options?: {
-    maxTurns: number;
     allowedTools?: string[];
     disallowedTools?: string[]; // Auto-populated from dynamic discovery
     mcpServers?: string[];

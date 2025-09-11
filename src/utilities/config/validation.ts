@@ -54,12 +54,6 @@ export class ValidationUtils {
     return Number.isInteger(timeout) && timeout > 0 && timeout <= 600000; // Max 10 minutes
   }
 
-  /**
-   * Validate max turns value
-   */
-  static validateMaxTurns(maxTurns: number): boolean {
-    return Number.isInteger(maxTurns) && maxTurns > 0 && maxTurns <= 100;
-  }
 
   /**
    * Sanitize string for safe usage
