@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "levys-awesome-mcp": {
-      "command": "cmd",
-      "args": ["/c","npx", "levys-awesome-mcp"]
+      "command": "npx",
+      "args": ["levys-awesome-mcp"]
     },
     "context7": {
       "type": "http",

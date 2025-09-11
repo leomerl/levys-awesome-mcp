@@ -1,0 +1,25 @@
+builder-agent || planner not found 
+agent names XXX-agent
+make unified agent interface
+Claude requested permissions to use mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__put_summary, but you haven't granted it yet.
+resume conversation functionality
+harden tools in agent prompts
+
+independent tasks run in parallel
+add get_next_task
+add generate agent from md tool
+
+add logic to check agent is orchestrator and if any progress task is not completed, re invoke
+remove double prefix
+
+TDD iterations
+apply strong tool use enforcement with
+
+break down mcp servers
+
+
+tests:
+report enforcement logic
+streaming logs in realtime
+secret word passing
+forbidden tool explicit ask
