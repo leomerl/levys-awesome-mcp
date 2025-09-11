@@ -9,7 +9,6 @@ interface AgentConfig {
   prompt: string;
   options: {
     systemPrompt: string;
-    maxTurns: number;
     model?: string;
     allowedTools?: string[];
     mcpServers?: string[];
@@ -50,7 +49,6 @@ CRITICAL: You are STRICTLY FORBIDDEN from using the 'any' type in TypeScript cod
 - Grep: Search file contents
 
 Remember: You are focused on backend development and can only modify files in the backend/ directory.`,
-    maxTurns: 10,
     model: 'sonnet',
     allowedTools: [
       'mcp__levys-awesome-mcp__mcp__content-writer__backend_write',
