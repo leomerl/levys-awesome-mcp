@@ -10,8 +10,22 @@ import { AgentLoader } from '../utilities/agents/agent-loader.js';
 import { ValidationUtils } from '../utilities/config/validation.js';
 import { ReportManager } from '../utilities/session/report-manager.js';
 import { PermissionManager } from '../utilities/agents/permission-manager.js';
+import { ToolRegistry } from '../utilities/tools/tool-registry.js';
+import { DynamicRestrictionConfig } from '../types/agent-config.js';
 import * as path from 'path';
 import * as fs from 'fs';
+
+/**
+ * Default configuration for dynamic tool restrictions
+ * This is a CORE MCP configuration that ensures comprehensive tool security
+ */
+const DEFAULT_DYNAMIC_RESTRICTION_CONFIG: DynamicRestrictionConfig = {
+  enabled: true, // Enable by default for maximum security
+  refreshIntervalMs: 5 * 60 * 1000, // Refresh every 5 minutes
+  includePromptInjection: true, // Always inject tool restriction warnings
+  logLevel: 'basic', // Basic logging for debugging
+  cacheTTL: 10 * 60 * 1000 // 10 minute cache TTL
+};
 
 export const agentInvokerTools = [
   {
@@ -118,7 +132,7 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
         const streamLogFile = streamingUtils.getStreamLogFile();
         
         try {
-          // Build enhanced prompt with session tracking
+          // Build enhanced prompt with session tracking and DYNAMIC TOOL RESTRICTIONS
           const enhancedPrompt = `${prompt}
 
 IMPORTANT: When you complete your task, create a summary report using available tools.
@@ -126,25 +140,43 @@ SESSION_ID: ${sessionId}
 OUTPUT_DIR: output_streams/${sessionId}/
 `;
 
-          // Add initial prompt to session.log
+          // Log agent execution start to session.log
           if (streamLogFile) {
             const timestamp = new Date().toISOString();
-            const promptLog = `[${timestamp}] USER PROMPT:\n${enhancedPrompt}\n\n`;
-            fs.appendFileSync(streamLogFile, promptLog, 'utf8');
+            const debugLog = `[${timestamp}] DEBUG: AgentInvoker enhanced code path is executing for agent: ${agentName}\nstreamLogFile: ${streamLogFile}\n\n`;
+            fs.appendFileSync(streamLogFile, debugLog, 'utf8');
           }
 
-          // Execute agent with Claude Code query - Enforce strict tool permissions
-          // Support both legacy TypeScript configs and new awesome-claude-code patterns
-          let permissions;
+          // ========== CORE MCP DYNAMIC TOOL RESTRICTION ENFORCEMENT ==========
+          console.log(`[AgentInvoker] Applying dynamic tool restriction enforcement for agent: ${agentName}`);
+          
+          let permissions: { allowedTools: string[]; disallowedTools: string[] };
+          let restrictionPrompt = '';
           
           if (agentConfig.options?.allowedTools) {
-            // Legacy TypeScript agent config
-            permissions = PermissionManager.getAgentPermissions({
+            // Legacy TypeScript agent config with ENHANCED dynamic restrictions
+            const permissionConfig = {
               allowedTools: agentConfig.options.allowedTools,
-              agentRole: 'write-restricted' // Default role for legacy configs
-            });
+              agentRole: 'write-restricted' as const, // Default role for legacy configs
+              useDynamicRestrictions: true // ENABLE dynamic restrictions for all agents
+            };
+            
+            permissions = await PermissionManager.getAgentPermissionsWithDynamicRestrictions(permissionConfig);
+            
+            // Generate tool restriction prompt for injection - subtract allowed tools first
+            try {
+              const promptDisallowedTools = permissions.disallowedTools.filter(tool => 
+                !permissions.allowedTools.includes(tool)
+              );
+              
+              restrictionPrompt = await PermissionManager.generateToolRestrictionPrompt(promptDisallowedTools);
+              console.log(`[AgentInvoker] Generated restriction prompt with ${promptDisallowedTools.length} disallowed tools (prompt length: ${restrictionPrompt.length})`);
+            } catch (error) {
+              console.error(`[AgentInvoker] Error generating restriction prompt:`, error);
+              restrictionPrompt = '';
+            }
           } else {
-            // For agents without explicit tools, try to load from .claude/agents/*.md files
+            // For agents without explicit tools, try to load from .claude/agents/*.md files with ENHANCED dynamic restrictions
             try {
               const fs = await import('fs/promises');
               const path = await import('path');
@@ -156,32 +188,113 @@ OUTPUT_DIR: output_streams/${sessionId}/
                   markdownContent,
                   [] // No fallback MCP tools for markdown-based agents
                 );
-                permissions = PermissionManager.getAgentPermissions(permissionConfig);
-                console.log(`[DEBUG] Loaded permissions from markdown file: ${agentMarkdownPath}`);
+                
+                // ENABLE dynamic restrictions for markdown-based agents
+                permissionConfig.useDynamicRestrictions = true;
+                permissions = await PermissionManager.getAgentPermissionsWithDynamicRestrictions(permissionConfig);
+                
+                // Generate tool restriction prompt - filter out allowed tools
+                try {
+                  const promptDisallowedTools = permissions.disallowedTools.filter(tool => 
+                    !permissions.allowedTools.includes(tool)
+                  );
+                  restrictionPrompt = await PermissionManager.generateToolRestrictionPrompt(promptDisallowedTools);
+                  console.log(`[AgentInvoker] Generated restriction prompt for markdown agent with ${promptDisallowedTools.length} disallowed tools (${restrictionPrompt.length} characters)`);
+                } catch (error) {
+                  console.error(`[AgentInvoker] Error generating restriction prompt for markdown agent:`, error);
+                  restrictionPrompt = '';
+                }
+                
+                console.log(`[AgentInvoker] Loaded permissions from markdown file: ${agentMarkdownPath} with dynamic restrictions`);
               } catch (fileError) {
-                console.log(`[DEBUG] No markdown agent file found at ${agentMarkdownPath}, using default permissions`);
-                // Fall back to default read-only permissions for security
-                permissions = PermissionManager.getAgentPermissions({
+                console.log(`[AgentInvoker] No markdown agent file found at ${agentMarkdownPath}, using default permissions with dynamic restrictions`);
+                // Fall back to default read-only permissions with DYNAMIC restrictions for security
+                const defaultConfig = {
                   allowedTools: [],
-                  agentRole: 'read-only'
-                });
+                  agentRole: 'read-only' as const,
+                  useDynamicRestrictions: true
+                };
+                permissions = await PermissionManager.getAgentPermissionsWithDynamicRestrictions(defaultConfig);
+                
+                // Generate restriction prompt for default config - filter out allowed tools
+                try {
+                  const promptDisallowedTools = permissions.disallowedTools.filter(tool => 
+                    !permissions.allowedTools.includes(tool)
+                  );
+                  restrictionPrompt = await PermissionManager.generateToolRestrictionPrompt(promptDisallowedTools);
+                  console.log(`[AgentInvoker] Generated restriction prompt for default config with ${promptDisallowedTools.length} disallowed tools (${restrictionPrompt.length} characters)`);
+                } catch (error) {
+                  console.error(`[AgentInvoker] Error generating restriction prompt for default config:`, error);
+                  restrictionPrompt = '';
+                }
               }
             } catch (importError) {
-              console.warn(`[WARN] Could not load fs/path modules, using default permissions:`, importError);
-              permissions = PermissionManager.getAgentPermissions({
+              console.warn(`[WARN] Could not load fs/path modules, using default permissions with dynamic restrictions:`, importError);
+              const defaultConfig = {
                 allowedTools: [],
-                agentRole: 'read-only'
-              });
+                agentRole: 'read-only' as const,
+                useDynamicRestrictions: true
+              };
+              permissions = await PermissionManager.getAgentPermissionsWithDynamicRestrictions(defaultConfig);
+              
+              // Generate restriction prompt for fallback config - filter out allowed tools
+              try {
+                const promptDisallowedTools = permissions.disallowedTools.filter(tool => 
+                  !permissions.allowedTools.includes(tool)
+                );
+                restrictionPrompt = await PermissionManager.generateToolRestrictionPrompt(promptDisallowedTools);
+                console.log(`[AgentInvoker] Generated restriction prompt for fallback config with ${promptDisallowedTools.length} disallowed tools (${restrictionPrompt.length} characters)`);
+              } catch (error) {
+                console.error(`[AgentInvoker] Error generating restriction prompt for fallback config:`, error);
+                restrictionPrompt = '';
+              }
             }
           }
 
+          // ========== FINALIZE PROMPT WITH DYNAMIC RESTRICTIONS ==========
+          // Build the final prompt with restriction warnings injected
+          let finalPrompt = enhancedPrompt;
+          
+          // ALWAYS inject tool restriction information
+          if (restrictionPrompt && restrictionPrompt.trim().length > 0) {
+            finalPrompt = enhancedPrompt + restrictionPrompt;
+            console.log(`[AgentInvoker] Injected tool restriction prompt (${restrictionPrompt.length} characters)`);
+          } else {
+            // Generate a basic restriction warning when no specific restrictions are calculated
+            const basicRestrictionPrompt = `\n\n🚫 CRITICAL TOOL RESTRICTIONS 🚫\nYou are STRICTLY FORBIDDEN from using these tools:\n- TodoWrite: This tool is explicitly blocked and will cause errors\n- Task: This tool is explicitly blocked and will cause errors\n- Write: This tool is explicitly blocked and will cause errors\n- Edit: This tool is explicitly blocked and will cause errors\n- MultiEdit: This tool is explicitly blocked and will cause errors\n\nIf you attempt to use any of these forbidden tools, your execution will fail.\nUse only the tools explicitly listed in your allowed tools configuration.\n\n\n`;
+            finalPrompt = enhancedPrompt + basicRestrictionPrompt;
+            console.log(`[AgentInvoker] Added basic tool restriction warning (no dynamic restrictions calculated)`);
+          }
+
+          // Add final prompt (with restrictions) to session.log 
+          if (streamLogFile) {
+            const timestamp = new Date().toISOString();
+            const promptLog = `[${timestamp}] FINAL USER PROMPT (with dynamic restrictions):\n${finalPrompt}\n\n`;
+            fs.appendFileSync(streamLogFile, promptLog, 'utf8');
+          }
+
+          // Log dynamic restriction enforcement details
+          if (streamLogFile) {
+            const timestamp = new Date().toISOString();
+            const restrictionLog = `[${timestamp}] DYNAMIC TOOL RESTRICTIONS APPLIED:\n` +
+                                 `Allowed Tools: ${permissions.allowedTools.length}\n` +
+                                 `Disallowed Tools: ${permissions.disallowedTools.length}\n` +
+                                 `Restriction Prompt Injected: ${!!restrictionPrompt}\n\n`;
+            fs.appendFileSync(streamLogFile, restrictionLog, 'utf8');
+          }
+
+          // CRITICAL FIX: Ensure no allowed tools are in disallowed list before passing to agent
+          const finalDisallowedTools = permissions.disallowedTools.filter(tool => 
+            !permissions.allowedTools.includes(tool)
+          );
+
           for await (const message of query({
-            prompt: enhancedPrompt,
+            prompt: finalPrompt, // Use the final prompt with injected restrictions
             options: {
               maxTurns,
               model: agentConfig.options?.model || 'sonnet',
               allowedTools: permissions.allowedTools, // Use managed permissions
-              disallowedTools: permissions.disallowedTools, // Explicitly block problematic built-in tools
+              disallowedTools: finalDisallowedTools, // Use filtered disallowed tools
               permissionMode: 'acceptEdits',
               pathToClaudeCodeExecutable: path.resolve(process.cwd(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
               mcpServers: {

@@ -2,13 +2,21 @@
  * Agent Permission Manager
  * Centralizes tool permission management for consistent security across agents
  * Implements awesome-claude-code patterns for tool restriction
+ * 
+ * CORE MCP FUNCTIONALITY:
+ * - Dynamic tool discovery and restriction enforcement
+ * - Automatic disallowed tool calculation from comprehensive tool registry
+ * - Type-safe tool permission management
  */
+
+import { ToolRegistry } from '../tools/tool-registry.js';
 
 export interface AgentPermissionConfig {
   allowedTools: string[];
   deniedTools?: string[];
   restrictBuiltInTools?: boolean;
   agentRole?: 'read-only' | 'write-restricted' | 'full-access' | 'security-sensitive';
+  useDynamicRestrictions?: boolean; // Enable dynamic tool discovery and restriction
 }
 
 export interface YAMLAgentConfig {
@@ -289,5 +297,186 @@ export class PermissionManager {
    */
   static getSecurityProfiles() {
     return this.SECURITY_PROFILES;
+  }
+
+  // ========== DYNAMIC TOOL RESTRICTION METHODS (CORE MCP FUNCTIONALITY) ==========
+
+  /**
+   * Gets agent permissions with dynamic tool discovery and restriction enforcement
+   * This is a CORE MCP function that ensures comprehensive tool security
+   */
+  static async getAgentPermissionsWithDynamicRestrictions(config: AgentPermissionConfig): Promise<{
+    allowedTools: string[];
+    disallowedTools: string[];
+  }> {
+    // If dynamic restrictions are disabled, use the standard method
+    if (config.useDynamicRestrictions === false) {
+      return this.getAgentPermissions(config);
+    }
+
+    console.log(`[PermissionManager] Using dynamic tool restriction enforcement`);
+    
+    // Get base permissions using existing logic
+    const basePermissions = this.getAgentPermissions(config);
+    
+    // Calculate dynamic disallowed tools using ToolRegistry
+    const dynamicDisallowedTools = await ToolRegistry.calculateDisallowedTools(basePermissions.allowedTools);
+    
+    // Combine manual and dynamic restrictions, then subtract allowed tools to prevent conflicts
+    const preliminaryDisallowedTools = [
+      ...new Set([
+        ...basePermissions.disallowedTools,
+        ...dynamicDisallowedTools
+      ])
+    ];
+    
+    // CRITICAL FIX: Ensure no allowed tools are in the disallowed list
+    const combinedDisallowedTools = preliminaryDisallowedTools.filter(tool => 
+      !basePermissions.allowedTools.includes(tool)
+    );
+    
+    console.log(`[PermissionManager] DEBUGGING DISALLOWED TOOLS FILTER:`);
+    console.log(`[PermissionManager] Preliminary disallowed tools: ${preliminaryDisallowedTools.length}`);
+    console.log(`[PermissionManager] Allowed tools: ${basePermissions.allowedTools.length}`);
+    console.log(`[PermissionManager] Final disallowed tools: ${combinedDisallowedTools.length}`);
+    console.log(`[PermissionManager] Tools that were filtered out: ${preliminaryDisallowedTools.length - combinedDisallowedTools.length}`);
+
+    const result = {
+      allowedTools: basePermissions.allowedTools,
+      disallowedTools: combinedDisallowedTools
+    };
+
+    console.log(`[PermissionManager] Dynamic restrictions calculated: ${dynamicDisallowedTools.length} tools disallowed dynamically`);
+    console.log(`[PermissionManager] Total disallowed tools: ${combinedDisallowedTools.length}`);
+    
+    return result;
+  }
+
+  /**
+   * Validates agent tool configuration against all available tools
+   */
+  static async validateAgentToolConfiguration(config: AgentPermissionConfig): Promise<{
+    valid: boolean;
+    unknownAllowedTools: string[];
+    unknownDeniedTools: string[];
+    recommendations: string[];
+  }> {
+    const recommendations: string[] = [];
+    
+    // Validate allowed tools
+    const allowedValidation = await ToolRegistry.validateToolList(config.allowedTools);
+    
+    // Validate denied tools if provided
+    let deniedValidation = { valid: true, unknownTools: [] as string[] };
+    if (config.deniedTools && config.deniedTools.length > 0) {
+      deniedValidation = await ToolRegistry.validateToolList(config.deniedTools);
+    }
+
+    // Generate recommendations
+    if (allowedValidation.unknownTools.length > 0) {
+      recommendations.push(`Unknown tools in allowedTools: ${allowedValidation.unknownTools.join(', ')}`);
+    }
+    
+    if (deniedValidation.unknownTools.length > 0) {
+      recommendations.push(`Unknown tools in deniedTools: ${deniedValidation.unknownTools.join(', ')}`);
+    }
+
+    // Check for security best practices
+    const hasWriteTools = config.allowedTools.some(tool => 
+      tool.includes('write') || tool.includes('edit') || tool.includes('Write') || tool.includes('Edit')
+    );
+    const hasShellAccess = config.allowedTools.includes('Bash');
+    
+    if (hasWriteTools && !config.agentRole) {
+      recommendations.push('Consider specifying an agentRole for better security when allowing write operations');
+    }
+    
+    if (hasShellAccess && config.agentRole !== 'full-access') {
+      recommendations.push('Bash tool requires full-access role for security compliance');
+    }
+
+    return {
+      valid: allowedValidation.valid && deniedValidation.valid,
+      unknownAllowedTools: allowedValidation.unknownTools,
+      unknownDeniedTools: deniedValidation.unknownTools,
+      recommendations
+    };
+  }
+
+  /**
+   * Generates a human-readable tool restriction prompt for injection into agent system prompts
+   * This ensures agents receive explicit warnings about forbidden tools
+   */
+  static async generateToolRestrictionPrompt(disallowedTools: string[]): Promise<string> {
+    if (disallowedTools.length === 0) {
+      return '';
+    }
+
+    // Group tools by category for better readability
+    const toolsByCategory = await ToolRegistry.getToolsByCategory();
+    const categorizedDisallowed: Record<string, string[]> = {};
+    
+    for (const tool of disallowedTools) {
+      let foundCategory = 'unknown';
+      for (const [category, tools] of Object.entries(toolsByCategory)) {
+        if (tools.includes(tool)) {
+          foundCategory = category;
+          break;
+        }
+      }
+      
+      if (!categorizedDisallowed[foundCategory]) {
+        categorizedDisallowed[foundCategory] = [];
+      }
+      categorizedDisallowed[foundCategory].push(tool);
+    }
+
+    let prompt = '\n\n## 🚫 TOOL RESTRICTIONS ENFORCED\n\n';
+    prompt += `**CRITICAL: You are FORBIDDEN from using the following ${disallowedTools.length} tools:**\n\n`;
+    
+    for (const [category, tools] of Object.entries(categorizedDisallowed)) {
+      if (tools.length > 0) {
+        const displayCategory = category.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        prompt += `**${displayCategory} Tools:** ${tools.join(', ')}\n`;
+      }
+    }
+    
+    prompt += '\n**If you attempt to use any restricted tool, your request will be blocked.**\n';
+    prompt += '**Only use tools explicitly listed in your allowed tools configuration.**\n\n';
+    prompt += '---\n\n';
+    
+    return prompt;
+  }
+
+  /**
+   * Gets tool usage statistics for an agent configuration
+   */
+  static async getAgentToolStatistics(config: AgentPermissionConfig): Promise<{
+    allowedCount: number;
+    disallowedCount: number;
+    totalAvailable: number;
+    coveragePercent: number;
+    securityLevel: 'high' | 'medium' | 'low';
+  }> {
+    const permissions = await this.getAgentPermissionsWithDynamicRestrictions(config);
+    const stats = await ToolRegistry.getToolStatistics();
+    const totalTools = stats.totalMCPTools + stats.totalBuiltInTools;
+    
+    const coveragePercent = (permissions.allowedTools.length / totalTools) * 100;
+    
+    let securityLevel: 'high' | 'medium' | 'low' = 'medium';
+    if (coveragePercent < 20) {
+      securityLevel = 'high'; // Very restrictive
+    } else if (coveragePercent > 60) {
+      securityLevel = 'low'; // Very permissive
+    }
+
+    return {
+      allowedCount: permissions.allowedTools.length,
+      disallowedCount: permissions.disallowedTools.length,
+      totalAvailable: totalTools,
+      coveragePercent: Math.round(coveragePercent * 100) / 100,
+      securityLevel
+    };
   }
 }
