@@ -357,7 +357,8 @@ OUTPUT_DIR: output_streams/${sessionId}/
               for await (const message of query({
                 prompt: planPrompt,
                 options: {
-                    model: agentConfig.options?.model || 'sonnet',
+                  maxTurns: 5, // Limited turns for plan creation
+                  model: agentConfig.options?.model || 'sonnet',
                   allowedTools: planPermissions.allowedTools,
                   disallowedTools: planPermissions.disallowedTools,
                   permissionMode: 'acceptEdits',

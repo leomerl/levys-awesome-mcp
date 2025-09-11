@@ -49,7 +49,8 @@ async function convertTSAgentToMD(agentPath: string): Promise<string> {
   // Extract systemPrompt (handle multiline template literals)
   const systemPromptMatch = fileContent.match(/systemPrompt:\s*`([\s\S]*?)`/);
   
-  // Extract prompt (can be at root or in options)
+  // Extract maxTurns and prompt (can be at root or in options)
+  const maxTurnsMatch = fileContent.match(/maxTurns:\s*(\d+)/);
   const promptMatch = fileContent.match(/prompt:\s*['"`]([^'"`]+)['"`]/);
   
   // Extract arrays using simple string parsing - no regex
@@ -156,6 +157,7 @@ async function convertTSAgentToMD(agentPath: string): Promise<string> {
   const description = descMatch ? descMatch[1] : 'Agent description';
   const model = modelMatch ? modelMatch[1] : 'sonnet';
   const systemPrompt = systemPromptMatch ? systemPromptMatch[1].trim() : '';
+  const maxTurns = maxTurnsMatch ? parseInt(maxTurnsMatch[1]) : undefined;
   const prompt = promptMatch ? promptMatch[1] : undefined;
   
   // Build markdown content
@@ -164,6 +166,10 @@ name: ${name}
 description: ${description}
 model: ${model}`;
 
+  if (maxTurns) {
+    markdown += `
+maxTurns: ${maxTurns}`;
+  }
 
   if (prompt) {
     markdown += `

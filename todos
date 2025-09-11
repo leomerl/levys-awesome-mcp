@@ -1,12 +1,11 @@
 *CRITICAL
 resume conversation functionality
-Reason: No summary file found after agent execution
-remove maxTurns
+generating restricted tools is written more than 5 times in code
 
 builder-agent || planner-agent not found 
-agent names XXX-agent
 make unified agent interface
 Claude requested permissions to use mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__put_summary, but you haven't granted it yet.
+
 
 plan include maxTurns
 independent tasks run in parallel
@@ -17,15 +16,18 @@ move commands and agents to .claude/ on installation
 add logic to check agent is orchestrator-agent and if any progress task is not completed, re invoke
 remove double prefix
 advanced custom prompt interface
-reviewr agent
 self feedback loop
 
+SPARC command
 TDD iterations workflow
 apply strong tool use enforcement with canUsTool
 
-optimizer agent
 break down mcp servers
 
+agents:
+optimizer agent
+code redundancy agent
+reviewr agent
 
 tests:
 report enforcement logic
@@ -46,3 +48,5 @@ claudekit
 v1.0.0 DONE -
 agent names XXX-agent
 harden tools in agent prompts
+multiple_plan_and_progress
+summary enforcement works when not supposed to

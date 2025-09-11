@@ -9,6 +9,7 @@ interface AgentConfig {
   prompt: string;
   model?: string;
   options: {
+    maxTurns: number;
     model?: string;
     allowedTools?: string[];
     mcpServers?: string[];
@@ -22,6 +23,7 @@ const orchestratorAgent: AgentConfig = {
   prompt: 'Coordinate development workflows by routing tasks to appropriate specialized agents.',
   model: 'opus',
   options: {
+    maxTurns: 15,
     model: 'opus',
     allowedTools: [
       'Glob',
@@ -293,6 +295,7 @@ async function runAgent() {
       prompt,
       options: {
         systemPrompt: orchestratorAgent.options.systemPrompt,
+        maxTurns: orchestratorAgent.options.maxTurns,
         model: orchestratorAgent.options.model,
         allowedTools: orchestratorAgent.options.allowedTools,
         disallowedTools: ['Task'], // Block built-in Task tool

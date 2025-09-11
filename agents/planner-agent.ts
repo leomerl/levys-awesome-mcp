@@ -9,6 +9,7 @@ interface AgentConfig {
   prompt: string;
   model?: string;
   options: {
+    maxTurns: number;
     model?: string;
     allowedTools?: string[];
     mcpServers?: string[];
@@ -22,6 +23,7 @@ const plannerAgent: AgentConfig = {
   prompt: 'Analyze the given task and create a comprehensive execution plan using the plan-creator tool.',
   model: 'opus',
   options: {
+    maxTurns: 10,
     model: 'opus',
     allowedTools: [
       'Glob',
@@ -187,6 +189,7 @@ async function runAgent() {
       prompt,
       options: {
         systemPrompt: plannerAgent.options.systemPrompt,
+        maxTurns: plannerAgent.options.maxTurns,
         model: plannerAgent.options.model,
         allowedTools: plannerAgent.options.allowedTools,
         disallowedTools: ['Task'], // Block built-in Task tool
