@@ -19,7 +19,7 @@ export interface LinterAgentConfig {
 }
 
 const linterAgent: LinterAgentConfig = {
-  name: 'linter',
+  name: 'linter-agent',
   description: 'Performs comprehensive code quality analysis, linting, and security scanning. Creates detailed lint reports in JSON format.',
   prompt: 'Perform comprehensive code quality analysis, linting, and security scanning. Generate detailed reports with findings and recommendations.',
   options: {

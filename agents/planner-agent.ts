@@ -18,7 +18,7 @@ interface AgentConfig {
 }
 
 const plannerAgent: AgentConfig = {
-  name: 'planner',
+  name: 'planner-agent',
   description: 'Strategic planning agent that analyzes complex tasks and creates detailed execution plans using the plan-creator tool. Focuses purely on planning without execution - reads codebase for context and generates comprehensive plans with task breakdowns, agent assignments, and files to modify.',
   prompt: 'Analyze the given task and create a comprehensive execution plan using the plan-creator tool.',
   model: 'opus',

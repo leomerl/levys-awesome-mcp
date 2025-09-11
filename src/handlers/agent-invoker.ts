@@ -226,8 +226,8 @@ OUTPUT_DIR: output_streams/${sessionId}/
           // Final save
           await SessionStore.saveConversationHistory(sessionId!, agentName, messages);
 
-          // Special handling for planner agent - check for plan file instead of summary
-          if (agentName === 'planner') {
+          // Special handling for planner-agent - check for plan file instead of summary
+          if (agentName === 'planner-agent') {
             const planCheck = await checkForPlanFiles(sessionId!);
             if (!planCheck.found) {
               // Request plan creation by continuing the session
@@ -359,9 +359,9 @@ OUTPUT_DIR: output_streams/${sessionId}/
             fs.appendFileSync(streamLogFile, completionLog, 'utf8');
           }
 
-          // Check final status for response - different handling for planner vs other agents
+          // Check final status for response - different handling for planner-agent vs other agents
           let statusInfo = '';
-          if (agentName === 'planner') {
+          if (agentName === 'planner-agent') {
             const finalPlanCheck = await checkForPlanFiles(sessionId!);
             if (finalPlanCheck.found) {
               statusInfo = `\n**Plan File:** ${finalPlanCheck.files[0]}`;

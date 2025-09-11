@@ -1,4 +1,4 @@
-builder-agent || planner not found 
+builder-agent || planner-agent not found 
 agent names XXX-agent
 make unified agent interface
 Claude requested permissions to use mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__put_summary, but you haven't granted it yet.
@@ -9,7 +9,7 @@ independent tasks run in parallel
 add get_next_task
 add generate agent from md tool
 
-add logic to check agent is orchestrator and if any progress task is not completed, re invoke
+add logic to check agent is orchestrator-agent and if any progress task is not completed, re invoke
 remove double prefix
 
 TDD iterations

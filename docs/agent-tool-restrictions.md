@@ -59,10 +59,10 @@ role: security-sensitive
 **Denied tools**: Everything else including `WebFetch`, `WebSearch`
 
 ### Full-Access (`full-access`)
-**Use case**: Orchestrators, planners
+**Use case**: Orchestrator agents, planner agents
 ```yaml
 ---
-name: orchestrator
+name: orchestrator-agent
 description: "Strategic planning and coordination"
 # tools: omit for all tools inheritance
 role: full-access
@@ -87,7 +87,7 @@ role: read-only
 ### Tool Inheritance (Awesome-Claude-Code Pattern)
 ```yaml
 ---
-name: orchestrator-planner
+name: orchestrator-planner-agent
 description: "Strategic planning agent"
 # tools: omit for all tools inheritance
 role: full-access
@@ -165,7 +165,7 @@ role: security-sensitive
 
 # Good: Omit tools for flexible agents
 ---
-name: orchestrator
+name: orchestrator-agent
 # tools: omit for inheritance
 role: full-access
 ---

@@ -18,7 +18,7 @@ interface AgentConfig {
 }
 
 const orchestratorAgent: AgentConfig = {
-  name: 'orchestrator',
+  name: 'orchestrator-agent',
   description: 'Use this agent when you need to coordinate development workflows including backend/frontend development, building, and linting. This agent intelligently routes tasks to appropriate specialized agents (backend-agent, frontend-agent, builder, linter) and manages the execution flow.',
   prompt: 'Coordinate development workflows by routing tasks to appropriate specialized agents.',
   model: 'opus',
@@ -48,7 +48,7 @@ const orchestratorAgent: AgentConfig = {
 ## Core Responsibilities
 
 1. **Planning Phase (MANDATORY FIRST STEP)**
-   - **ALWAYS start by invoking the 'planner' agent** for any complex task or project
+   - **ALWAYS start by invoking the 'planner-agent'** for any complex task or project
    - Use the planner to analyze the task requirements and create a detailed execution plan
    - **After planner completes**, use mcp__content-writer__get_plan (NOT get_summary) to retrieve the plan file
    - The planner will break down the task into specific steps and agent assignments
@@ -59,13 +59,13 @@ const orchestratorAgent: AgentConfig = {
    - Backend tasks: Use 'backend-agent' for API development, database work, server logic
    - Frontend tasks: Use 'frontend-agent' for UI components, styling, client-side logic
    - Mixed tasks: Use both backend and frontend agents as needed
-   - Always conclude with 'builder', 'linter', and 'testing-agent' for quality assurance and testing
+   - Always conclude with 'builder-agent', 'linter-agent', and 'testing-agent' for quality assurance and testing
    - Generate reports after testing to identify issues for potential feedback loops
 
 2. **Sequential Execution Management**
    - Execute development agents first (backend-agent, frontend-agent)
    - Then invoke the 'builder' agent for compilation and build verification
-   - Next invoke the 'linter' agent for code quality analysis
+   - Next invoke the 'linter-agent' for code quality analysis
    - Finally invoke the 'testing-agent' for comprehensive testing and failure analysis
    - Analyze testing reports to determine if bug fixes are needed (feedback loop)
    - If critical issues found: return to development phase with specific fix instructions
@@ -125,7 +125,7 @@ const orchestratorAgent: AgentConfig = {
 ## Execution Workflow
 
 ### Primary Development Cycle
-1. **Planning Phase (MANDATORY)**: Invoke 'planner' agent to analyze the task and create detailed execution plan
+1. **Planning Phase (MANDATORY)**: Invoke 'planner-agent' to analyze the task and create detailed execution plan
 2. **Plan Retrieval**: Use mcp__content-writer__get_plan to retrieve and analyze the plan file from the planner
 3. **Session Setup**: Generate unique session_ID using format: YYYYMMDD-HHMMSS (e.g., "20250830-153642")  
 4. **Plan Analysis**: Review the planner's output to understand task breakdown and agent assignments
@@ -134,7 +134,7 @@ const orchestratorAgent: AgentConfig = {
    - For frontend tasks: Invoke 'frontend-agent' using mcp__agent-invoker__invoke_agent
    - For full-stack tasks: Invoke both agents sequentially
 6. **Build Phase**: Invoke 'builder' agent to compile and verify the changes
-7. **Quality Phase**: Invoke 'linter' agent for code quality analysis
+7. **Quality Phase**: Invoke 'linter-agent' for code quality analysis
 8. **Testing Phase**: Invoke 'testing-agent' for comprehensive testing and failure analysis
 9. **Feedback Loop Decision**: 
    - Read testing report from \`/reports/\${session_ID}/testing-agent-report.json\`
@@ -152,7 +152,7 @@ const orchestratorAgent: AgentConfig = {
 ## MCP Agent Invocation Details
 
 When using mcp__agent-invoker__invoke_agent:
-- Use agentName parameter to specify: 'backend-agent', 'frontend-agent', 'builder', 'linter', or 'testing-agent'
+- Use agentName parameter to specify: 'backend-agent', 'frontend-agent', 'builder-agent', 'linter-agent', or 'testing-agent'
 - Include clean session_ID in the prompt: "Execute [operation] for SESSION_ID: \${session_ID}. Use this exact session ID for all report generation."
 - **IMMEDIATELY after each agent invocation**, use mcp__content-writer__get_summary:
   \`\`\`
