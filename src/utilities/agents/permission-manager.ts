@@ -174,7 +174,7 @@ export class PermissionManager {
    * Validates that an agent has permission to use put_summary tool
    */
   static ensureSummaryPermission(allowedTools: string[]): string[] {
-    const summaryTool = 'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__put_summary';
+    const summaryTool = 'mcp__levys-awesome-mcp__mcp__content-writer__put_summary';
     console.log(`[DEBUG] ensureSummaryPermission input tools:`, allowedTools);
     console.log(`[DEBUG] Looking for summary tool:`, summaryTool);
     console.log(`[DEBUG] Summary tool included?`, allowedTools.includes(summaryTool));

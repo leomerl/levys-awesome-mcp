@@ -292,6 +292,7 @@ OUTPUT_DIR: output_streams/${sessionId}/
               disallowedTools: finalDisallowedTools, // Use filtered disallowed tools
               permissionMode: 'acceptEdits',
               pathToClaudeCodeExecutable: path.resolve(process.cwd(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
+              resume: isSessionContinuation ? sessionId : undefined, // Resume existing session if continuing
               mcpServers: {
                 "levys-awesome-mcp": {
                   command: "node",
@@ -361,6 +362,7 @@ OUTPUT_DIR: output_streams/${sessionId}/
                   disallowedTools: planPermissions.disallowedTools,
                   permissionMode: 'acceptEdits',
                   pathToClaudeCodeExecutable: path.resolve(process.cwd(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
+                  resume: sessionId, // Continue the same session for plan creation
                   mcpServers: {
                     "levys-awesome-mcp": {
                       command: "node",
@@ -422,6 +424,7 @@ OUTPUT_DIR: output_streams/${sessionId}/
                 disallowedTools: summaryPermissions.disallowedTools, // Maintain same restrictions for summary creation
                 permissionMode: 'acceptEdits',
                 pathToClaudeCodeExecutable: path.resolve(process.cwd(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
+                resume: sessionId, // Continue the same session for summary creation
                 mcpServers: {
                   "levys-awesome-mcp": {
                     command: "node",
