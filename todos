@@ -1,12 +1,11 @@
 *CRITICAL
-resume conversation functionality
+✅ resume conversation functionality (COMPLETED)
+✅ put_summary tool access fix (COMPLETED)
 generating restricted tools is written more than 5 times in code
 
 builder-agent || planner-agent not found 
+agent names XXX-agent
 make unified agent interface
-Claude requested permissions to use mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__put_summary, but you haven't granted it yet.
-
-
 plan include maxTurns
 independent tasks run in parallel
 add get_next_task
@@ -48,5 +47,5 @@ claudekit
 v1.0.0 DONE -
 agent names XXX-agent
 harden tools in agent prompts
-multiple_plan_and_progress
-summary enforcement works when not supposed to
+✅ multiple_plan_and_progress (COMPLETED)
+✅ summary enforcement (FIXED)

@@ -3,6 +3,33 @@ import { existsSync } from 'fs';
 import * as path from 'path';
 import { executeCommand } from '../shared/utils.js';
 
+// Simple file-based locking mechanism to prevent race conditions
+const activeLocks = new Map<string, Promise<void>>();
+
+async function withLock<T>(lockKey: string, operation: () => Promise<T>): Promise<T> {
+  // If there's already a lock for this key, wait for it
+  if (activeLocks.has(lockKey)) {
+    await activeLocks.get(lockKey);
+  }
+
+  // Create a new lock
+  let resolveLock: () => void;
+  const lockPromise = new Promise<void>(resolve => {
+    resolveLock = resolve;
+  });
+  
+  activeLocks.set(lockKey, lockPromise);
+
+  try {
+    const result = await operation();
+    return result;
+  } finally {
+    // Release the lock
+    resolveLock!();
+    activeLocks.delete(lockKey);
+  }
+}
+
 interface Task {
   id: string;
   designated_agent: string;
@@ -260,12 +287,96 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
           await mkdir(reportsDir, { recursive: true });
         }
 
-        // Save the plan to a JSON file (without state)
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const planFileName = `plan-${timestamp}.json`;
-        const planFilePath = path.join(reportsDir, planFileName);
+        // Use locking to prevent race conditions in concurrent file creation
+        const { planFilePath, progressFilePath } = await withLock(`plan-creation-${gitHash}`, async () => {
+          // Check if plan/progress files already exist (within the lock)
+          let planFilePath: string;
+          let progressFilePath: string;
         
-        await writeFile(planFilePath, JSON.stringify(plan, null, 2), 'utf8');
+          if (existsSync(reportsDir)) {
+            const fs = await import('fs');
+            const existingFiles = fs.readdirSync(reportsDir);
+            const existingPlanFiles = existingFiles.filter(f => f.startsWith('plan-') && f.endsWith('.json'));
+            const existingProgressFiles = existingFiles.filter(f => f.startsWith('progress-') && f.endsWith('.json'));
+            
+            if (existingPlanFiles.length > 0 && existingProgressFiles.length > 0) {
+              // Use existing files (most recent ones)
+              existingPlanFiles.sort().reverse();
+              existingProgressFiles.sort().reverse();
+              
+              planFilePath = path.join(reportsDir, existingPlanFiles[0]);
+              progressFilePath = path.join(reportsDir, existingProgressFiles[0]);
+              
+              // Update existing files instead of creating new ones
+              await writeFile(planFilePath, JSON.stringify(plan, null, 2), 'utf8');
+              
+              // For progress file, preserve existing task states but update the structure
+              try {
+                const existingProgressContent = await readFile(progressFilePath, 'utf8');
+                const existingProgress: ProgressDocument = JSON.parse(existingProgressContent);
+                
+                // Merge existing task states with new plan
+                const mergedTasks = progress.tasks.map(newTask => {
+                  const existingTask = existingProgress.tasks.find(t => t.id === newTask.id);
+                  if (existingTask) {
+                    // Preserve existing state and metadata, but update structure from new plan
+                    return {
+                      ...newTask,
+                      state: existingTask.state,
+                      agent_session_id: existingTask.agent_session_id,
+                      files_modified: existingTask.files_modified,
+                      summary: existingTask.summary,
+                      started_at: existingTask.started_at,
+                      completed_at: existingTask.completed_at
+                    };
+                  }
+                  return newTask;
+                });
+                
+                // Update progress document
+                progress.tasks = mergedTasks;
+                progress.last_updated = new Date().toISOString();
+                progress.plan_file = planFilePath;
+                
+              } catch (error) {
+                // If we can't read existing progress file, use new one
+                progress.plan_file = planFilePath;
+              }
+              
+              await writeFile(progressFilePath, JSON.stringify(progress, null, 2), 'utf8');
+              
+            } else {
+              // Create new files with timestamp
+              const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+              const planFileName = `plan-${timestamp}.json`;
+              const progressFileName = `progress-${timestamp}.json`;
+              
+              planFilePath = path.join(reportsDir, planFileName);
+              progressFilePath = path.join(reportsDir, progressFileName);
+              
+              await writeFile(planFilePath, JSON.stringify(plan, null, 2), 'utf8');
+              
+              progress.plan_file = planFilePath;
+              await writeFile(progressFilePath, JSON.stringify(progress, null, 2), 'utf8');
+            }
+          } else {
+            // Directory doesn't exist, create new files
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const planFileName = `plan-${timestamp}.json`;
+            const progressFileName = `progress-${timestamp}.json`;
+            
+            planFilePath = path.join(reportsDir, planFileName);
+            progressFilePath = path.join(reportsDir, progressFileName);
+            
+            await writeFile(planFilePath, JSON.stringify(plan, null, 2), 'utf8');
+            
+            progress.plan_file = planFilePath;
+            await writeFile(progressFilePath, JSON.stringify(progress, null, 2), 'utf8');
+          }
+
+          // Return file paths from the locked operation
+          return { planFilePath, progressFilePath };
+        });
 
         // Save the progress file (with state tracking)
         const progressFileName = `progress-${timestamp}.json`;

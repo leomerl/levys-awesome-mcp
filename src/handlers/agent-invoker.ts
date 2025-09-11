@@ -74,7 +74,7 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
   try {
     switch (name) {
       case 'mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent': {
-        const { agentName, prompt, streaming = true, saveStreamToFile = true, continueSessionId } = args;
+        const { agentName, prompt } = args;
         
         if (!agentName || !prompt) {
           return {
@@ -98,34 +98,7 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
           };
         }
 
-        // Initialize session with ENFORCED streaming and session.log creation
-        const sessionInit = await SessionStore.initializeSession(continueSessionId, agentName);
-        if (!sessionInit.success) {
-          return {
-            content: [{
-              type: 'text',
-              text: `Error: ${sessionInit.error}`
-            }],
-            isError: true
-          };
-        }
-
-        const { sessionId, existingHistory, isSessionContinuation } = sessionInit;
-        const messages: any[] = existingHistory?.messages || [];
         let output = '';
-
-        // ENFORCE streaming and session.log creation - cannot be disabled
-        const streamingUtils = new StreamingManager(sessionId!, agentName, {
-          streaming: true,        // ALWAYS TRUE - enforced
-          saveStreamToFile: true, // ALWAYS TRUE - enforced
-          verbose: true
-        });
-
-        // Initialize session.log file - THIS IS ENFORCED
-        streamingUtils.initStreamFile();
-        
-        // Get stream log file reference for logging throughout the session
-        const streamLogFile = streamingUtils.getStreamLogFile();
         
         try {
           // Build enhanced prompt with session tracking and DYNAMIC TOOL RESTRICTIONS
@@ -363,7 +336,7 @@ OUTPUT_DIR: output_streams/${sessionId}/
                   disallowedTools: planPermissions.disallowedTools,
                   permissionMode: 'acceptEdits',
                   pathToClaudeCodeExecutable: path.resolve(process.cwd(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
-                  resume: sessionId, // Continue the same session for plan creation
+                  // Note: Plan creation uses same session context
                   mcpServers: {
                     "levys-awesome-mcp": {
                       command: "node",
@@ -425,7 +398,7 @@ OUTPUT_DIR: output_streams/${sessionId}/
                 disallowedTools: summaryPermissions.disallowedTools, // Maintain same restrictions for summary creation
                 permissionMode: 'acceptEdits',
                 pathToClaudeCodeExecutable: path.resolve(process.cwd(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
-                resume: sessionId, // Continue the same session for summary creation
+                // Note: Summary creation uses same session context
                 mcpServers: {
                   "levys-awesome-mcp": {
                     command: "node",

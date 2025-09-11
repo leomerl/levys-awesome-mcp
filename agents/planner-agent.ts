@@ -33,7 +33,7 @@ const plannerAgent: AgentConfig = {
       'WebSearch',
       'TodoWrite',
       'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__plan-creator__create_plan',
-      'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
+      'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
       'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__get_summary'
     ],
     mcpServers: [
@@ -192,7 +192,6 @@ async function runAgent() {
         maxTurns: plannerAgent.options.maxTurns,
         model: plannerAgent.options.model,
         allowedTools: plannerAgent.options.allowedTools,
-        disallowedTools: ['Task'], // Block built-in Task tool
         pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
         mcpServers: {
           "levys-awesome-mcp": {
@@ -202,12 +201,17 @@ async function runAgent() {
         }
       }
     })) {
-      if (message.type === "result") {
-        console.log(message.result);
-      } else if (message.type === "toolCall") {
-        console.log(`🔧 Tool: ${message.toolName}`);
-      } else if (message.type === "error") {
-        console.error(`❌ Error: ${message.error}`);
+      if (message.type === "assistant") {
+        const content = message.message.content;
+        if (content) {
+          for (const item of content) {
+            if (item.type === "text") {
+              console.log(item.text);
+            }
+          }
+        }
+      } else if (message.type === "result" && message.is_error) {
+        console.error(`❌ Error: Agent execution failed`);
       }
     }
   } catch (error) {
