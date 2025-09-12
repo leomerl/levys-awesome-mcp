@@ -105,6 +105,29 @@ OUTPUT_DIR: output_streams/${sessionId}/
 
           // Log will be added after we get the session ID
 
+          // Helper function to generate restriction prompt
+          const generateRestrictionPrompt = async (
+            disallowedTools: string[], 
+            allowedTools: string[],
+            configType: string
+          ): Promise<string> => {
+            try {
+              const promptDisallowedTools = disallowedTools.filter(tool => 
+                !allowedTools.includes(tool)
+              );
+              
+              const prompt = await PermissionManager.generateToolRestrictionPrompt(promptDisallowedTools);
+              const logMessage = configType === 'default' 
+                ? `[AgentInvoker] Generated restriction prompt for default config with ${promptDisallowedTools.length} disallowed tools (${prompt.length} characters)`
+                : `[AgentInvoker] Generated restriction prompt with ${promptDisallowedTools.length} disallowed tools (prompt length: ${prompt.length})`;
+              console.log(logMessage);
+              return prompt;
+            } catch (error) {
+              console.error(`[AgentInvoker] Error generating restriction prompt${configType === 'default' ? ' for default config' : ''}:`, error);
+              return '';
+            }
+          };
+
           // Get agent permissions
           let permissions: { allowedTools: string[]; disallowedTools: string[] };
           let restrictionPrompt = '';
@@ -118,19 +141,7 @@ OUTPUT_DIR: output_streams/${sessionId}/
             };
             
             permissions = await PermissionManager.getAgentPermissionsWithDynamicRestrictions(permissionConfig);
-            
-            // Generate tool restriction prompt for injection - subtract allowed tools first
-            try {
-              const promptDisallowedTools = permissions.disallowedTools.filter(tool => 
-                !permissions.allowedTools.includes(tool)
-              );
-              
-              restrictionPrompt = await PermissionManager.generateToolRestrictionPrompt(promptDisallowedTools);
-              console.log(`[AgentInvoker] Generated restriction prompt with ${promptDisallowedTools.length} disallowed tools (prompt length: ${restrictionPrompt.length})`);
-            } catch (error) {
-              console.error(`[AgentInvoker] Error generating restriction prompt:`, error);
-              restrictionPrompt = '';
-            }
+            restrictionPrompt = await generateRestrictionPrompt(permissions.disallowedTools, permissions.allowedTools, 'legacy');
           } else {
             // Default permissions
             const defaultConfig = {
@@ -139,18 +150,7 @@ OUTPUT_DIR: output_streams/${sessionId}/
               useDynamicRestrictions: true
             };
             permissions = await PermissionManager.getAgentPermissionsWithDynamicRestrictions(defaultConfig);
-            
-            // Generate restriction prompt for default config - filter out allowed tools
-            try {
-              const promptDisallowedTools = permissions.disallowedTools.filter(tool => 
-                !permissions.allowedTools.includes(tool)
-              );
-              restrictionPrompt = await PermissionManager.generateToolRestrictionPrompt(promptDisallowedTools);
-              console.log(`[AgentInvoker] Generated restriction prompt for default config with ${promptDisallowedTools.length} disallowed tools (${restrictionPrompt.length} characters)`);
-            } catch (error) {
-              console.error(`[AgentInvoker] Error generating restriction prompt for default config:`, error);
-              restrictionPrompt = '';
-            }
+            restrictionPrompt = await generateRestrictionPrompt(permissions.disallowedTools, permissions.allowedTools, 'default');
           }
 
           // Build the final prompt with restriction warnings injected

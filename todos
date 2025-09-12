@@ -1,7 +1,4 @@
-*CRITICAL
-generating restricted tools is written more than 5 times in code
 
-builder-agent || planner-agent not found 
 make unified agent interface
 
 plan include maxTurns
@@ -45,6 +42,7 @@ harden tools in agent prompts
 multiple_plan_and_progres
 summary enforcement
 resume conversation functionality
+generating restricted tools is written more than 5 times in code
 
 tests:
 forbidden tool explicit ask
