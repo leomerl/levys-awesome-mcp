@@ -1,23 +1,12 @@
 #!/usr/bin/env tsx
 
 import { query } from "@anthropic-ai/claude-code";
+import { AgentConfig } from '../src/types/agent-config.ts';
 
 // Linter Agent - Follows Claude Code TypeScript SDK Schema
 // Reference: https://github.com/instantlyeasy/claude-code-sdk-ts
 
-export interface LinterAgentConfig {
-  name: string;
-  description: string;
-  prompt: string;
-  options: {
-    systemPrompt: string;
-    model?: string;
-    allowedTools?: string[];
-    mcpServers?: string[];
-  };
-}
-
-const linterAgent: LinterAgentConfig = {
+const linterAgent: AgentConfig = {
   name: 'linter-agent',
   description: 'Performs comprehensive code quality analysis, linting, and security scanning. Creates detailed lint reports in JSON format.',
   prompt: 'Perform comprehensive code quality analysis, linting, and security scanning. Generate detailed reports with findings and recommendations.',

@@ -1,6 +1,3 @@
-
-make unified agent interface
-
 plan include maxTurns
 independent tasks run in parallel
 
@@ -43,6 +40,9 @@ multiple_plan_and_progres
 summary enforcement
 resume conversation functionality
 generating restricted tools is written more than 5 times in code
+advanced agent prompts
+unified agent interface
+
 
 tests:
 forbidden tool explicit ask

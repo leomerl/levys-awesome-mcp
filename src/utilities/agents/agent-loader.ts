@@ -16,45 +16,91 @@ export class AgentLoader {
    */
   static async loadAgentConfig(agentName: string): Promise<AgentConfig | null> {
     const agentsDir = PathConfig.getAgentsDirectory();
+    console.log(`[AgentLoader] Looking for agent '${agentName}' in directory: ${agentsDir}`);
     
     if (!fs.existsSync(agentsDir)) {
+      console.log(`[AgentLoader] Agents directory does not exist: ${agentsDir}`);
       return null;
     }
     
     const files = fs.readdirSync(agentsDir).filter(file => 
-      file.endsWith('.ts') && 
-      file !== 'agent_generator.ts' && 
-      file !== 'agent_invoker.ts' && 
-      file !== 'builder-agent.ts'
+      file.endsWith('.ts')
     );
+    
+    console.log(`[AgentLoader] Found ${files.length} .ts files in agents directory`);
     
     for (const file of files) {
       try {
         const fullPath = path.resolve(agentsDir, file);
-        const fileUrl = `file://${fullPath.replace(/\\/g, '/')}`;
+        const content = fs.readFileSync(fullPath, 'utf8');
         
-        // Use dynamic import with timestamp to avoid caching
-        const agentModule = await import(`${fileUrl}?t=${Date.now()}`);
+        // Check if this file contains the agent we're looking for
+        const nameMatch = content.match(/name:\s*['"`]([^'"`]+)['"`]/);
+        console.log(`[AgentLoader] File ${file}: found name = ${nameMatch ? nameMatch[1] : 'none'}`);
+        if (!nameMatch || nameMatch[1] !== agentName) {
+          continue;
+        }
         
-        for (const [exportName, exportValue] of Object.entries(agentModule)) {
-          if (typeof exportValue === 'object' && exportValue !== null) {
-            const agentConfig = exportValue as AgentConfig;
-            if (agentConfig.name === agentName) {
-              return this.validateAndNormalizeConfig(agentConfig);
-            }
-            
-            // Check if the export value has nested agent configs
-            if (exportName === 'default' && typeof exportValue === 'object') {
-              for (const [nestedName, nestedValue] of Object.entries(exportValue)) {
-                if (typeof nestedValue === 'object' && nestedValue !== null) {
-                  const nestedAgentConfig = nestedValue as AgentConfig;
-                  if (nestedAgentConfig.name === agentName) {
-                    return this.validateAndNormalizeConfig(nestedAgentConfig);
-                  }
-                }
-              }
-            }
+        // Extract the agent configuration object
+        // Look for patterns like: const xxxAgent: AgentConfig = { ... }
+        const configPattern = /const\s+\w+Agent(?::\s*AgentConfig)?\s*=\s*({[\s\S]*?^});/m;
+        const configMatch = content.match(configPattern);
+        
+        if (!configMatch) {
+          continue;
+        }
+        
+        try {
+          // Parse the configuration object
+          // This is a simplified parser - extract key properties
+          const configStr = configMatch[1];
+          
+          // Extract name
+          const name = nameMatch[1];
+          
+          // Extract description
+          const descMatch = configStr.match(/description:\s*['"`]([^'"`]+)['"`]/);
+          const description = descMatch ? descMatch[1] : '';
+          
+          // Extract prompt
+          const promptMatch = configStr.match(/prompt:\s*['"`]([^'"`]+)['"`]/);
+          const prompt = promptMatch ? promptMatch[1] : '';
+          
+          // Extract systemPrompt (can be multiline)
+          const systemPromptMatch = configStr.match(/systemPrompt:\s*`([^`]*)`/s);
+          const systemPrompt = systemPromptMatch ? systemPromptMatch[1] : '';
+          
+          // Extract model
+          const modelMatch = configStr.match(/model:\s*['"`]([^'"`]+)['"`]/);
+          const model = modelMatch ? modelMatch[1] : 'claude-3-5-sonnet-20241022';
+          
+          // Extract allowedTools array
+          const allowedToolsMatch = configStr.match(/allowedTools:\s*\[([\s\S]*?)\]/);
+          let allowedTools: string[] = [];
+          if (allowedToolsMatch) {
+            // Extract tool patterns from the array
+            const toolsStr = allowedToolsMatch[1];
+            const toolMatches = toolsStr.matchAll(/['"`]([^'"`]+)['"`]/g);
+            allowedTools = Array.from(toolMatches).map(m => m[1]);
           }
+          
+          // Create the agent configuration
+          const agentConfig: AgentConfig = {
+            name,
+            description,
+            systemPrompt: systemPrompt || prompt,
+            model,
+            options: {
+              systemPrompt: systemPrompt || prompt,
+              model,
+              allowedTools,
+              mcpServers: []
+            }
+          };
+          
+          return this.validateAndNormalizeConfig(agentConfig);
+        } catch (parseError) {
+          console.error(`Error parsing agent config from ${file}:`, parseError);
         }
       } catch (error) {
         console.error(`Error loading agent from ${file}:`, error);
@@ -76,10 +122,7 @@ export class AgentLoader {
     }
     
     const files = fs.readdirSync(agentsDir).filter(file => 
-      file.endsWith('.ts') && 
-      file !== 'agent_generator.ts' && 
-      file !== 'agent_invoker.ts' && 
-      file !== 'builder-agent.ts'
+      file.endsWith('.ts')
     );
     
     for (const file of files) {
@@ -112,8 +155,7 @@ export class AgentLoader {
     }
     
     const files = fs.readdirSync(agentsDir).filter(file => 
-      file.endsWith('.ts') && 
-      file !== 'agent_generator.ts'
+      file.endsWith('.ts')
     );
     
     for (const file of files) {

@@ -95,15 +95,23 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
         let isFirstMessage = true;
         
         try {
-          // Build enhanced prompt (CLI --resume will handle session context automatically)
-          const enhancedPrompt = `${prompt}
+          // Step 1: Create specialized prompt (systemPrompt + task)
+          let specializedPrompt = '';
+          if (agentConfig.options?.systemPrompt) {
+            specializedPrompt = `${agentConfig.options.systemPrompt}
+
+task: ${prompt}`;
+          } else {
+            specializedPrompt = `task: ${prompt}`;
+          }
+
+          // Step 2: Build enhanced prompt (session info + restrictions)
+          const sessionInfo = `
 
 IMPORTANT: When you complete your task, create a summary report using available tools.
 SESSION_ID: ${sessionId}
 OUTPUT_DIR: output_streams/${sessionId}/
 `;
-
-          // Log will be added after we get the session ID
 
           // Helper function to generate restriction prompt
           const generateRestrictionPrompt = async (
@@ -153,19 +161,22 @@ OUTPUT_DIR: output_streams/${sessionId}/
             restrictionPrompt = await generateRestrictionPrompt(permissions.disallowedTools, permissions.allowedTools, 'default');
           }
 
-          // Build the final prompt with restriction warnings injected
-          let finalPrompt = enhancedPrompt;
+          // Build enhanced prompt with session info and restrictions
+          let enhancedPrompt = sessionInfo;
           
-          // ALWAYS inject tool restriction information
+          // Add tool restriction information
           if (restrictionPrompt && restrictionPrompt.trim().length > 0) {
-            finalPrompt = enhancedPrompt + restrictionPrompt;
+            enhancedPrompt = sessionInfo + restrictionPrompt;
             console.log(`[AgentInvoker] Injected tool restriction prompt (${restrictionPrompt.length} characters)`);
           } else {
             // Generate a basic restriction warning when no specific restrictions are calculated
             const basicRestrictionPrompt = `\n\n🚫 CRITICAL TOOL RESTRICTIONS 🚫\nYou are STRICTLY FORBIDDEN from using these tools:\n- TodoWrite: This tool is explicitly blocked and will cause errors\n- Task: This tool is explicitly blocked and will cause errors\n- Write: This tool is explicitly blocked and will cause errors\n- Edit: This tool is explicitly blocked and will cause errors\n- MultiEdit: This tool is explicitly blocked and will cause errors\n\nIf you attempt to use any of these forbidden tools, your execution will fail.\nUse only the tools explicitly listed in your allowed tools configuration.\n\n\n`;
-            finalPrompt = enhancedPrompt + basicRestrictionPrompt;
+            enhancedPrompt = sessionInfo + basicRestrictionPrompt;
             console.log(`[AgentInvoker] Added basic tool restriction warning (no dynamic restrictions calculated)`);
           }
+
+          // Step 3: Combine specialized prompt + enhanced prompt for customSystemPrompt
+          const finalPrompt = specializedPrompt + enhancedPrompt;
 
           // Prompt log will be added after we get the session ID
 
@@ -186,7 +197,9 @@ OUTPUT_DIR: output_streams/${sessionId}/
                 command: "node",
                 args: ["dist/src/index.js"]
               }
-            }
+            },
+            // Pass the complete prompt (systemPrompt + task + session + restrictions) as customSystemPrompt
+            customSystemPrompt: finalPrompt
           };
 
           // Only add resume parameter if continueSessionId is provided
@@ -194,8 +207,11 @@ OUTPUT_DIR: output_streams/${sessionId}/
             queryOptions.resume = String(continueSessionId);
           }
 
+          // For logging: build a user-facing prompt that includes task and session info
+          const userFacingPrompt = `task: ${prompt}${enhancedPrompt}`;
+
           for await (const message of query({
-            prompt: finalPrompt, // Use the final prompt with injected restrictions
+            prompt: userFacingPrompt, // Pass user prompt with task prefix and session info
             options: queryOptions
           })) {
             // Always collect messages for conversation history
@@ -242,8 +258,8 @@ OUTPUT_DIR: output_streams/${sessionId}/
                   const debugLog = `[${timestamp}] SESSION ${mode}:\nAgent: ${agentName}\nSession ID: ${sessionId}\nClaude Code Session ID: ${claudeCodeSessionId || 'pending'}\n\n`;
                   fs.appendFileSync(streamLogFile, debugLog, 'utf8');
                   
-                  // Log the prompt
-                  const promptLog = `[${timestamp}] USER PROMPT:\n${finalPrompt}\n\n`;
+                  // Log both the user prompt and the complete system prompt
+                  const promptLog = `[${timestamp}] USER PROMPT:\n${prompt}\n\n[${timestamp}] CUSTOM SYSTEM PROMPT (includes agent systemPrompt + task + session + restrictions):\n${finalPrompt}\n\n`;
                   fs.appendFileSync(streamLogFile, promptLog, 'utf8');
                 }
               }

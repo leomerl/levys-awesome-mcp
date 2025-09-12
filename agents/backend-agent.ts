@@ -1,19 +1,7 @@
 #!/usr/bin/env tsx
 
 import { query } from "@anthropic-ai/claude-code";
-
-// Agent configuration for SDK usage
-interface AgentConfig {
-  name: string;
-  description: string;
-  prompt: string;
-  options: {
-    systemPrompt: string;
-    model?: string;
-    allowedTools?: string[];
-    mcpServers?: string[];
-  };
-}
+import { AgentConfig } from '../src/types/agent-config.ts';
 
 const backendAgent: AgentConfig = {
   name: 'backend-agent',
