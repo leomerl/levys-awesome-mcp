@@ -135,11 +135,17 @@ export class PermissionManager {
     
     if (config.agentRole) {
       // Use role-based permissions with custom tools
-      const customMCPTools = config.allowedTools.filter(tool => tool.startsWith('mcp__'));
+      // Preserve ALL explicitly allowed tools (MCP tools, wildcards, etc.)
+      const explicitlyAllowedTools = config.allowedTools || [];
+      const customMCPTools = explicitlyAllowedTools.filter(tool => tool.startsWith('mcp__'));
       const roleBasedBuiltIns = this.getToolsForRole(config.agentRole, []);
-      finalAllowedTools = [...customMCPTools, ...roleBasedBuiltIns];
+      
+      // Combine: all explicitly allowed tools + role-based built-ins (avoiding duplicates)
+      const combinedTools = [...new Set([...explicitlyAllowedTools, ...roleBasedBuiltIns])];
+      finalAllowedTools = combinedTools;
       
       console.log(`[DEBUG] Role-based permissions for '${config.agentRole}':`, roleBasedBuiltIns);
+      console.log(`[DEBUG] Explicitly allowed tools:`, explicitlyAllowedTools);
       console.log(`[DEBUG] Custom MCP tools:`, customMCPTools);
     } else {
       // Use explicitly allowed tools (legacy behavior)
@@ -158,7 +164,7 @@ export class PermissionManager {
 
     console.log(`[DEBUG] getAgentPermissions input - allowedTools:`, config.allowedTools);
     console.log(`[DEBUG] getAgentPermissions input - agentRole:`, config.agentRole);
-    console.log(`[DEBUG] Final allowed tools:`, finalAllowedTools);
+    console.log(`[DEBUG] Final allowed tools (${finalAllowedTools.length}):`, finalAllowedTools);
     console.log(`[DEBUG] Built-in tools being denied:`, allBuiltInTools.filter(tool => !finalAllowedTools.includes(tool)));
     
     const result = {
@@ -318,6 +324,9 @@ export class PermissionManager {
     
     // Get base permissions using existing logic
     const basePermissions = this.getAgentPermissions(config);
+    
+    console.log(`[PermissionManager] Base permissions - allowed tools (${basePermissions.allowedTools.length}):`, basePermissions.allowedTools);
+    console.log(`[PermissionManager] Checking for backend_write:`, basePermissions.allowedTools.includes('mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__backend_write'));
     
     // Calculate dynamic disallowed tools using ToolRegistry
     const dynamicDisallowedTools = await ToolRegistry.calculateDisallowedTools(basePermissions.allowedTools);

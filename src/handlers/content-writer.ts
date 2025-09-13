@@ -119,7 +119,10 @@ export const contentWriterTools = [
 
 export async function handleContentWriterTool(name: string, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
-    switch (name) {
+    // Normalize tool names - handle both short and long forms from Claude Code
+    const normalizedName = name.replace('mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__', 'mcp__levys-awesome-mcp__mcp__');
+    
+    switch (normalizedName) {
       case 'mcp__levys-awesome-mcp__mcp__content-writer__restricted_write': {
         const { file_path, content, allowed_folder } = args;
         

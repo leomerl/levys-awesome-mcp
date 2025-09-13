@@ -1,16 +1,18 @@
+invoke by task (TEST)
+add logic to check agent is orchestrator-agent and if any progress task is not completed, re invoke
+progress wasnt updated
+backend couldnt backend write (TEST)
+
 plan include maxTurns
 independent tasks run in parallel
 
-add get_next_task
 add generate agent from md tool
 move commands and agents to .claude/ on installation
 
-add logic to check agent is orchestrator-agent and if any progress task is not completed, re invoke
-
 remove double prefix
-advanced custom prompt interface
 self feedback loop
 
+add get_next_task
 SPARC command
 TDD iterations workflow
 apply strong tool use enforcement with canUsTool
@@ -18,6 +20,7 @@ apply strong tool use enforcement with canUsTool
 break down mcp servers
 
 agents:
+testing agent
 optimizer agent
 code redundancy agent
 reviewr agent

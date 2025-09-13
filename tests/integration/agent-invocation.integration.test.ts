@@ -28,7 +28,7 @@ describe('Agent Invocation Integration Tests', () => {
     const response = await client.call('tools/call', {
       name: 'mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent',
       arguments: {
-        agentName: 'testing-agent',
+        agentName: 'test-agent',
         prompt: 'Test prompt for integration testing'
       }
     });
@@ -41,7 +41,7 @@ describe('Agent Invocation Integration Tests', () => {
     const response = await client.call('tools/call', {
       name: 'mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent',
       arguments: {
-        agentName: 'testing-agent',
+        agentName: 'test-agent',
         prompt: 'First message',
         continueSessionId: 'test-session-123'
       }
@@ -55,7 +55,7 @@ describe('Agent Invocation Integration Tests', () => {
     const response = await client.call('tools/call', {
       name: 'mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent',
       arguments: {
-        agentName: 'testing-agent',
+        agentName: 'test-agent',
         prompt: 'Streaming test',
         streaming: true
       }
@@ -69,7 +69,7 @@ describe('Agent Invocation Integration Tests', () => {
     const response = await client.call('tools/call', {
       name: 'mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent',
       arguments: {
-        agentName: 'testing-agent',
+        agentName: 'test-agent',
         prompt: 'Test without turn limits'
       }
     });

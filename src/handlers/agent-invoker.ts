@@ -90,9 +90,9 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
         let streamLogFile: string | undefined;
         
         const messages: any[] = [];
-        let output = '';
         let claudeCodeSessionId: string | undefined; // To capture Claude Code's actual session ID
         let isFirstMessage = true;
+        let agentCompleted = false; // Track if agent completed successfully
         
         try {
           // Step 1: Create specialized prompt (systemPrompt + task)
@@ -283,28 +283,24 @@ OUTPUT_DIR: output_streams/${sessionId}/
               await SessionStore.saveConversationHistory(sessionId, agentName, messages);
             }
 
-            // Collect output for response
-            if (message.type === "assistant") {
-              const content = message.message.content;
-              if (content) {
-                for (const item of content) {
-                  if (item.type === "text") {
-                    output += item.text + '\n';
-                  }
-                }
+            // Track completion status without collecting output
+            if (message.type === "result") {
+              if (message.is_error) {
+                const errorMsg = 'result' in message && typeof message.result === 'string' ? message.result : 'Unknown error';
+                // Use actual session ID or a fallback
+                const errorSessionId = claudeCodeSessionId || sessionId || 'unknown';
+                const logPath = sessionId ? `output_streams/${sessionId}/session.log` : 'not created';
+                return {
+                  content: [{
+                    type: 'text',
+                    text: `Agent '${agentName}' execution failed: ${errorMsg}\n\nSession ID: ${errorSessionId}\nSession Log: ${logPath}`
+                  }],
+                  isError: true
+                };
+              } else {
+                // Agent completed successfully
+                agentCompleted = true;
               }
-            } else if (message.type === "result" && message.is_error) {
-              const errorMsg = 'result' in message && typeof message.result === 'string' ? message.result : 'Unknown error';
-              // Use actual session ID or a fallback
-              const errorSessionId = claudeCodeSessionId || sessionId || 'unknown';
-              const logPath = sessionId ? `output_streams/${sessionId}/session.log` : 'not created';
-              return {
-                content: [{
-                  type: 'text',
-                  text: `Agent '${agentName}' execution failed: ${errorMsg}\n\nSession ID: ${errorSessionId}\nSession Log: ${logPath}\n\nPartial output:\n${output}`
-                }],
-                isError: true
-              };
             }
           }
 
@@ -329,7 +325,7 @@ OUTPUT_DIR: output_streams/${sessionId}/
           return {
             content: [{
               type: 'text',
-              text: `Agent '${agentName}' completed successfully.\n\n**Session ID:** ${returnSessionId}\n**Session Log:** output_streams/${sessionId}/session.log\n\n**Output:**\n${output.trim()}\n\n**ALL conversation data has been saved to session.log for debugging and analysis.**`
+              text: `Agent '${agentName}' completed successfully.\n\n**Session ID:** ${returnSessionId}\n**Full conversation saved to:** output_streams/${sessionId}/session.log\n\nThe complete agent conversation has been logged but not returned to preserve context boundaries.`
             }]
           };
 
@@ -349,7 +345,7 @@ OUTPUT_DIR: output_streams/${sessionId}/
           return {
             content: [{
               type: 'text',
-              text: `Agent '${agentName}' execution error: ${error instanceof Error ? error.message : String(error)}\n\nSession ID: ${claudeCodeSessionId || sessionId || 'unknown'}\nSession Log: ${sessionId ? `output_streams/${sessionId}/session.log` : 'not created'}\n\nPartial output:\n${output}`
+              text: `Agent '${agentName}' execution error: ${error instanceof Error ? error.message : String(error)}\n\nSession ID: ${claudeCodeSessionId || sessionId || 'unknown'}\nSession Log: ${sessionId ? `output_streams/${sessionId}/session.log` : 'not created'}`
             }],
             isError: true
           };

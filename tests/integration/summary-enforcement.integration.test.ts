@@ -10,7 +10,7 @@ const projectRoot = path.resolve(__dirname, '../..');
 
 describe('Summary Creation Enforcement Integration Test', () => {
   let testSessionId: string;
-  const testAgentName = 'testing-agent';
+  const testAgentName = 'test-agent';
   const testPrompt = 'Run a simple test that validates 2+2=4 and create summary';
 
   beforeAll(() => {

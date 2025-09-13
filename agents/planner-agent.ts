@@ -17,9 +17,9 @@ const plannerAgent: AgentConfig = {
       'WebFetch',
       'WebSearch',
       'TodoWrite',
-      'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__plan-creator__create_plan',
-      'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
-      'mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__content-writer__get_summary'
+      'mcp__levys-awesome-mcp__mcp__plan-creator__create_plan',
+      'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
+      'mcp__levys-awesome-mcp__mcp__content-writer__get_summary'
     ],
     mcpServers: [
       'levys-awesome-mcp'

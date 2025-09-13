@@ -236,7 +236,7 @@ export class AgentLoader {
       normalizedConfig.options.allowedTools = allowedTools;
     }
 
-    console.log(`[DEBUG] Final normalized allowedTools:`, normalizedConfig.options.allowedTools);
+    console.log(`[DEBUG] Final normalized allowedTools:`, normalizedConfig.options?.allowedTools);
 
     return normalizedConfig;
   }

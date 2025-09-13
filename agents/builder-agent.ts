@@ -190,11 +190,11 @@ async function runAgent() {
         disallowedTools: ['TodoWrite', 'Task'], // Block built-in TodoWrite and Task tools
         pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
         mcpServers: {
-          "levys-awesome-mcp": {
-            command: "node",
-            args: ["dist/src/index.js"]
-          }
+        "levys-awesome-mcp": {
+          command: "node",
+          args: ["dist/src/index.js"]
         }
+      }
       }
     })) {
       await streamingUtils.logConversationMessage(message);

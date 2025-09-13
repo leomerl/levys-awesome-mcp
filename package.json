@@ -31,7 +31,7 @@
     "prepare": "npm run build",
     "backend-agent": "npx tsx agents/backend-agent.ts --",
     "frontend-agent": "npx tsx agents/frontend-agent.ts --",
-    "testing-agent": "npx tsx agents/testing-agent.ts --",
+    "test-agent": "npx tsx agents/test-agent.ts --",
     "orchestrator-agent": "npx tsx agents/orchestrator-agent.ts --",
     "linter-agent": "npx tsx agents/linter-agent.ts --",
     "builder-agent": "npx tsx agents/builder.ts --",
