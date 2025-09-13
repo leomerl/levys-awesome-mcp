@@ -69,6 +69,7 @@ export const codeAnalyzerTools = [
 export async function handleCodeAnalyzerTool(name: string, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     switch (name) {
+      case 'lint_javascript':
       case 'mcp__levys-awesome-mcp__mcp__code-analyzer__lint_javascript': {
         const { path: targetPath, fix = false } = args;
         
@@ -87,6 +88,7 @@ export async function handleCodeAnalyzerTool(name: string, args: any): Promise<{
         };
       }
 
+      case 'security_scan':
       case 'mcp__levys-awesome-mcp__mcp__code-analyzer__security_scan': {
         const { type = 'all' } = args;
         const results = [];
@@ -117,6 +119,7 @@ export async function handleCodeAnalyzerTool(name: string, args: any): Promise<{
         };
       }
 
+      case 'dependency_check':
       case 'mcp__levys-awesome-mcp__mcp__code-analyzer__dependency_check': {
         const { type = 'npm' } = args;
         
@@ -140,6 +143,7 @@ export async function handleCodeAnalyzerTool(name: string, args: any): Promise<{
         };
       }
 
+      case 'code_quality_scan':
       case 'mcp__levys-awesome-mcp__mcp__code-analyzer__code_quality_scan': {
         const { path: scanPath = '.' } = args;
         const results = [];

@@ -211,6 +211,7 @@ ${systemPrompt}`;
 export async function handleAgentGeneratorTool(name: string, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     switch (name) {
+      case 'convert_agent_ts_to_claude_md':
       case 'mcp__levys-awesome-mcp__mcp__agent-generator__convert_agent_ts_to_claude_md': {
         const { agentPath } = args;
         
@@ -241,6 +242,7 @@ export async function handleAgentGeneratorTool(name: string, args: any): Promise
         };
       }
 
+      case 'convert_all_agents_ts_to_claude_md':
       case 'mcp__levys-awesome-mcp__mcp__agent-generator__convert_all_agents_ts_to_claude_md': {
         const agentsDir = path.join(process.cwd(), 'agents');
         const outputDir = path.join(process.cwd(), '.claude', 'agents');
@@ -292,6 +294,7 @@ export async function handleAgentGeneratorTool(name: string, args: any): Promise
         };
       }
 
+      case 'remove_all_agent_md_files':
       case 'mcp__levys-awesome-mcp__mcp__agent-generator__remove_all_agent_md_files': {
         const outputDir = path.join(process.cwd(), '.claude', 'agents');
         

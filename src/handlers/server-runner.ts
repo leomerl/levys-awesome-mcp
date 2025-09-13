@@ -215,12 +215,15 @@ export async function handleServerRunnerTool(name: string, args: any): Promise<{
     let result: DevServerResult;
 
     switch (name) {
+      case 'run_dev_backend':
       case 'mcp__levys-awesome-mcp__mcp__server-runner__run_dev_backend':
         result = await runBackendDev();
         break;
+      case 'run_dev_frontend':
       case 'mcp__levys-awesome-mcp__mcp__server-runner__run_dev_frontend':
         result = await runFrontendDev();
         break;
+      case 'run_dev_all':
       case 'mcp__levys-awesome-mcp__mcp__server-runner__run_dev_all':
         result = await runBothDevServers();
         break;

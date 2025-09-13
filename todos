@@ -1,7 +1,5 @@
 invoke by task (TEST)
 add logic to check agent is orchestrator-agent and if any progress task is not completed, re invoke
-progress wasnt updated
-backend couldnt backend write (TEST)
 
 plan include maxTurns
 independent tasks run in parallel
@@ -12,9 +10,9 @@ block 3rd party mcp server tools
 orchestrator handler
 
 add generate agent from md tool
-move commands and agents to .claude/ on installation
+move commands to .claude/ on installation
+sav agents and docs to dist
 
-remove double prefix
 self feedback loop
 
 add get_next_task
@@ -25,6 +23,7 @@ apply strong tool use enforcement with canUsTool
 break down mcp servers
 
 agents:
+mock detector
 testing agent
 optimizer agent
 code redundancy agent

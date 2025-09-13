@@ -209,6 +209,7 @@ async function createPlanFromAIData(
 export async function handlePlanCreatorTool(name: string, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     switch (name) {
+      case 'create_plan':
       case 'mcp__levys-awesome-mcp__mcp__plan-creator__create_plan': {
         const { task_description, synopsis, tasks, session_id = '' } = args;
         
@@ -389,6 +390,7 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
         };
       }
 
+      case 'update_progress':
       case 'mcp__levys-awesome-mcp__mcp__plan-creator__update_progress': {
         const { git_commit_hash, task_id, state, agent_session_id, files_modified = [], summary = '' } = args;
         

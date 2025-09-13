@@ -35,6 +35,7 @@ export const buildExecutorTools = [
 export async function handleBuildExecutorTool(name: string, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     switch (name) {
+      case 'build_project':
       case 'mcp__levys-awesome-mcp__mcp__build-executor__build_project': {
         const results = [];
         let allSuccess = true;
@@ -76,6 +77,7 @@ export async function handleBuildExecutorTool(name: string, args: any): Promise<
         };
       }
 
+      case 'build_backend':
       case 'mcp__levys-awesome-mcp__mcp__build-executor__build_backend': {
         const backendDir = path.join(process.cwd(), 'backend');
         const validation = validateProjectDirectory(backendDir, ['typecheck']);
@@ -100,6 +102,7 @@ export async function handleBuildExecutorTool(name: string, args: any): Promise<
         };
       }
 
+      case 'build_frontend':
       case 'mcp__levys-awesome-mcp__mcp__build-executor__build_frontend': {
         const frontendDir = path.join(process.cwd(), 'frontend');
         const validation = validateProjectDirectory(frontendDir, ['build']);
