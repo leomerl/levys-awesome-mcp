@@ -4,7 +4,7 @@ import { existsSync } from 'fs';
 
 export const buildExecutorTools = [
   {
-    name: 'mcp__levys-awesome-mcp__mcp__build-executor__build_project',
+    name: 'build_project',
     description: 'Build the entire project (backend typecheck + frontend build)',
     inputSchema: {
       type: 'object' as const,
@@ -13,7 +13,7 @@ export const buildExecutorTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__build-executor__build_backend',
+    name: 'build_backend',
     description: 'Build/typecheck the backend only',
     inputSchema: {
       type: 'object' as const,
@@ -22,7 +22,7 @@ export const buildExecutorTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__build-executor__build_frontend',
+    name: 'build_frontend',
     description: 'Build the frontend only',
     inputSchema: {
       type: 'object' as const,

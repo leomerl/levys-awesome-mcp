@@ -18,15 +18,12 @@ const orchestratorAgent: AgentConfig = {
       'TodoWrite',
       'WebSearch',
       'BashOutput',
-      'mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent',
-      'mcp__levys-awesome-mcp__mcp__agent-invoker__list_agents',
-      'mcp__levys-awesome-mcp__mcp__content-writer__get_summary',
-      'mcp__levys-awesome-mcp__mcp__content-writer__get_plan',
-      'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
-      'mcp__levys-awesome-mcp__mcp__plan-creator__update_progress'
-    ],
-    mcpServers: [
-      'levys-awesome-mcp'
+      'mcp__levys-awesome-mcp__invoke_agent',
+      'mcp__levys-awesome-mcp__list_agents',
+      'mcp__levys-awesome-mcp__get_summary',
+      'mcp__levys-awesome-mcp__get_plan',
+      'mcp__levys-awesome-mcp__put_summary',
+      'mcp__levys-awesome-mcp__update_progress'
     ],
     systemPrompt: `You are a workflow orchestration specialist responsible for coordinating development workflows including backend/frontend development, building, and linting operations. Your primary role is to intelligently route tasks to appropriate specialized agents and manage their sequential execution.
 

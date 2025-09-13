@@ -14,7 +14,7 @@ import { randomUUID } from 'crypto';
 
 export const agentInvokerTools = [
   {
-    name: 'mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent',
+    name: 'invoke_agent',
     description: 'Invoke another agent programmatically with enforced session.log creation',
     inputSchema: {
       type: 'object',
@@ -45,7 +45,7 @@ export const agentInvokerTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__agent-invoker__list_agents',
+    name: 'list_agents',
     description: 'List all available agents that can be invoked',
     inputSchema: {
       type: 'object',
@@ -57,8 +57,12 @@ export const agentInvokerTools = [
 
 export async function handleAgentInvokerTool(name: string, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
-    switch (name) {
-      case 'mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent': {
+    // Handle both short and prefixed names
+    const normalizedName = name.includes('invoke_agent') ? 'invoke_agent' : 
+                          name.includes('list_agents') ? 'list_agents' : name;
+    
+    switch (normalizedName) {
+      case 'invoke_agent': {
         const { agentName, prompt, continueSessionId } = args;
         
         if (!agentName || !prompt) {
@@ -120,9 +124,18 @@ OUTPUT_DIR: output_streams/${sessionId}/
             configType: string
           ): Promise<string> => {
             try {
-              const promptDisallowedTools = disallowedTools.filter(tool => 
-                !allowedTools.includes(tool)
-              );
+              // Filter out tools that are actually allowed (handle both short and prefixed names)
+              const promptDisallowedTools = disallowedTools.filter(tool => {
+                // Check if tool is directly in allowedTools
+                if (allowedTools.includes(tool)) return false;
+                
+                // Check if any allowed tool ends with this short name or matches the prefixed version
+                return !allowedTools.some(allowedTool => {
+                  const parts = allowedTool.split('__');
+                  const shortName = parts[parts.length - 1];
+                  return shortName === tool || allowedTool === `mcp__levys-awesome-mcp__${tool}`;
+                });
+              });
               
               const prompt = await PermissionManager.generateToolRestrictionPrompt(promptDisallowedTools);
               const logMessage = configType === 'default' 
@@ -352,7 +365,7 @@ OUTPUT_DIR: output_streams/${sessionId}/
         }
       }
 
-      case 'mcp__levys-awesome-mcp__mcp__agent-invoker__list_agents': {
+      case 'list_agents': {
         const agents = await AgentLoader.listAvailableAgents();
         return {
           content: [{

@@ -5,7 +5,7 @@ import { validatePath, validateProjectDirectory } from '../shared/utils.js';
 
 export const contentWriterTools = [
   {
-    name: 'mcp__levys-awesome-mcp__mcp__content-writer__restricted_write',
+    name: 'restricted_write',
     description: 'Write files to a specified folder only. The invoking agent must provide the allowed folder.',
     inputSchema: {
       type: 'object' as const,
@@ -27,7 +27,7 @@ export const contentWriterTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__content-writer__frontend_write',
+    name: 'frontend_write',
     description: 'Write files to the frontend/ folder only.',
     inputSchema: {
       type: 'object' as const,
@@ -45,7 +45,7 @@ export const contentWriterTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__content-writer__backend_write',
+    name: 'backend_write',
     description: 'Write files to the backend/ folder only.',
     inputSchema: {
       type: 'object' as const,
@@ -63,7 +63,7 @@ export const contentWriterTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
+    name: 'put_summary',
     description: 'Create a summary report file in reports/$SESSION_ID/${agent_name}-summary.json. Use this to create summary reports of agent execution.',
     inputSchema: {
       type: 'object' as const,
@@ -85,7 +85,7 @@ export const contentWriterTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__content-writer__get_summary',
+    name: 'get_summary',
     description: 'Read a summary report file from reports/$SESSION_ID/ directory. Looks for any summary files in the session directory.',
     inputSchema: {
       type: 'object' as const,
@@ -103,7 +103,7 @@ export const contentWriterTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__content-writer__get_plan',
+    name: 'get_plan',
     description: 'Read a plan file from plan_and_progress/$GIT_HASH/ directory. Looks for plan files created by the planner agent.',
     inputSchema: {
       type: 'object' as const,
@@ -123,6 +123,7 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
     const normalizedName = name.replace('mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__', 'mcp__levys-awesome-mcp__mcp__');
     
     switch (normalizedName) {
+      case 'restricted_write':
       case 'mcp__levys-awesome-mcp__mcp__content-writer__restricted_write': {
         const { file_path, content, allowed_folder } = args;
         
@@ -164,6 +165,7 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         };
       }
 
+      case 'frontend_write':
       case 'mcp__levys-awesome-mcp__mcp__content-writer__frontend_write': {
         const { file_path, content } = args;
         
@@ -212,6 +214,7 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         };
       }
 
+      case 'backend_write':
       case 'mcp__levys-awesome-mcp__mcp__content-writer__backend_write': {
         const { file_path, content } = args;
         
@@ -260,6 +263,7 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         };
       }
 
+      case 'put_summary':
       case 'mcp__levys-awesome-mcp__mcp__content-writer__put_summary': {
         const { session_id, agent_name, content } = args;
         
@@ -326,6 +330,7 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         };
       }
 
+      case 'get_summary':
       case 'mcp__levys-awesome-mcp__mcp__content-writer__get_summary': {
         const { session_id, agent_name } = args;
         
@@ -419,6 +424,7 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         }
       }
 
+      case 'get_plan':
       case 'mcp__levys-awesome-mcp__mcp__content-writer__get_plan': {
         const { git_hash } = args;
         

@@ -33,7 +33,7 @@ export interface AgentConfig {
   options?: {
     allowedTools?: string[];
     disallowedTools?: string[]; // Auto-populated from dynamic discovery
-    mcpServers?: string[];
+    mcpServers?: Record<string, any>; // Changed from string[] to match SDK expectations
     model?: string;
     systemPrompt?: string;
     useDynamicRestrictions?: boolean; // Enable dynamic tool discovery and restriction

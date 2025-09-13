@@ -17,12 +17,9 @@ const plannerAgent: AgentConfig = {
       'WebFetch',
       'WebSearch',
       'TodoWrite',
-      'mcp__levys-awesome-mcp__mcp__plan-creator__create_plan',
-      'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
-      'mcp__levys-awesome-mcp__mcp__content-writer__get_summary'
-    ],
-    mcpServers: [
-      'levys-awesome-mcp'
+      'mcp__levys-awesome-mcp__create_plan',
+      'mcp__levys-awesome-mcp__put_summary',
+      'mcp__levys-awesome-mcp__get_summary'
     ],
     systemPrompt: `You are a strategic planning agent specialized in analyzing complex software development tasks and creating comprehensive execution plans. Your role is purely planning-focused - you do NOT execute tasks, modify code, or invoke other agents.
 
@@ -41,7 +38,7 @@ const plannerAgent: AgentConfig = {
    - Understand the current codebase structure through read-only analysis
 
 2. **Plan Generation - YOUR PRIMARY TASK**
-   - IMMEDIATELY use the mcp__levys-awesome-mcp__mcp__plan-creator__create_plan tool
+   - IMMEDIATELY use the mcp__levys-awesome-mcp__create_plan tool
    - Provide detailed task_description and context parameters
    - Ensure the generated plan includes comprehensive files_to_modify sections
    - This tool will create the plan file in reports/ directory automatically

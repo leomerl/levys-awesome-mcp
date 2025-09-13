@@ -91,7 +91,7 @@ export class AgentConfigParser {
         systemPrompt: rawConfig.options.systemPrompt || rawConfig.systemPrompt || '',
         model: rawConfig.options.model || rawConfig.model || 'claude-3-5-sonnet-20241022',
         allowedTools: rawConfig.options.allowedTools || [],
-        mcpServers: rawConfig.options.mcpServers || []
+        mcpServers: rawConfig.options.mcpServers || undefined
       };
     } else if (rawConfig.permissions) {
       // Legacy format - convert to new format
@@ -99,7 +99,7 @@ export class AgentConfigParser {
         systemPrompt: rawConfig.systemPrompt || '',
         model: rawConfig.model || 'claude-3-5-sonnet-20241022',
         allowedTools: rawConfig.permissions.tools?.allowed || [],
-        mcpServers: Object.keys(rawConfig.permissions.mcpServers || {})
+        mcpServers: undefined // Legacy format doesn't use mcpServers in options
       };
 
       // Store legacy permissions for compatibility
@@ -110,7 +110,7 @@ export class AgentConfigParser {
         systemPrompt: rawConfig.systemPrompt || rawConfig.prompt || '',
         model: rawConfig.model || 'claude-3-5-sonnet-20241022',
         allowedTools: rawConfig.allowedTools || [],
-        mcpServers: rawConfig.mcpServers || []
+        mcpServers: rawConfig.mcpServers || undefined
       };
     }
 
@@ -155,9 +155,10 @@ export class AgentConfigParser {
       errors.push('allowedTools must be an array');
     }
 
-    // Validate MCP servers array
-    if (!Array.isArray(config.options.mcpServers)) {
-      errors.push('mcpServers must be an array');
+    // Validate MCP servers (now optional, can be object or undefined)
+    if (config.options.mcpServers && 
+        typeof config.options.mcpServers !== 'object') {
+      errors.push('mcpServers must be an object if provided');
     }
 
     return errors;

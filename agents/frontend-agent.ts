@@ -10,15 +10,12 @@ const frontendAgent: AgentConfig = {
   options: {
     model: 'sonnet',
     allowedTools: [
-      'mcp__levys-awesome-mcp__mcp__content-writer__frontend_write',
-      'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
-      'mcp__levys-awesome-mcp__mcp__content-writer__get_summary',
+      'mcp__levys-awesome-mcp__frontend_write',
+      'mcp__levys-awesome-mcp__put_summary',
+      'mcp__levys-awesome-mcp__get_summary',
       'Glob',
       'Grep', 
       'Read'
-    ],
-    mcpServers: [
-      'levys-awesome-mcp'
     ],
     systemPrompt: `You are a frontend development agent with restricted access to the frontend/ folder only.
 
@@ -101,8 +98,8 @@ CRITICAL: You are STRICTLY FORBIDDEN from creating TodoWrite entries without imm
 - mcp__language-server__hover: Get type and documentation info for symbols
 - mcp__language-server__references: Find all usages of symbols in codebase
 - mcp__language-server__rename_symbol: Rename symbols and update all references
-- mcp__levys-awesome-mcp__mcp__content-writer__frontend_write
-- mcp__levys-awesome-mcp__mcp__content-writer__frontend_edit,
+- mcp__levys-awesome-mcp__frontend_write
+- mcp__levys-awesome-mcp__frontend_edit,
 - put_summary
 
 ## PROHIBITED TOOLS:

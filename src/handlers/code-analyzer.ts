@@ -2,7 +2,7 @@ import { executeCommand } from '../shared/utils.js';
 
 export const codeAnalyzerTools = [
   {
-    name: 'mcp__levys-awesome-mcp__mcp__code-analyzer__lint_javascript',
+    name: 'lint_javascript',
     description: 'Run ESLint on JavaScript/TypeScript files',
     inputSchema: {
       type: 'object' as const,
@@ -21,7 +21,7 @@ export const codeAnalyzerTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__code-analyzer__security_scan',
+    name: 'security_scan',
     description: 'Run security analysis using npm audit and bandit (for Python)',
     inputSchema: {
       type: 'object' as const,
@@ -36,7 +36,7 @@ export const codeAnalyzerTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__code-analyzer__dependency_check',
+    name: 'dependency_check',
     description: 'Check for outdated dependencies',
     inputSchema: {
       type: 'object' as const,
@@ -51,7 +51,7 @@ export const codeAnalyzerTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__code-analyzer__code_quality_scan',
+    name: 'code_quality_scan',
     description: 'Run comprehensive code quality analysis',
     inputSchema: {
       type: 'object' as const,

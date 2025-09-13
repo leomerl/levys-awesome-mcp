@@ -94,7 +94,7 @@ export class AgentLoader {
               systemPrompt: systemPrompt || prompt,
               model,
               allowedTools,
-              mcpServers: []
+              mcpServers: undefined
             }
           };
           
@@ -229,7 +229,7 @@ export class AgentLoader {
         systemPrompt: normalizedConfig.systemPrompt || '',
         model: normalizedConfig.model,
         allowedTools: allowedTools,
-        mcpServers: []
+        mcpServers: undefined
       };
     } else {
       // Merge allowed tools from both sources

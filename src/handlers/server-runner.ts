@@ -6,7 +6,7 @@ import { validateProjectDirectory } from '../shared/utils.js';
 
 export const serverRunnerTools = [
   {
-    name: 'mcp__levys-awesome-mcp__mcp__server-runner__run_dev_backend',
+    name: 'run_dev_backend',
     description: 'Start the backend development server',
     inputSchema: {
       type: 'object' as const,
@@ -15,7 +15,7 @@ export const serverRunnerTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__server-runner__run_dev_frontend',
+    name: 'run_dev_frontend',
     description: 'Start the frontend development server',
     inputSchema: {
       type: 'object' as const,
@@ -24,7 +24,7 @@ export const serverRunnerTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__server-runner__run_dev_all',
+    name: 'run_dev_all',
     description: 'Start both backend and frontend development servers',
     inputSchema: {
       type: 'object' as const,

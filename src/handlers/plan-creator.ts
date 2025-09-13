@@ -65,7 +65,7 @@ interface ProgressDocument {
 
 export const planCreatorTools = [
   {
-    name: 'mcp__levys-awesome-mcp__mcp__plan-creator__create_plan',
+    name: 'create_plan',
     description: 'Creates a detailed execution plan from AI-generated task breakdown, agent assignments, and dependencies. Saves the plan to plan_and_progress/$git_commit_hash/',
     inputSchema: {
       type: 'object' as const,
@@ -103,7 +103,7 @@ export const planCreatorTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__plan-creator__update_progress',
+    name: 'update_progress',
     description: 'Updates progress file with task state changes, agent session info, and file modifications',
     inputSchema: {
       type: 'object' as const,

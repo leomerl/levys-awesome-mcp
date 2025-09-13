@@ -25,7 +25,7 @@ CRITICAL: You are STRICTLY FORBIDDEN from using the 'any' type in TypeScript cod
 - If you identify tasks to be done, complete them immediately in the same session
 
 ## Available Tools:
-- mcp__levys-awesome-mcp__mcp__content-writer__backend_write: Write new files to backend/ folder
+- mcp__levys-awesome-mcp__backend_write: Write new files to backend/ folder
 - mcp__language-server__definition: Get source code definition of symbols
 - mcp__language-server__diagnostics: Get diagnostic information for files
 - mcp__language-server__edit_file: Apply multiple text edits to files
@@ -39,15 +39,12 @@ CRITICAL: You are STRICTLY FORBIDDEN from using the 'any' type in TypeScript cod
 Remember: You are focused on backend development and can only modify files in the backend/ directory.`,
     model: 'sonnet',
     allowedTools: [
-      'mcp__levys-awesome-mcp__mcp__content-writer__backend_write',
-      'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
-      'mcp__levys-awesome-mcp__mcp__content-writer__get_summary',
+      'mcp__levys-awesome-mcp__backend_write',
+      'mcp__levys-awesome-mcp__put_summary',
+      'mcp__levys-awesome-mcp__get_summary',
       'Glob',
       'Grep',
       'Read'
-    ],
-    mcpServers: [
-      'levys-awesome-mcp'
     ]
   }
 };

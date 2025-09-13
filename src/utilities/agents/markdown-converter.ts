@@ -68,7 +68,7 @@ export class MarkdownConverter {
     if (agentConfig.options) {
       info.model = agentConfig.options.model || agentConfig.model || 'claude-3-5-sonnet-20241022';
       info.allowedTools = agentConfig.options.allowedTools || [];
-      info.mcpServers = agentConfig.options.mcpServers || [];
+      info.mcpServers = agentConfig.options.mcpServers ? Object.keys(agentConfig.options.mcpServers) : [];
       info.systemPrompt = agentConfig.options.systemPrompt || agentConfig.systemPrompt || '';
     } else {
       // Fallback for legacy format

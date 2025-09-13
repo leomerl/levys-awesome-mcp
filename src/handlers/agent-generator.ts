@@ -4,7 +4,7 @@ import * as path from 'path';
 
 export const agentGeneratorTools = [
   {
-    name: 'mcp__levys-awesome-mcp__mcp__agent-generator__convert_agent_ts_to_claude_md',
+    name: 'convert_agent_ts_to_claude_md',
     description: 'Convert a TypeScript agent file to Claude agent markdown format',
     inputSchema: {
       type: 'object' as const,
@@ -19,7 +19,7 @@ export const agentGeneratorTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__agent-generator__convert_all_agents_ts_to_claude_md',
+    name: 'convert_all_agents_ts_to_claude_md',
     description: 'Convert all TypeScript agent files in agents/ directory to Claude agent markdown format',
     inputSchema: {
       type: 'object' as const,
@@ -28,7 +28,7 @@ export const agentGeneratorTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__agent-generator__remove_all_agent_md_files',
+    name: 'remove_all_agent_md_files',
     description: 'Remove all generated agent markdown files from .claude/agents/ directory',
     inputSchema: {
       type: 'object' as const,

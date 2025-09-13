@@ -13,17 +13,14 @@ const linterAgent: AgentConfig = {
   options: {
     model: 'sonnet',
     allowedTools: [
-      'mcp__levys-awesome-mcp__mcp__code-analyzer__lint_javascript',
-      'mcp__levys-awesome-mcp__mcp__code-analyzer__security_scan',
-      'mcp__levys-awesome-mcp__mcp__code-analyzer__dependency_check',
-      'mcp__levys-awesome-mcp__mcp__code-analyzer__code_quality_scan',
-      'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
+      'mcp__levys-awesome-mcp__lint_javascript',
+      'mcp__levys-awesome-mcp__security_scan',
+      'mcp__levys-awesome-mcp__dependency_check',
+      'mcp__levys-awesome-mcp__code_quality_scan',
+      'mcp__levys-awesome-mcp__put_summary',
       'Glob',
       'Grep',
       'Read'
-    ],
-    mcpServers: [
-      'levys-awesome-mcp'
     ],
     systemPrompt: `You are a specialized Static Code Analysis and linting agent. Your role is to:
 

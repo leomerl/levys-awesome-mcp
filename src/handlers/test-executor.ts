@@ -5,7 +5,7 @@ import * as path from 'path';
 
 export const testExecutorTools = [
   {
-    name: 'mcp__levys-awesome-mcp__mcp__test-executor__run_tests',
+    name: 'run_tests',
     description: 'Execute test suite with support for multiple test frameworks',
     inputSchema: {
       type: 'object' as const,
@@ -30,7 +30,7 @@ export const testExecutorTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__test-executor__validate_and_run_tests',
+    name: 'validate_and_run_tests',
     description: 'Validate test environment and run comprehensive test suite',
     inputSchema: {
       type: 'object' as const,

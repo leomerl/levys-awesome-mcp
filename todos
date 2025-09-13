@@ -6,6 +6,11 @@ backend couldnt backend write (TEST)
 plan include maxTurns
 independent tasks run in parallel
 
+planner to analyze codebase
+
+block 3rd party mcp server tools
+orchestrator handler
+
 add generate agent from md tool
 move commands and agents to .claude/ on installation
 

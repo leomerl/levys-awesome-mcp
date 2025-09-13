@@ -59,24 +59,57 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
-    // Route to appropriate handler based on tool name prefix
-    if (name.includes('agent-generator')) {
+    // Route to appropriate handler based on tool name
+    // Handle agent-generator tools
+    if (name.includes('convert_agent_ts_to_claude_md') || 
+        name.includes('convert_all_agents_ts_to_claude_md') ||
+        name.includes('remove_all_agent_md_files')) {
       return await handleAgentGeneratorTool(name, args);
-    } else if (name.includes('agent-invoker')) {
+    } 
+    // Handle agent-invoker tools
+    else if (name.includes('invoke_agent') || 
+             name.includes('list_agents')) {
       return await handleAgentInvokerTool(name, args);
-    } else if (name.includes('build-executor')) {
+    } 
+    // Handle build-executor tools
+    else if (name.includes('build_project') || 
+             name.includes('build_backend') ||
+             name.includes('build_frontend')) {
       return await handleBuildExecutorTool(name, args);
-    } else if (name.includes('content-writer')) {
+    } 
+    // Handle content-writer tools
+    else if (name.includes('backend_write') || 
+             name.includes('frontend_write') || 
+             name.includes('restricted_write') ||
+             name.includes('put_summary') ||
+             name.includes('get_summary') ||
+             name.includes('get_plan')) {
       return await handleContentWriterTool(name, args);
-    } else if (name.includes('code-analyzer')) {
+    } 
+    // Handle code-analyzer tools
+    else if (name.includes('lint_javascript') || 
+             name.includes('security_scan') ||
+             name.includes('dependency_check') ||
+             name.includes('code_quality_scan')) {
       return await handleCodeAnalyzerTool(name, args);
-    } else if (name.includes('server-runner')) {
+    } 
+    // Handle server-runner tools
+    else if (name.includes('run_dev_backend') || 
+             name.includes('run_dev_frontend') ||
+             name.includes('run_dev_all')) {
       return await handleServerRunnerTool(name, args);
-    } else if (name.includes('test-executor')) {
+    } 
+    // Handle test-executor tools
+    else if (name.includes('run_tests') || 
+             name.includes('validate_and_run_tests')) {
       return await handleTestExecutorTool(name, args);
-    } else if (name.includes('plan-creator')) {
+    } 
+    // Handle plan-creator tools
+    else if (name.includes('create_plan') || 
+             name.includes('update_progress')) {
       return await handlePlanCreatorTool(name, args);
-    } else {
+    } 
+    else {
       throw new Error(`Unknown tool: ${name}`);
     }
   } catch (error) {
