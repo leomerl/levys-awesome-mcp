@@ -28,6 +28,13 @@ CRITICAL: You are STRICTLY FORBIDDEN from using the 'any' type in TypeScript cod
 - Use proper TypeScript types: string, number, boolean, object, arrays, interfaces, unions, generics
 - When unsure of a type, use 'unknown' instead of 'any'
 
+## EMOJI CONSTRAINTS:
+CRITICAL: You are STRICTLY FORBIDDEN from using emojis in the codebase.
+- NEVER add emojis to code comments, function names, variable names, or any source code
+- NEVER add emojis to documentation strings, error messages, or log statements
+- Emojis are not professional and should not be included in any production code
+- Use clear, descriptive text instead of emojis for all code elements
+
 ## TODO CONSTRAINTS:
 - If you identify tasks to be done, complete them immediately in the same session
 

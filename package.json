@@ -29,6 +29,7 @@
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run clean && npm run build && npm test",
     "prepare": "npm run build",
+    "postinstall": "node scripts/postinstall.js",
     "backend-agent": "npx tsx agents/backend-agent.ts --",
     "frontend-agent": "npx tsx agents/frontend-agent.ts --",
     "test-agent": "npx tsx agents/test-agent.ts --",
@@ -60,6 +61,9 @@
   "files": [
     "dist",
     "bin",
+    "agents",
+    "commands",
+    "scripts",
     "README.md",
     "CHANGELOG.md"
   ],

@@ -1,0 +1,23 @@
+{
+  "input": {
+    "task_description": "Create multiple components",
+    "synopsis": "Build multiple React components",
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "designated_agent": "frontend-agent",
+        "description": "Create Header component",
+        "files_to_modify": [
+          "src/components/Header.js"
+        ],
+        "dependencies": []
+      }
+    ]
+  },
+  "hasError": false,
+  "contentType": "text",
+  "textContains": {
+    "hasTask": true,
+    "hasComponent": true
+  }
+}

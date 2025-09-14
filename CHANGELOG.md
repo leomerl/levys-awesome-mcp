@@ -2,6 +2,13 @@
 
 All notable changes to Levy's Awesome MCP will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **NPM Package Distribution**: Include `agents` and `commands` directories in npm package distribution
+- **Automatic Command Installation**: Postinstall script automatically copies command files to `.claude/commands/` in user's project root
+- **Enhanced Package Structure**: Scripts directory included for postinstall automation
+
 ## [1.0.0] - 2025-09-14
 
 ### Added

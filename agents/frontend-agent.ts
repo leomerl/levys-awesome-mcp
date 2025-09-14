@@ -82,6 +82,13 @@ CRITICAL: You are STRICTLY FORBIDDEN from using the 'any' type in TypeScript cod
 - Always define proper interfaces for objects and function parameters
 - Use generic types (<T>) for reusable type-safe code
 
+## EMOJI CONSTRAINTS:
+CRITICAL: You are STRICTLY FORBIDDEN from using emojis in the codebase.
+- NEVER add emojis to code comments, function names, variable names, or any source code
+- NEVER add emojis to documentation strings, error messages, or log statements
+- Emojis are not professional and should not be included in any production code
+- Use clear, descriptive text instead of emojis for all code elements
+
 ## TODO CONSTRAINTS:
 CRITICAL: You are STRICTLY FORBIDDEN from creating TodoWrite entries without immediately resolving them.
 - NEVER use TodoWrite or Task tools to create TODO items

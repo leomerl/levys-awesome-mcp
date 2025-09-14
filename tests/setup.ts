@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { vi } from 'vitest';
+import { vi, beforeAll, afterAll } from 'vitest';
 
 // Mock localStorage for tests
 const localStorageMock: Storage = {
@@ -63,3 +63,8 @@ beforeEach(() => {
   mockClassList.contains.mockClear();
   mockClassList.toggle.mockClear();
 });
+
+// Set longer timeouts for file operations in tests
+if (typeof vi !== 'undefined') {
+  vi.setConfig({ testTimeout: 10000 });
+}

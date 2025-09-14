@@ -1,19 +1,25 @@
+for v1.0.1
+
+orchestrator handler
+unified agent interface
+self feedback loop
+reviewr agent
+optimizer agent
+code redundancy agent
+language server integration
+playwright integration
+
+
 plan include maxTurns
+
 independent tasks run in parallel
 
-backend and frontend no emojis
-planner to analyze codebase
-
 block 3rd party mcp server tools
-orchestrator handler
 
 add generate agent from md tool
-move commands to .claude/ on installation
-sav agents and docs to dist
+save docs to dist
 
-self feedback loop
 
-add get_next_task
 SPARC command
 TDD iterations workflow
 apply strong tool use enforcement with canUsTool
@@ -22,23 +28,25 @@ break down mcp servers
 
 agents:
 mock detector
-testing agent
-optimizer agent
-code redundancy agent
-reviewr agent
+missing tests agent
 test orchestrator
 unit-tests
 integ tests
+dead files detector
 e2e testes
+golden tests agent
 tests coverage
 playwright
 
 tests:
+permissions
+streaming
+invocation
+
 
 to integrate:
 playwright
 context7
-language server
 serena
 crystal
 claudekit
@@ -52,8 +60,7 @@ summary enforcement
 resume conversation functionality
 generating restricted tools is written more than 5 times in code
 advanced agent prompts
-unified agent interface
-
+backend and frontend no emojis
 
 tests:
 forbidden tool explicit ask

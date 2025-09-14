@@ -57,6 +57,7 @@ coverage/
 # Output streams and reports (runtime directories)
 output_streams/
 reports/
+plan_and_progress/
 
 # Generated agent files
 .claude/agents/*.md

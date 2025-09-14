@@ -78,8 +78,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return await handleBuildExecutorTool(name, args);
     } 
     // Handle content-writer tools
-    else if (name.includes('backend_write') || 
-             name.includes('frontend_write') || 
+    else if (name.includes('backend_write') ||
+             name.includes('frontend_write') ||
+             name.includes('agents_write') ||
              name.includes('restricted_write') ||
              name.includes('put_summary') ||
              name.includes('get_summary') ||

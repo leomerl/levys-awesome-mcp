@@ -124,3 +124,49 @@ export class PathValidator {
     return path.relative(workingDir, path.resolve(filePath));
   }
 }
+
+/**
+ * Convenience wrapper functions for common validation scenarios
+ */
+export function validatePath(filePath: string): void {
+  // Basic validation without a specific allowed folder
+  if (!filePath || filePath.trim() === '') {
+    throw new Error('Invalid file path: path cannot be empty');
+  }
+
+  // Check for dangerous patterns
+  if (filePath.includes('..') || filePath.includes('~') || filePath.includes('\0')) {
+    throw new Error('Invalid file path: contains dangerous sequences');
+  }
+
+  // Check for absolute paths (both Unix and Windows style)
+  if (path.isAbsolute(filePath) || /^[A-Za-z]:[\\\/]/.test(filePath)) {
+    throw new Error('Invalid file path: absolute paths not allowed');
+  }
+}
+
+export function normalizePath(filePath: string): string {
+  // Normalize slashes and remove redundant segments
+  let normalized = filePath.replace(/\\/g, '/');
+  normalized = normalized.replace(/\/+/g, '/');
+
+  // Safely resolve relative segments without allowing traversal
+  const segments = normalized.split('/');
+  const resolvedSegments: string[] = [];
+
+  for (const segment of segments) {
+    if (segment === '.' || segment === '') {
+      continue;
+    }
+    if (segment === '..') {
+      // Don't allow going up beyond root
+      if (resolvedSegments.length > 0) {
+        resolvedSegments.pop();
+      }
+    } else {
+      resolvedSegments.push(segment);
+    }
+  }
+
+  return resolvedSegments.join('/');
+}

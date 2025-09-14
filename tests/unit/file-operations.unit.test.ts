@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { readFile, writeFile, appendFile, fileExists } from '../../utilities/fs/file-operations.js';
+import { readFile, writeFile, appendFile, fileExists } from '../../src/utilities/fs/file-operations.js';
 import { mkdirSync, rmSync, existsSync } from 'fs';
 import { join } from 'path';
 

@@ -63,6 +63,24 @@ export const contentWriterTools = [
     }
   },
   {
+    name: 'agents_write',
+    description: 'Write files to the agents/ folder only.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        file_path: {
+          type: 'string',
+          description: 'Path to the file to write (must be within agents/ folder)'
+        },
+        content: {
+          type: 'string',
+          description: 'Content to write to the file'
+        }
+      },
+      required: ['file_path', 'content']
+    }
+  },
+  {
     name: 'put_summary',
     description: 'Create a summary report file in reports/$SESSION_ID/${agent_name}-summary.json. Use this to create summary reports of agent execution.',
     inputSchema: {
@@ -217,7 +235,7 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
       case 'backend_write':
       case 'mcp__levys-awesome-mcp__mcp__content-writer__backend_write': {
         const { file_path, content } = args;
-        
+
         if (!validatePath(file_path)) {
           return {
             content: [{
@@ -259,6 +277,48 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
           content: [{
             type: 'text',
             text: message
+          }]
+        };
+      }
+
+      case 'agents_write':
+      case 'mcp__levys-awesome-mcp__mcp__content-writer__agents_write': {
+        const { file_path, content } = args;
+
+        if (!validatePath(file_path)) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Invalid file path: Path traversal not allowed'
+            }],
+            isError: true
+          };
+        }
+
+        const agentsDir = path.join(process.cwd(), 'agents');
+        const fullPath = path.resolve(agentsDir, file_path);
+
+        if (!fullPath.startsWith(path.resolve(agentsDir))) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Access denied: File path must be within agents/ folder'
+            }],
+            isError: true
+          };
+        }
+
+        const dir = path.dirname(fullPath);
+        if (!existsSync(dir)) {
+          await mkdir(dir, { recursive: true });
+        }
+
+        await writeFile(fullPath, content, 'utf8');
+
+        return {
+          content: [{
+            type: 'text',
+            text: `File written successfully to agents/${file_path}`
           }]
         };
       }

@@ -42,13 +42,13 @@ export class FileOperations {
           error: 'Path validation failed'
         };
       }
-      
+
       await this.ensureDirectoryExists(filePath);
       await fsp.writeFile(filePath, content, encoding);
-      
+
       const workingDir = process.cwd();
       const relativeFilePath = path.relative(workingDir, filePath);
-      
+
       return {
         success: true,
         message: `Successfully wrote file: ${relativeFilePath}\nContent length: ${content.length} characters`
@@ -96,10 +96,10 @@ export class FileOperations {
       }
 
       const existingContent = readResult.content;
-      
+
       // Replace old_string with new_string
       const newContent = existingContent.replace(oldString, newString);
-      
+
       if (existingContent === newContent) {
         return {
           success: false,
@@ -115,7 +115,7 @@ export class FileOperations {
 
       const workingDir = process.cwd();
       const relativeFilePath = path.relative(workingDir, filePath);
-      
+
       return {
         success: true,
         message: `Successfully edited file: ${relativeFilePath}\nReplaced '${oldString}' with '${newString}'`
@@ -137,7 +137,12 @@ export class FileOperations {
     if (filePath.includes('..') || filePath.includes('~')) {
       return false;
     }
-    return fs.existsSync(filePath);
+    try {
+      const stats = fs.statSync(filePath);
+      return stats.isFile();
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -147,7 +152,7 @@ export class FileOperations {
     try {
       await this.ensureDirectoryExists(filePath);
       await fsp.appendFile(filePath, content, encoding);
-      
+
       return {
         success: true,
         message: `Successfully appended to file: ${filePath}`
@@ -175,4 +180,33 @@ export class FileOperations {
       };
     }
   }
+}
+
+/**
+ * Convenience wrapper functions for direct usage
+ */
+export async function writeFile(filePath: string, content: string, encoding: BufferEncoding = 'utf8'): Promise<void> {
+  const result = await FileOperations.writeFile(filePath, content, encoding);
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to read file');
+  }
+}
+
+export async function readFile(filePath: string, encoding: BufferEncoding = 'utf8'): Promise<string> {
+  const result = await FileOperations.readFile(filePath, encoding);
+  if (result.success && result.content !== undefined) {
+    return result.content;
+  }
+  throw new Error(result.error || 'Failed to read file');
+}
+
+export async function appendFile(filePath: string, content: string, encoding: BufferEncoding = 'utf8'): Promise<void> {
+  const result = await FileOperations.appendToFile(filePath, content, encoding);
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to read file');
+  }
+}
+
+export async function fileExists(filePath: string): Promise<boolean> {
+  return FileOperations.fileExists(filePath);
 }

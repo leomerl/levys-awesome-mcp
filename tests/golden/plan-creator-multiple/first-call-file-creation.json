@@ -1,0 +1,28 @@
+{
+  "input": {
+    "task_description": "First plan creation test",
+    "synopsis": "Testing first plan creation",
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "designated_agent": "backend-agent",
+        "description": "Create first task",
+        "files_to_modify": [
+          "test1.js"
+        ],
+        "dependencies": []
+      }
+    ]
+  },
+  "hasError": false,
+  "textContainsSuccess": true,
+  "fileCreation": {
+    "dirExists": true,
+    "planFileCount": 1,
+    "progressFileCount": 1,
+    "expectedCounts": {
+      "plan": 1,
+      "progress": 1
+    }
+  }
+}

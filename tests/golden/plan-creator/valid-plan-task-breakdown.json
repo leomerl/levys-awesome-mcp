@@ -1,0 +1,37 @@
+{
+  "input": {
+    "task_description": "Build a simple todo app with React frontend and Node.js backend",
+    "synopsis": "Create a full-stack todo application",
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "designated_agent": "backend-agent",
+        "description": "Create Node.js backend with Express",
+        "files_to_modify": [
+          "server.js",
+          "package.json"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "TASK-002",
+        "designated_agent": "frontend-agent",
+        "description": "Create React frontend",
+        "files_to_modify": [
+          "src/App.js",
+          "src/components/TodoList.js"
+        ],
+        "dependencies": [
+          "TASK-001"
+        ]
+      }
+    ]
+  },
+  "hasError": false,
+  "contentType": "text",
+  "textContains": {
+    "hasPlan": true,
+    "hasTask": true,
+    "hasSuccess": true
+  }
+}
