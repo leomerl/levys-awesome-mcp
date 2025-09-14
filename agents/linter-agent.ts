@@ -23,6 +23,12 @@ const linterAgent: AgentConfig = {
       'Grep',
       'Read'
     ],
+    mcpServers: {
+      "levys-awesome-mcp": {
+        command: "node",
+        args: ["dist/src/index.js"]
+      }
+    },
     systemPrompt: `You are a specialized Static Code Analysis and linting agent. Your role is to:
 
 1. Run linting tools (ESLint, etc.) using mcp__code-analyzer__ tools

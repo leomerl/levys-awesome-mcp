@@ -18,7 +18,7 @@
       },
       {
         "name": "backend_write",
-        "description": "Write files to the backend/ folder only.",
+        "description": "Write files to the backend/ or src/ folders.",
         "inputSchema": {
           "type": "object",
           "properties": [
@@ -118,6 +118,21 @@
             "type"
           ],
           "required": []
+        }
+      },
+      {
+        "name": "docs_write",
+        "description": "Write files to the docs/ folder only.",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "content",
+            "file_path"
+          ],
+          "required": [
+            "content",
+            "file_path"
+          ]
         }
       },
       {

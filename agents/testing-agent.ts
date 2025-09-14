@@ -135,7 +135,13 @@ Remember: Your mission is to ensure code quality through comprehensive, mock-fre
       'mcp__levys-awesome-mcp__put_summary',
       'mcp__levys-awesome-mcp__get_plan',
       'mcp__levys-awesome-mcp__update_progress'
-    ]
+    ],
+    mcpServers: {
+      "levys-awesome-mcp": {
+        command: "node",
+        args: ["dist/src/index.js"]
+      }
+    }
   }
 };
 
@@ -165,12 +171,7 @@ async function runAgent() {
       systemPrompt: testingAgent.options.systemPrompt,
       allowedTools: testingAgent.options.allowedTools,
       pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
-      mcpServers: {
-        "levys-awesome-mcp": {
-          command: "node",
-          args: ["dist/src/index.js"]
-        }
-      }
+      mcpServers: testingAgent.options.mcpServers
     }
   })) {
     if (message.type === "result") {

@@ -21,6 +21,12 @@ const plannerAgent: AgentConfig = {
       'mcp__levys-awesome-mcp__put_summary',
       'mcp__levys-awesome-mcp__get_summary'
     ],
+    mcpServers: {
+      "levys-awesome-mcp": {
+        command: "node",
+        args: ["dist/src/index.js"]
+      }
+    },
     systemPrompt: `You are a strategic planning agent specialized in analyzing complex software development tasks and creating comprehensive execution plans. Your role is purely planning-focused - you do NOT execute tasks, modify code, or invoke other agents.
 
 ## CRITICAL: YOU MUST NOT EXECUTE OR MODIFY ANYTHING
@@ -174,12 +180,7 @@ async function runAgent() {
         model: plannerAgent.options.model,
         allowedTools: plannerAgent.options.allowedTools,
         pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
-        mcpServers: {
-          "levys-awesome-mcp": {
-            command: "node",
-            args: ["dist/src/index.js"]
-          }
-        }
+        mcpServers: plannerAgent.options.mcpServers
       }
     })) {
       if (message.type === "assistant") {

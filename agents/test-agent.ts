@@ -9,7 +9,13 @@ const testingAgent: AgentConfig = {
     systemPrompt: `You are a testing agent. Your role is to do nothing`,
     allowedTools: [
       'Read(*)'
-    ]
+    ],
+    mcpServers: {
+      "levys-awesome-mcp": {
+        command: "node",
+        args: ["dist/src/index.js"]
+      }
+    }
   }
 };
 

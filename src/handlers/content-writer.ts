@@ -46,13 +46,13 @@ export const contentWriterTools = [
   },
   {
     name: 'backend_write',
-    description: 'Write files to the backend/ folder only.',
+    description: 'Write files to the backend/ or src/ folders.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         file_path: {
           type: 'string',
-          description: 'Path to the file to write (must be within backend/ folder)'
+          description: 'Path to the file to write (must be within backend/ or src/ folder)'
         },
         content: {
           type: 'string',
@@ -71,6 +71,24 @@ export const contentWriterTools = [
         file_path: {
           type: 'string',
           description: 'Path to the file to write (must be within agents/ folder)'
+        },
+        content: {
+          type: 'string',
+          description: 'Content to write to the file'
+        }
+      },
+      required: ['file_path', 'content']
+    }
+  },
+  {
+    name: 'docs_write',
+    description: 'Write files to the docs/ folder only.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        file_path: {
+          type: 'string',
+          description: 'Path to the file to write (must be within docs/ folder)'
         },
         content: {
           type: 'string',
@@ -246,14 +264,56 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
           };
         }
 
+        // Check if the path starts with src/ or backend/
+        const srcDir = path.join(process.cwd(), 'src');
         const backendDir = path.join(process.cwd(), 'backend');
-        const fullPath = path.resolve(backendDir, file_path);
 
-        if (!fullPath.startsWith(path.resolve(backendDir))) {
+        // Try src/ first, then backend/
+        let targetDir: string;
+        let targetDirName: string;
+
+        if (file_path.startsWith('src/') || file_path.startsWith('src\\')) {
+          targetDir = srcDir;
+          targetDirName = 'src';
+          // Remove the src/ prefix from the file_path for proper resolution
+          const cleanPath = file_path.replace(/^src[\/\\]/, '');
+          var fullPath = path.resolve(targetDir, cleanPath);
+        } else if (file_path.startsWith('backend/') || file_path.startsWith('backend\\')) {
+          targetDir = backendDir;
+          targetDirName = 'backend';
+          // Remove the backend/ prefix from the file_path for proper resolution
+          const cleanPath = file_path.replace(/^backend[\/\\]/, '');
+          var fullPath = path.resolve(targetDir, cleanPath);
+        } else {
+          // Default to trying both directories
+          const fullPathSrc = path.resolve(srcDir, file_path);
+          const fullPathBackend = path.resolve(backendDir, file_path);
+
+          if (fullPathSrc.startsWith(path.resolve(srcDir))) {
+            targetDir = srcDir;
+            targetDirName = 'src';
+            var fullPath = fullPathSrc;
+          } else if (fullPathBackend.startsWith(path.resolve(backendDir))) {
+            targetDir = backendDir;
+            targetDirName = 'backend';
+            var fullPath = fullPathBackend;
+          } else {
+            // Try backend as default for backward compatibility
+            targetDir = backendDir;
+            targetDirName = 'backend';
+            var fullPath = fullPathBackend;
+          }
+        }
+
+        // Verify the path is within the allowed directories
+        const resolvedSrcDir = path.resolve(srcDir);
+        const resolvedBackendDir = path.resolve(backendDir);
+
+        if (!fullPath.startsWith(resolvedSrcDir) && !fullPath.startsWith(resolvedBackendDir)) {
           return {
             content: [{
               type: 'text',
-              text: 'Access denied: File path must be within backend/ folder'
+              text: 'Access denied: File path must be within backend/ or src/ folder'
             }],
             isError: true
           };
@@ -266,11 +326,13 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
 
         await writeFile(fullPath, content, 'utf8');
 
-        // Check if this looks like a proper backend project structure
-        const validation = validateProjectDirectory(backendDir);
-        let message = `File written successfully to backend/${file_path}`;
-        if (!validation.valid && existsSync(backendDir)) {
-          message += `\n\nWARNING: The backend/ directory exists but doesn't appear to be a proper backend project (${validation.error}). This may not be the intended project structure.`;
+        // Only validate project structure for backend directory
+        let message = `File written successfully to ${targetDirName}/${file_path.replace(/^(src|backend)[\/\\]/, '')}`;
+        if (targetDirName === 'backend') {
+          const validation = validateProjectDirectory(backendDir);
+          if (!validation.valid && existsSync(backendDir)) {
+            message += `\n\nWARNING: The backend/ directory exists but doesn't appear to be a proper backend project (${validation.error}). This may not be the intended project structure.`;
+          }
         }
 
         return {
@@ -319,6 +381,48 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
           content: [{
             type: 'text',
             text: `File written successfully to agents/${file_path}`
+          }]
+        };
+      }
+
+      case 'docs_write':
+      case 'mcp__levys-awesome-mcp__mcp__content-writer__docs_write': {
+        const { file_path, content } = args;
+
+        if (!validatePath(file_path)) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Invalid file path: Path traversal not allowed'
+            }],
+            isError: true
+          };
+        }
+
+        const docsDir = path.join(process.cwd(), 'docs');
+        const fullPath = path.resolve(docsDir, file_path);
+
+        if (!fullPath.startsWith(path.resolve(docsDir))) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Access denied: File path must be within docs/ folder'
+            }],
+            isError: true
+          };
+        }
+
+        const dir = path.dirname(fullPath);
+        if (!existsSync(dir)) {
+          await mkdir(dir, { recursive: true });
+        }
+
+        await writeFile(fullPath, content, 'utf8');
+
+        return {
+          content: [{
+            type: 'text',
+            text: `File written successfully to docs/${file_path}`
           }]
         };
       }

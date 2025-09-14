@@ -60,7 +60,13 @@ Remember: You are focused on backend development and can only modify files in th
       'Glob',
       'Grep',
       'Read'
-    ]
+    ],
+    mcpServers: {
+      "levys-awesome-mcp": {
+        command: "node",
+        args: ["dist/src/index.js"]
+      }
+    }
   }
 };
 
@@ -90,12 +96,7 @@ async function runAgent() {
       systemPrompt: backendAgent.options.systemPrompt,
       allowedTools: backendAgent.options.allowedTools,
       pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
-      mcpServers: {
-        "levys-awesome-mcp": {
-          command: "node",
-          args: ["dist/src/index.js"]
-        }
-      }
+      mcpServers: backendAgent.options.mcpServers
     }
   })) {
     if (message.type === "result") {

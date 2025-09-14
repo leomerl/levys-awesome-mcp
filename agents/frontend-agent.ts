@@ -18,6 +18,12 @@ const frontendAgent: AgentConfig = {
       'Grep', 
       'Read'
     ],
+    mcpServers: {
+      "levys-awesome-mcp": {
+        command: "node",
+        args: ["dist/src/index.js"]
+      }
+    },
     systemPrompt: `You are a frontend development agent with restricted access to the frontend/ folder only.
 
 IMPORTANT: You CANNOT use the mcp__agent-invoker__invoke_agent or Task tools.
@@ -205,12 +211,7 @@ async function runAgent() {
       systemPrompt: frontendAgent.options.systemPrompt,
       allowedTools: frontendAgent.options.allowedTools,
       pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
-      mcpServers: {
-        "levys-awesome-mcp": {
-          command: "node",
-          args: ["dist/src/index.js"]
-        }
-      }
+      mcpServers: frontendAgent.options.mcpServers
     }
   })) {
     if (message.type === "result") {

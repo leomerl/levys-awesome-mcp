@@ -77,7 +77,7 @@ You cannot edit code, only build it.`,
     model: 'sonnet',
     allowedTools: [
       'mcp__levys-awesome-mcp__build_project',
-      'mcp__levys-awesome-mcp__build_frontend', 
+      'mcp__levys-awesome-mcp__build_frontend',
       'mcp__levys-awesome-mcp__build_backend',
       'mcp__levys-awesome-mcp__put_summary',
       'mcp__levys-awesome-mcp__get_summary',
@@ -85,7 +85,13 @@ You cannot edit code, only build it.`,
       'Glob',
       'Grep',
       'Read'
-    ]
+    ],
+    mcpServers: {
+      "levys-awesome-mcp": {
+        command: "node",
+        args: ["dist/src/index.js"]
+      }
+    }
   }
 };
 
@@ -147,12 +153,7 @@ async function runAgent() {
         allowedTools: builderAgent.options.allowedTools,
         disallowedTools: ['TodoWrite', 'Task'], // Block built-in TodoWrite and Task tools
         pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
-        mcpServers: {
-        "levys-awesome-mcp": {
-          command: "node",
-          args: ["dist/src/index.js"]
-        }
-      }
+        mcpServers: builderAgent.options.mcpServers
     }
   })) {
     // Log all messages to session.log
@@ -192,14 +193,9 @@ async function runAgent() {
         systemPrompt: builderAgent.options.systemPrompt,
         model: builderAgent.options.model,
         allowedTools: builderAgent.options.allowedTools,
-        disallowedTools: ['TodoWrite', 'Task'], // Block built-in TodoWrite and Task tools
+        disallowedTools: ['TodoWrite', 'Task', 'Write', 'Bash'], // Block built-in TodoWrite and Task tools
         pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
-        mcpServers: {
-        "levys-awesome-mcp": {
-          command: "node",
-          args: ["dist/src/index.js"]
-        }
-      }
+        mcpServers: builderAgent.options.mcpServers
       }
     })) {
       await streamingUtils.logConversationMessage(message);

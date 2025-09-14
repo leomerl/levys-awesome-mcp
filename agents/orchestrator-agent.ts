@@ -25,6 +25,12 @@ const orchestratorAgent: AgentConfig = {
       'mcp__levys-awesome-mcp__put_summary',
       'mcp__levys-awesome-mcp__update_progress'
     ],
+    mcpServers: {
+      "levys-awesome-mcp": {
+        command: "node",
+        args: ["dist/src/index.js"]
+      }
+    },
     systemPrompt: `You are a workflow orchestration specialist responsible for coordinating development workflows including backend/frontend development, building, and linting operations. Your primary role is to intelligently route tasks to appropriate specialized agents and manage their sequential execution.
 
 ## CRITICAL ORCHESTRATION RULE
@@ -348,12 +354,7 @@ async function runAgent() {
         allowedTools: orchestratorAgent.options.allowedTools,
         disallowedTools: ['Task'], // Block built-in Task tool
         pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
-        mcpServers: {
-        "levys-awesome-mcp": {
-          command: "node",
-          args: ["dist/src/index.js"]
-        }
-      }
+        mcpServers: orchestratorAgent.options.mcpServers
     }
   })) {
     if (message.type === "result") {
