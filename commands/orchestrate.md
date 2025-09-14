@@ -1,5 +1,6 @@
 ---
 description: orchestrate a task
+argument-hint: [task-description]
 ---
 
 Invoke the orchestrator-agent subagent using the invoke_agent mcp tool to orchestrate the task stated according to the workflow.
