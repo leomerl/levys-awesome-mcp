@@ -69,6 +69,18 @@ This document defines which tools each agent has access to. All agents follow th
   - `mcp__levys-awesome-mcp__mcp__content-writer__put_summary`
   - `mcp__levys-awesome-mcp__mcp__content-writer__get_summary`
 
+### agent-creator
+**Role**: Creates new TypeScript SDK agents following established patterns
+**Tools**:
+- Core: `Read`, `Glob`, `Grep`, `WebSearch`, `WebFetch`
+- MCP:
+  - `mcp__levys-awesome-mcp__agents_write`
+  - `mcp__levys-awesome-mcp__docs_write`
+  - `mcp__levys-awesome-mcp__list_agents`
+  - `mcp__levys-awesome-mcp__convert_agent_ts_to_claude_md`
+  - `mcp__levys-awesome-mcp__put_summary`
+  - `mcp__levys-awesome-mcp__get_summary`
+
 ## Security Restrictions
 
 ### Prohibited Tools
