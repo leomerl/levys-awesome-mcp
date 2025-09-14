@@ -8,6 +8,7 @@ import { SessionStore } from '../utilities/session/session-store.js';
 import { StreamingManager } from '../utilities/session/streaming-utils.js';
 import { AgentLoader } from '../utilities/agents/agent-loader.js';
 import { PermissionManager } from '../utilities/agents/permission-manager.js';
+import { updateTaskToInProgress, getInProgressTask, getCurrentGitHash } from '../utilities/progress/task-tracker.js';
 import * as path from 'path';
 import * as fs from 'fs';
 import { randomUUID } from 'crypto';
@@ -38,6 +39,14 @@ export const agentInvokerTools = [
         continueSessionId: {
           type: 'string',
           description: 'Session ID to continue a previous conversation (optional)'
+        },
+        taskNumber: {
+          type: 'number',
+          description: 'Task number to update progress for (e.g., 1 for TASK-001) (optional)'
+        },
+        updateProgress: {
+          type: 'boolean',
+          description: 'Whether to update task progress automatically (optional, default: false)'
         }
       },
       required: ['agentName', 'prompt'],
@@ -63,7 +72,7 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
     
     switch (normalizedName) {
       case 'invoke_agent': {
-        const { agentName, prompt, continueSessionId } = args;
+        const { agentName, prompt, continueSessionId, taskNumber, updateProgress = false } = args;
         
         if (!agentName || !prompt) {
           return {
@@ -85,6 +94,16 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
             }],
             isError: true
           };
+        }
+
+        // Update task to in_progress if requested
+        if (updateProgress && taskNumber) {
+          const updateSuccess = await updateTaskToInProgress(taskNumber);
+          if (updateSuccess) {
+            console.log(`[AgentInvoker] Updated task ${taskNumber} to in_progress`);
+          } else {
+            console.log(`[AgentInvoker] Failed to update task ${taskNumber} to in_progress`);
+          }
         }
 
         // For resumed sessions, use the existing session ID
@@ -330,6 +349,85 @@ OUTPUT_DIR: output_streams/${sessionId}/
             const timestamp = new Date().toISOString();
             const completionLog = `[${timestamp}] SESSION COMPLETED:\nStatus: success\nTotal Messages: ${messages.length}\nSession Log: output_streams/${sessionId}/session.log\n\n=== End of Session ===\n`;
             fs.appendFileSync(streamLogFile, completionLog, 'utf8');
+          }
+
+          // Check if we need to handle progress update
+          if (updateProgress && agentCompleted) {
+            // Check for in-progress task
+            const inProgressTask = await getInProgressTask();
+            if (inProgressTask) {
+              console.log(`[AgentInvoker] Found in-progress task: ${inProgressTask.id}, reinvoking agent for progress update`);
+              
+              // Get git hash for progress update
+              const gitHash = await getCurrentGitHash();
+              if (!gitHash) {
+                console.error('[AgentInvoker] Could not get git hash for progress update');
+              } else {
+                // Reinvoke the agent with progress update directive
+                const progressUpdatePrompt = `You have ${inProgressTask.id} currently marked as in_progress.
+
+Please check if you have fully completed this task:
+- If YES: Use mcp__levys-awesome-mcp__update_progress to mark it as completed with:
+  - git_commit_hash: "${gitHash}"
+  - task_id: "${inProgressTask.id}"
+  - state: "completed"
+  - agent_session_id: "${sessionId}"
+  - files_modified: [list of files you modified]
+  - summary: "Brief summary of what was accomplished"
+  
+- If NO: Complete the remaining work for this task first, then update the progress file as above.
+
+Task details: ${inProgressTask.description}
+Files to modify: ${inProgressTask.files_to_modify.join(', ')}`;
+
+                console.log(`[AgentInvoker] Reinvoking ${agentName} for progress update`);
+                
+                // Reinvoke the agent for progress update
+                try {
+                  const progressMessages: any[] = [];
+                  
+                  for await (const message of query({
+                    prompt: progressUpdatePrompt,
+                    options: {
+                      model: agentConfig.options?.model || 'sonnet',
+                      allowedTools: [...(permissions.allowedTools || []), 'mcp__levys-awesome-mcp__update_progress'],
+                      disallowedTools: finalDisallowedTools.filter(tool => tool !== 'mcp__levys-awesome-mcp__update_progress'),
+                      permissionMode: 'acceptEdits',
+                      pathToClaudeCodeExecutable: path.resolve(process.cwd(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
+                      mcpServers: {
+                        "levys-awesome-mcp": {
+                          command: "node",
+                          args: ["dist/src/index.js"]
+                        }
+                      },
+                      resume: String(claudeCodeSessionId || sessionId),
+                      customSystemPrompt: agentConfig.options?.systemPrompt || ''
+                    }
+                  })) {
+                    progressMessages.push(message);
+                    
+                    // Log progress update messages to session.log
+                    if (streamingUtils) {
+                      await streamingUtils.logConversationMessage(message);
+                    }
+                    
+                    if (message.type === "result") {
+                      if (!message.is_error) {
+                        console.log(`[AgentInvoker] Progress update completed for ${inProgressTask.id}`);
+                      } else {
+                        console.error(`[AgentInvoker] Progress update failed for ${inProgressTask.id}`);
+                      }
+                    }
+                  }
+                  
+                  // Save the extended conversation history
+                  await SessionStore.saveConversationHistory(sessionId, agentName, [...messages, ...progressMessages]);
+                  
+                } catch (error) {
+                  console.error(`[AgentInvoker] Error during progress update reinvocation:`, error);
+                }
+              }
+            }
           }
 
           // Use Claude Code's actual session ID for returning to user

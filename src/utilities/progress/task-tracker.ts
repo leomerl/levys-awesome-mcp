@@ -183,3 +183,98 @@ export async function isTaskInProgress(taskNumber: number): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Gets the first task that is currently in_progress
+ * @returns The in-progress task or null if none found
+ */
+export async function getInProgressTask(): Promise<ProgressTask | null> {
+  try {
+    // Get the current git commit hash
+    const gitHash = await getGitCommitHash();
+    if (!gitHash) {
+      return null;
+    }
+
+    // Find the progress file
+    const reportsDir = path.join(process.cwd(), 'plan_and_progress', gitHash);
+    if (!existsSync(reportsDir)) {
+      return null;
+    }
+
+    const fs = await import('fs');
+    const files = fs.readdirSync(reportsDir).filter(f => f.startsWith('progress-') && f.endsWith('.json'));
+    
+    if (files.length === 0) {
+      return null;
+    }
+
+    // Get the most recent progress file
+    files.sort().reverse();
+    const progressFilePath = path.join(reportsDir, files[0]);
+
+    // Read current progress
+    const progressContent = await readFile(progressFilePath, 'utf8');
+    const progress: ProgressDocument = JSON.parse(progressContent);
+
+    // Find the first in_progress task
+    const inProgressTask = progress.tasks.find(t => t.state === 'in_progress');
+    
+    return inProgressTask || null;
+  } catch (error) {
+    console.error('Error getting in_progress task:', error);
+    return null;
+  }
+}
+
+/**
+ * Gets a task by its number
+ * @param taskNumber The task number (e.g., 1 for TASK-001, 2 for TASK-002)
+ * @returns The task or null if not found
+ */
+export async function getTaskByNumber(taskNumber: number): Promise<ProgressTask | null> {
+  try {
+    // Get the current git commit hash
+    const gitHash = await getGitCommitHash();
+    if (!gitHash) {
+      return null;
+    }
+
+    // Find the progress file
+    const reportsDir = path.join(process.cwd(), 'plan_and_progress', gitHash);
+    if (!existsSync(reportsDir)) {
+      return null;
+    }
+
+    const fs = await import('fs');
+    const files = fs.readdirSync(reportsDir).filter(f => f.startsWith('progress-') && f.endsWith('.json'));
+    
+    if (files.length === 0) {
+      return null;
+    }
+
+    // Get the most recent progress file
+    files.sort().reverse();
+    const progressFilePath = path.join(reportsDir, files[0]);
+
+    // Read current progress
+    const progressContent = await readFile(progressFilePath, 'utf8');
+    const progress: ProgressDocument = JSON.parse(progressContent);
+
+    // Find the task by number
+    const taskId = `TASK-${String(taskNumber).padStart(3, '0')}`;
+    const task = progress.tasks.find(t => t.id === taskId);
+    
+    return task || null;
+  } catch (error) {
+    console.error('Error getting task by number:', error);
+    return null;
+  }
+}
+
+/**
+ * Gets the current git commit hash for locating progress files
+ */
+export async function getCurrentGitHash(): Promise<string | null> {
+  return await getGitCommitHash();
+}

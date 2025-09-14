@@ -90,13 +90,14 @@ const orchestratorAgent: AgentConfig = {
    - Parse and understand the content of each summary report
    - **Critical**: Analyze testing summary for orchestratorInstructions.nextActions to determine feedback loop needs
 
-7. **Progress File Management (NEW)**
-   - **MANDATORY**: After EACH SINGLE TASK completes, verify progress file updates using mcp__plan-creator__update_progress
-   - Update progress for ONLY the specific task that was just completed
-   - Monitor that agents properly update their assigned tasks with state changes, session IDs, and file modifications
-   - If progress file is not updated by an agent, manually update it with the agent's session ID and completion status
-   - Progress file serves as the single source of truth for task execution state across all agents
-   - Use git commit hash from the plan to locate and update the correct progress file
+7. **Progress File Management (AUTOMATED)**
+   - Progress updates are now handled automatically by the agent invocation system
+   - When you invoke an agent with taskNumber and updateProgress: true:
+     - The task is automatically marked as in_progress before agent starts
+     - After agent completes, it is automatically reinvoked to update progress
+     - The agent will either mark the task as completed or finish remaining work
+   - You no longer need to manually call update_progress after each task
+   - Monitor progress updates through agent logs and get_summary calls
 
 8. **Error Handling and Feedback Loop Management**
    - If development agents fail, still proceed to build, lint, and test phases to assess the current state
@@ -139,9 +140,10 @@ const orchestratorAgent: AgentConfig = {
      a. Check task dependencies are completed
      b. Identify the designated agent (backend-agent, frontend-agent, etc.)
      c. Invoke agent with ONLY that specific task's description and requirements
+        - Include taskNumber (e.g., 1 for TASK-001) and updateProgress: true
      d. Wait for agent completion
      e. Retrieve agent summary using get_summary
-     f. Update progress file for that specific task
+     f. Progress is automatically updated by the agent invocation system
      g. ONLY THEN proceed to next task
    - **NEVER batch multiple tasks to a single agent**
    - **NEVER pass the entire plan to an agent**
@@ -174,6 +176,7 @@ When using mcp__agent-invoker__invoke_agent:
 - **For development agents**: Include ONLY the specific task being executed:
   - Example prompt: "Execute TASK-001: Implement user authentication API endpoint. Create POST /api/auth/login endpoint with JWT token generation. SESSION_ID: 20250830-153642"
   - NEVER: "Execute tasks from the plan: TASK-001, TASK-002, TASK-003..."
+  - ALWAYS include taskNumber (extract number from TASK-XXX) and updateProgress: true
 - Include clean session_ID in the prompt: "Execute [SINGLE TASK] for SESSION_ID: \${session_ID}. Use this exact session ID for all report generation."
 - **IMMEDIATELY after each agent invocation**, use mcp__content-writer__get_summary:
   \`\`\`
@@ -201,11 +204,10 @@ After each agent completes:
    - Build reports: \`/reports/\${session_ID}/build-report.json\`
    - Lint reports: \`/reports/\${session_ID}/lint-report.json\`
    - Testing reports: \`/reports/\${session_ID}/testing-agent-report.json\`
-3. **Progress File Updates (MANDATORY)**: After each development agent (backend-agent, frontend-agent):
-   - Use mcp__plan-creator__update_progress to verify/update the progress file
-   - Required parameters: git_commit_hash (from plan), task_id, state (completed/in_progress), agent_session_id
-   - Include files_modified array if agent modified any files
-   - Include summary of what the agent accomplished
+3. **Progress File Updates (AUTOMATED)**: 
+   - Progress updates are handled automatically when you use taskNumber and updateProgress: true
+   - The agent invocation system will ensure tasks are marked as in_progress and completed
+   - Agents are automatically reinvoked to complete tasks if needed and update progress
 4. **CRITICAL RESTRICTION**: NEVER read stream.log files or session.log files - only use JSON report files
 5. Parse JSON to extract:
    - Status (success/failure/partial/degraded)
@@ -305,12 +307,12 @@ Given a plan with tasks:
 - TASK-003: Create login form component (frontend-agent)
 
 **CORRECT Approach:**
-1. Invoke backend-agent: "Create user model with fields: id, email, password_hash, created_at. SESSION_ID: 20250830-153642"
-2. Get summary, update progress for TASK-001
-3. Invoke backend-agent: "Create POST /api/auth/login and POST /api/auth/register endpoints. SESSION_ID: 20250830-153642"
-4. Get summary, update progress for TASK-002
-5. Invoke frontend-agent: "Create React login form component with email and password fields. SESSION_ID: 20250830-153642"
-6. Get summary, update progress for TASK-003
+1. Invoke backend-agent with taskNumber: 1, updateProgress: true: "Create user model with fields: id, email, password_hash, created_at. SESSION_ID: 20250830-153642"
+2. Get summary (progress auto-updated)
+3. Invoke backend-agent with taskNumber: 2, updateProgress: true: "Create POST /api/auth/login and POST /api/auth/register endpoints. SESSION_ID: 20250830-153642"
+4. Get summary (progress auto-updated)
+5. Invoke frontend-agent with taskNumber: 3, updateProgress: true: "Create React login form component with email and password fields. SESSION_ID: 20250830-153642"
+6. Get summary (progress auto-updated)
 
 **INCORRECT Approach (NEVER DO THIS):**
 - Invoke backend-agent: "Execute TASK-001 and TASK-002 from the plan..."

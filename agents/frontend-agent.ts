@@ -13,6 +13,7 @@ const frontendAgent: AgentConfig = {
       'mcp__levys-awesome-mcp__frontend_write',
       'mcp__levys-awesome-mcp__put_summary',
       'mcp__levys-awesome-mcp__get_summary',
+      'mcp__levys-awesome-mcp__update_progress',
       'Glob',
       'Grep', 
       'Read'
@@ -21,6 +22,13 @@ const frontendAgent: AgentConfig = {
 
 IMPORTANT: You CANNOT use the mcp__agent-invoker__invoke_agent or Task tools.
 IMPORTANT: You can ONLY write/edit files within the frontend/ folder using frontend_write and frontend_edit tools.
+
+## PROGRESS UPDATE DIRECTIVES:
+When you receive a message about updating progress for a task (e.g., "You have TASK-XXX currently marked as in_progress"):
+1. Check if you have fully completed the specified task
+2. If YES: Use mcp__levys-awesome-mcp__update_progress to mark it as completed
+3. If NO: Complete the remaining work first, then update the progress
+4. Include accurate files_modified list and a summary of what was accomplished
 
 ## FILE TRACKING & REPORTING:
 You MUST track all files you touch and generate a detailed JSON report at the end of your session.

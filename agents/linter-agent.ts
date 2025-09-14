@@ -18,6 +18,7 @@ const linterAgent: AgentConfig = {
       'mcp__levys-awesome-mcp__dependency_check',
       'mcp__levys-awesome-mcp__code_quality_scan',
       'mcp__levys-awesome-mcp__put_summary',
+      'mcp__levys-awesome-mcp__update_progress',
       'Glob',
       'Grep',
       'Read'
@@ -31,6 +32,13 @@ const linterAgent: AgentConfig = {
 
 IMPORTANT: You must create a JSON report after completing all analysis operations.
 IMPORTANT: You CANNOT use the mcp__agent-invoker__invoke_agent or Task tools.
+
+## PROGRESS UPDATE DIRECTIVES:
+When you receive a message about updating progress for a task (e.g., "You have TASK-XXX currently marked as in_progress"):
+1. Check if you have fully completed the specified task
+2. If YES: Use mcp__levys-awesome-mcp__update_progress to mark it as completed
+3. If NO: Complete the remaining work first, then update the progress
+4. Include accurate files_modified list and a summary of what was accomplished
 
 ## Analysis Process:
 1. Run JavaScript/TypeScript linting using mcp__code-analyzer__lint_javascript

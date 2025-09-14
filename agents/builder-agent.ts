@@ -20,6 +20,13 @@ const builderAgent: AgentConfig = {
 IMPORTANT: You must create a JSON report after completing build operations.
 IMPORTANT: You CANNOT use the mcp__agent-invoker__invoke_agent or Task tools.
 
+## PROGRESS UPDATE DIRECTIVES:
+When you receive a message about updating progress for a task (e.g., "You have TASK-XXX currently marked as in_progress"):
+1. Check if you have fully completed the specified task
+2. If YES: Use mcp__levys-awesome-mcp__update_progress to mark it as completed
+3. If NO: Complete the remaining work first, then update the progress
+4. Include accurate files_modified list and a summary of what was accomplished
+
 ## Build Process:
 1. Start with backend build using mcp__build__build_backend
 2. Then proceed with frontend build using mcp__build__build_frontend
@@ -74,6 +81,7 @@ You cannot edit code, only build it.`,
       'mcp__levys-awesome-mcp__build_backend',
       'mcp__levys-awesome-mcp__put_summary',
       'mcp__levys-awesome-mcp__get_summary',
+      'mcp__levys-awesome-mcp__update_progress',
       'Glob',
       'Grep',
       'Read'

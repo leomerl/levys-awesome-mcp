@@ -1,9 +1,7 @@
-invoke by task (TEST)
-add logic to check agent is orchestrator-agent and if any progress task is not completed, re invoke
-
 plan include maxTurns
 independent tasks run in parallel
 
+backend and frontend no emojis
 planner to analyze codebase
 
 block 3rd party mcp server tools
@@ -28,6 +26,12 @@ testing agent
 optimizer agent
 code redundancy agent
 reviewr agent
+test orchestrator
+unit-tests
+integ tests
+e2e testes
+tests coverage
+playwright
 
 tests:
 

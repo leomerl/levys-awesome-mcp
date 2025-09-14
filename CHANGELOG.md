@@ -2,7 +2,7 @@
 
 All notable changes to Levy's Awesome MCP will be documented in this file.
 
-## [1.0.0] - 2025-09-12
+## [1.0.0] - 2025-09-14
 
 ### Added
 
@@ -13,7 +13,8 @@ All notable changes to Levy's Awesome MCP will be documented in this file.
 - **Session Management**: Automatic session.log creation for all agent interactions
 - **Session Resumption**: Support for continuing agent sessions with proper Claude Code session ID integration
 - **Report Enforcement**: Mandatory JSON summary reports for all agent executions
-- **Testing Agent**: Comprehensive test automation agent for integration and unit testing
+- **Testing Agent**: Comprehensive test automation agent for integration and unit testing with multi-framework support
+- **Progress Tracking**: Task progress updates with file modification tracking in agent-invoker
 
 #### Agent Generator Tools
 - **Convert Single Agent**: Transform TypeScript agent files to Claude markdown format
@@ -66,6 +67,8 @@ All notable changes to Levy's Awesome MCP will be documented in this file.
 - **Session Resumption Tests**: Verify proper session continuation functionality
 - **Permission Verification**: Tests for tool restriction and folder access control
 - **Summary Enforcement Tests**: Ensure mandatory report creation
+- **Test Infrastructure**: Complete test setup with Vitest and Playwright configurations
+- **Multi-Framework Support**: Test executor supporting Jest, Vitest, and Playwright frameworks
 
 ### Improvements
 - **Agent Configuration**: Enhanced with allowed_tools, disallowed_tools, and mcp_servers support
@@ -73,6 +76,9 @@ All notable changes to Levy's Awesome MCP will be documented in this file.
 - **Plan File Management**: Session ID added to plan files for better tracking
 - **Tool Restriction Logic**: Fixed generateToolRestrictionPrompt to properly exclude allowed tools
 - **MaxTurns Removal**: Agents now run until task completion without artificial timeouts
+- **Progress Tracking**: Enhanced task-tracker utility with file modification tracking
+- **Tool Name Fixes**: Removed double prefixes in tool names for cleaner agent interactions
+- **Agent Permissions**: Fixed permission system to work correctly across all agents
 
 ### Initial Release
 This is the first stable release of Levy's Awesome MCP, providing a complete toolkit for Claude Code agent development with strict security boundaries, comprehensive session management, and robust testing infrastructure.
