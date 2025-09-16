@@ -1,5 +1,5 @@
 {
-  "name": "levys-awesome-mcp",
+  "name": "@leomerl/levys-awesome-mcp",
   "version": "1.0.0",
   "description": "A comprehensive MCP (Model Context Protocol) server toolkit with agent management, build automation, and content writing capabilities",
   "type": "module",
@@ -52,12 +52,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/levy/awesome-mcp-toolkit.git"
+    "url": "git+https://github.com/leomerl/levys-awesome-mcp.git"
   },
   "bugs": {
-    "url": "https://github.com/levy/awesome-mcp-toolkit/issues"
+    "url": "https://github.com/leomerl/levys-awesome-mcp/issues"
   },
-  "homepage": "https://github.com/levy/awesome-mcp-toolkit#readme",
+  "homepage": "https://github.com/leomerl/levys-awesome-mcp#readme",
   "files": [
     "dist",
     "bin",

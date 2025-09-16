@@ -4,16 +4,17 @@ on:
   push:
     branches:
       - main
-      - develop
   pull_request:
     branches:
       - main
-      - develop
   workflow_dispatch:
 
 jobs:
   build-and-package:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: Checkout repository
@@ -24,6 +25,8 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@leomerl'
 
       - name: Install dependencies
         run: npm ci
@@ -61,3 +64,9 @@ jobs:
           path: |
             package.json
             package-lock.json
+
+      - name: Publish to GitHub Packages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
