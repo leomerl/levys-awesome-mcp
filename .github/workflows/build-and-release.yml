@@ -61,4 +61,3 @@ jobs:
           path: |
             package.json
             package-lock.json
-          retention-days: 30
