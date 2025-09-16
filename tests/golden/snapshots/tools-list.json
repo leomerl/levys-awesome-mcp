@@ -2,7 +2,75 @@
   "result": {
     "tools": [
       {
-        "name": "mcp__levys-awesome-mcp__mcp__agent-generator__convert_agent_ts_to_claude_md",
+        "name": "agents_write",
+        "description": "Write files to the agents/ folder only.",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "content",
+            "file_path"
+          ],
+          "required": [
+            "content",
+            "file_path"
+          ]
+        }
+      },
+      {
+        "name": "backend_write",
+        "description": "Write files to the backend/ or src/ folders.",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "content",
+            "file_path"
+          ],
+          "required": [
+            "content",
+            "file_path"
+          ]
+        }
+      },
+      {
+        "name": "build_backend",
+        "description": "Build/typecheck the backend only",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "build_frontend",
+        "description": "Build the frontend only",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "build_project",
+        "description": "Build the entire project (backend typecheck + frontend build)",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "code_quality_scan",
+        "description": "Run comprehensive code quality analysis",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "path"
+          ],
+          "required": []
+        }
+      },
+      {
+        "name": "convert_agent_ts_to_claude_md",
         "description": "Convert a TypeScript agent file to Claude agent markdown format",
         "inputSchema": {
           "type": "object",
@@ -15,7 +83,7 @@
         }
       },
       {
-        "name": "mcp__levys-awesome-mcp__mcp__agent-generator__convert_all_agents_ts_to_claude_md",
+        "name": "convert_all_agents_ts_to_claude_md",
         "description": "Convert all TypeScript agent files in agents/ directory to Claude agent markdown format",
         "inputSchema": {
           "type": "object",
@@ -24,82 +92,25 @@
         }
       },
       {
-        "name": "mcp__levys-awesome-mcp__mcp__agent-generator__remove_all_agent_md_files",
-        "description": "Remove all generated agent markdown files from .claude/agents/ directory",
-        "inputSchema": {
-          "type": "object",
-          "properties": [],
-          "required": []
-        }
-      },
-      {
-        "name": "mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent",
-        "description": "Invoke another agent programmatically with enforced session.log creation",
+        "name": "create_plan",
+        "description": "Creates a detailed execution plan from AI-generated task breakdown, agent assignments, and dependencies. Saves the plan to plan_and_progress/$git_commit_hash/",
         "inputSchema": {
           "type": "object",
           "properties": [
-            "agentName",
-            "continueSessionId",
-            "maxTurns",
-            "prompt",
-            "saveStreamToFile",
-            "streaming"
+            "session_id",
+            "synopsis",
+            "task_description",
+            "tasks"
           ],
           "required": [
-            "agentName",
-            "prompt"
+            "synopsis",
+            "task_description",
+            "tasks"
           ]
         }
       },
       {
-        "name": "mcp__levys-awesome-mcp__mcp__agent-invoker__list_agents",
-        "description": "List all available agents that can be invoked",
-        "inputSchema": {
-          "type": "object",
-          "properties": [],
-          "required": []
-        }
-      },
-      {
-        "name": "mcp__levys-awesome-mcp__mcp__build-executor__build_backend",
-        "description": "Build/typecheck the backend only",
-        "inputSchema": {
-          "type": "object",
-          "properties": [],
-          "required": []
-        }
-      },
-      {
-        "name": "mcp__levys-awesome-mcp__mcp__build-executor__build_frontend",
-        "description": "Build the frontend only",
-        "inputSchema": {
-          "type": "object",
-          "properties": [],
-          "required": []
-        }
-      },
-      {
-        "name": "mcp__levys-awesome-mcp__mcp__build-executor__build_project",
-        "description": "Build the entire project (backend typecheck + frontend build)",
-        "inputSchema": {
-          "type": "object",
-          "properties": [],
-          "required": []
-        }
-      },
-      {
-        "name": "mcp__levys-awesome-mcp__mcp__code-analyzer__code_quality_scan",
-        "description": "Run comprehensive code quality analysis",
-        "inputSchema": {
-          "type": "object",
-          "properties": [
-            "path"
-          ],
-          "required": []
-        }
-      },
-      {
-        "name": "mcp__levys-awesome-mcp__mcp__code-analyzer__dependency_check",
+        "name": "dependency_check",
         "description": "Check for outdated dependencies",
         "inputSchema": {
           "type": "object",
@@ -110,33 +121,8 @@
         }
       },
       {
-        "name": "mcp__levys-awesome-mcp__mcp__code-analyzer__lint_javascript",
-        "description": "Run ESLint on JavaScript/TypeScript files",
-        "inputSchema": {
-          "type": "object",
-          "properties": [
-            "fix",
-            "path"
-          ],
-          "required": [
-            "path"
-          ]
-        }
-      },
-      {
-        "name": "mcp__levys-awesome-mcp__mcp__code-analyzer__security_scan",
-        "description": "Run security analysis using npm audit and bandit (for Python)",
-        "inputSchema": {
-          "type": "object",
-          "properties": [
-            "type"
-          ],
-          "required": []
-        }
-      },
-      {
-        "name": "mcp__levys-awesome-mcp__mcp__content-writer__backend_write",
-        "description": "Write files to the backend/ folder only.",
+        "name": "docs_write",
+        "description": "Write files to the docs/ folder only.",
         "inputSchema": {
           "type": "object",
           "properties": [
@@ -150,7 +136,7 @@
         }
       },
       {
-        "name": "mcp__levys-awesome-mcp__mcp__content-writer__frontend_write",
+        "name": "frontend_write",
         "description": "Write files to the frontend/ folder only.",
         "inputSchema": {
           "type": "object",
@@ -165,7 +151,18 @@
         }
       },
       {
-        "name": "mcp__levys-awesome-mcp__mcp__content-writer__get_summary",
+        "name": "get_plan",
+        "description": "Read a plan file from plan_and_progress/$GIT_HASH/ directory. Looks for plan files created by the planner agent.",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "git_hash"
+          ],
+          "required": []
+        }
+      },
+      {
+        "name": "get_summary",
         "description": "Read a summary report file from reports/$SESSION_ID/ directory. Looks for any summary files in the session directory.",
         "inputSchema": {
           "type": "object",
@@ -179,7 +176,50 @@
         }
       },
       {
-        "name": "mcp__levys-awesome-mcp__mcp__content-writer__put_summary",
+        "name": "invoke_agent",
+        "description": "Invoke another agent programmatically with enforced session.log creation",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "agentName",
+            "continueSessionId",
+            "prompt",
+            "saveStreamToFile",
+            "streaming",
+            "taskNumber",
+            "updateProgress"
+          ],
+          "required": [
+            "agentName",
+            "prompt"
+          ]
+        }
+      },
+      {
+        "name": "lint_javascript",
+        "description": "Run ESLint on JavaScript/TypeScript files",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "fix",
+            "path"
+          ],
+          "required": [
+            "path"
+          ]
+        }
+      },
+      {
+        "name": "list_agents",
+        "description": "List all available agents that can be invoked",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "put_summary",
         "description": "Create a summary report file in reports/$SESSION_ID/${agent_name}-summary.json. Use this to create summary reports of agent execution.",
         "inputSchema": {
           "type": "object",
@@ -196,7 +236,16 @@
         }
       },
       {
-        "name": "mcp__levys-awesome-mcp__mcp__content-writer__restricted_write",
+        "name": "remove_all_agent_md_files",
+        "description": "Remove all generated agent markdown files from .claude/agents/ directory",
+        "inputSchema": {
+          "type": "object",
+          "properties": [],
+          "required": []
+        }
+      },
+      {
+        "name": "restricted_write",
         "description": "Write files to a specified folder only. The invoking agent must provide the allowed folder.",
         "inputSchema": {
           "type": "object",
@@ -213,21 +262,7 @@
         }
       },
       {
-        "name": "mcp__levys-awesome-mcp__mcp__plan-creator__create_plan",
-        "description": "Analyzes a task and creates a detailed execution plan with task breakdown, agent assignments, and dependencies. Saves the plan to reports/$git_commit_hash/",
-        "inputSchema": {
-          "type": "object",
-          "properties": [
-            "context",
-            "task_description"
-          ],
-          "required": [
-            "task_description"
-          ]
-        }
-      },
-      {
-        "name": "mcp__levys-awesome-mcp__mcp__server-runner__run_dev_all",
+        "name": "run_dev_all",
         "description": "Start both backend and frontend development servers",
         "inputSchema": {
           "type": "object",
@@ -236,7 +271,7 @@
         }
       },
       {
-        "name": "mcp__levys-awesome-mcp__mcp__server-runner__run_dev_backend",
+        "name": "run_dev_backend",
         "description": "Start the backend development server",
         "inputSchema": {
           "type": "object",
@@ -245,7 +280,7 @@
         }
       },
       {
-        "name": "mcp__levys-awesome-mcp__mcp__server-runner__run_dev_frontend",
+        "name": "run_dev_frontend",
         "description": "Start the frontend development server",
         "inputSchema": {
           "type": "object",
@@ -254,7 +289,7 @@
         }
       },
       {
-        "name": "mcp__levys-awesome-mcp__mcp__test-executor__run_tests",
+        "name": "run_tests",
         "description": "Execute test suite with support for multiple test frameworks",
         "inputSchema": {
           "type": "object",
@@ -267,7 +302,39 @@
         }
       },
       {
-        "name": "mcp__levys-awesome-mcp__mcp__test-executor__validate_and_run_tests",
+        "name": "security_scan",
+        "description": "Run security analysis using npm audit and bandit (for Python)",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "type"
+          ],
+          "required": []
+        }
+      },
+      {
+        "name": "update_progress",
+        "description": "Updates progress file with task state changes, agent session info, and file modifications",
+        "inputSchema": {
+          "type": "object",
+          "properties": [
+            "agent_session_id",
+            "files_modified",
+            "git_commit_hash",
+            "state",
+            "summary",
+            "task_id"
+          ],
+          "required": [
+            "agent_session_id",
+            "git_commit_hash",
+            "state",
+            "task_id"
+          ]
+        }
+      },
+      {
+        "name": "validate_and_run_tests",
         "description": "Validate test environment and run comprehensive test suite",
         "inputSchema": {
           "type": "object",

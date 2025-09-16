@@ -27,3 +27,6 @@ export * from './agents/agent-config-parser.js';
 // Configuration utilities
 export * from './config/paths.js';
 export * from './config/validation.js';
+
+// Progress tracking utilities
+export * from './progress/task-tracker.js';

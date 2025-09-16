@@ -23,7 +23,7 @@ describe('Agent Invoker - Minimal Integration Tests', () => {
 
   test('should create output_streams and reports directories according to README structure', async () => {
     const result = await agentInvoker.invokeAgent('Test prompt', {
-      agentName: 'testing-agent'
+      agentName: 'test-agent'
     });
 
     const outputStreamsDir = path.join(tempDir, 'output_streams', result.sessionId);
@@ -35,7 +35,7 @@ describe('Agent Invoker - Minimal Integration Tests', () => {
 
   test('should create real-time session.log (conversation.jsonl) during conversation', async () => {
     const result = await agentInvoker.invokeAgent('Test prompt for logging', {
-      agentName: 'testing-agent'
+      agentName: 'test-agent'
     });
 
     const conversationLogFile = path.join(tempDir, 'output_streams', result.sessionId, 'conversation.jsonl');
@@ -68,10 +68,10 @@ describe('Agent Invoker - Minimal Integration Tests', () => {
 
   test('should enforce summary creation in reports directory', async () => {
     const result = await agentInvoker.invokeAgent('Test summary enforcement', {
-      agentName: 'testing-agent'
+      agentName: 'test-agent'
     });
 
-    const summaryFile = path.join(tempDir, 'reports', result.sessionId, 'testing-agent-summary.json');
+    const summaryFile = path.join(tempDir, 'reports', result.sessionId, 'test-agent-summary.json');
     
     expect(existsSync(summaryFile)).toBe(true);
     
@@ -80,7 +80,7 @@ describe('Agent Invoker - Minimal Integration Tests', () => {
     
     // Verify required summary fields
     expect(summary.sessionId).toBe(result.sessionId);
-    expect(summary.agentName).toBe('testing-agent');
+    expect(summary.agentName).toBe('test-agent');
     expect(summary.startTime).toBeDefined();
     expect(summary.endTime).toBeDefined();
     expect(summary.totalMessages).toBeGreaterThan(0);
@@ -92,7 +92,7 @@ describe('Agent Invoker - Minimal Integration Tests', () => {
 
   test('should create session metadata file', async () => {
     const result = await agentInvoker.invokeAgent('Test metadata', {
-      agentName: 'testing-agent'
+      agentName: 'test-agent'
     });
 
     const metadataFile = path.join(tempDir, 'output_streams', result.sessionId, 'session-metadata.json');
@@ -103,7 +103,7 @@ describe('Agent Invoker - Minimal Integration Tests', () => {
     const metadata = JSON.parse(metadataContent);
     
     expect(metadata.sessionId).toBe(result.sessionId);
-    expect(metadata.agentName).toBe('testing-agent');
+    expect(metadata.agentName).toBe('test-agent');
     expect(metadata.startTime).toBeDefined();
     expect(metadata.outputDir).toContain('output_streams');
     expect(metadata.reportsDir).toContain('reports');
@@ -111,7 +111,7 @@ describe('Agent Invoker - Minimal Integration Tests', () => {
 
   test('should create conversation-complete.json after session closes', async () => {
     const result = await agentInvoker.invokeAgent('Test complete conversation', {
-      agentName: 'testing-agent'
+      agentName: 'test-agent'
     });
 
     const completeFile = path.join(tempDir, 'output_streams', result.sessionId, 'conversation-complete.json');
@@ -135,11 +135,11 @@ describe('Agent Invoker - Minimal Integration Tests', () => {
 
   test('should handle conversation continuation with existing session', async () => {
     const initialResult = await agentInvoker.invokeAgent('Initial prompt', {
-      agentName: 'testing-agent'
+      agentName: 'test-agent'
     });
 
     // Create new session for continuation test
-    const session = await sessionManager.createSession('testing-agent');
+    const session = await sessionManager.createSession('test-agent');
     
     const continuationResult = await agentInvoker.continueConversation(
       session.sessionId,
@@ -199,11 +199,11 @@ describe('Agent Invoker - Minimal Integration Tests', () => {
 
   test('should track tools used in summary', async () => {
     const result = await agentInvoker.invokeAgent('test-runner validation check', {
-      agentName: 'testing-agent',
+      agentName: 'test-agent',
       allowedTools: ['test-runner', 'validation']
     });
 
-    const summaryFile = path.join(tempDir, 'reports', result.sessionId, 'testing-agent-summary.json');
+    const summaryFile = path.join(tempDir, 'reports', result.sessionId, 'test-agent-summary.json');
     const summaryContent = await readFile(summaryFile, 'utf8');
     const summary = JSON.parse(summaryContent);
     
@@ -213,7 +213,7 @@ describe('Agent Invoker - Minimal Integration Tests', () => {
 
   test('should maintain proper directory structure as per README', async () => {
     const result = await agentInvoker.invokeAgent('Directory structure test', {
-      agentName: 'testing-agent'
+      agentName: 'test-agent'
     });
 
     // Check output_streams/$session_id/ structure
@@ -229,12 +229,12 @@ describe('Agent Invoker - Minimal Integration Tests', () => {
     const reportsDir = path.join(tempDir, 'reports', result.sessionId);
     const reportFiles = await readdir(reportsDir);
     
-    expect(reportFiles).toContain('testing-agent-summary.json');
+    expect(reportFiles).toContain('test-agent-summary.json');
   });
 
   test('should create human-readable session.log with real-time updates', async () => {
     const result = await agentInvoker.invokeAgent('Test session.log creation', {
-      agentName: 'testing-agent'
+      agentName: 'test-agent'
     });
 
     const sessionLogFile = path.join(tempDir, 'output_streams', result.sessionId, 'session.log');
@@ -246,7 +246,7 @@ describe('Agent Invoker - Minimal Integration Tests', () => {
     // Verify session header
     expect(logContent).toContain('=== Agent Session Started ===');
     expect(logContent).toContain(`Session ID: ${result.sessionId}`);
-    expect(logContent).toContain('Agent: testing-agent');
+    expect(logContent).toContain('Agent: test-agent');
     expect(logContent).toContain('=== Real-time Conversation ===');
     
     // Verify user prompt logged

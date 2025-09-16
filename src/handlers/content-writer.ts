@@ -5,7 +5,7 @@ import { validatePath, validateProjectDirectory } from '../shared/utils.js';
 
 export const contentWriterTools = [
   {
-    name: 'mcp__levys-awesome-mcp__mcp__content-writer__restricted_write',
+    name: 'restricted_write',
     description: 'Write files to a specified folder only. The invoking agent must provide the allowed folder.',
     inputSchema: {
       type: 'object' as const,
@@ -27,7 +27,7 @@ export const contentWriterTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__content-writer__frontend_write',
+    name: 'frontend_write',
     description: 'Write files to the frontend/ folder only.',
     inputSchema: {
       type: 'object' as const,
@@ -45,14 +45,14 @@ export const contentWriterTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__content-writer__backend_write',
-    description: 'Write files to the backend/ folder only.',
+    name: 'backend_write',
+    description: 'Write files to the backend/ or src/ folders.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         file_path: {
           type: 'string',
-          description: 'Path to the file to write (must be within backend/ folder)'
+          description: 'Path to the file to write (must be within backend/ or src/ folder)'
         },
         content: {
           type: 'string',
@@ -63,7 +63,43 @@ export const contentWriterTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
+    name: 'agents_write',
+    description: 'Write files to the agents/ folder only.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        file_path: {
+          type: 'string',
+          description: 'Path to the file to write (must be within agents/ folder)'
+        },
+        content: {
+          type: 'string',
+          description: 'Content to write to the file'
+        }
+      },
+      required: ['file_path', 'content']
+    }
+  },
+  {
+    name: 'docs_write',
+    description: 'Write files to the docs/ folder only.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        file_path: {
+          type: 'string',
+          description: 'Path to the file to write (must be within docs/ folder)'
+        },
+        content: {
+          type: 'string',
+          description: 'Content to write to the file'
+        }
+      },
+      required: ['file_path', 'content']
+    }
+  },
+  {
+    name: 'put_summary',
     description: 'Create a summary report file in reports/$SESSION_ID/${agent_name}-summary.json. Use this to create summary reports of agent execution.',
     inputSchema: {
       type: 'object' as const,
@@ -85,7 +121,7 @@ export const contentWriterTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__content-writer__get_summary',
+    name: 'get_summary',
     description: 'Read a summary report file from reports/$SESSION_ID/ directory. Looks for any summary files in the session directory.',
     inputSchema: {
       type: 'object' as const,
@@ -101,15 +137,32 @@ export const contentWriterTools = [
       },
       required: ['session_id']
     }
+  },
+  {
+    name: 'get_plan',
+    description: 'Read a plan file from plan_and_progress/$GIT_HASH/ directory. Looks for plan files created by the planner agent.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        git_hash: {
+          type: 'string',
+          description: 'Optional: specific git hash to look for. If not provided, uses current git commit hash.'
+        }
+      }
+    }
   }
 ];
 
 export async function handleContentWriterTool(name: string, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
-    switch (name) {
+    // Normalize tool names - handle both short and long forms from Claude Code
+    const normalizedName = name.replace('mcp__levys-awesome-mcp__mcp__levys-awesome-mcp__mcp__', 'mcp__levys-awesome-mcp__mcp__');
+    
+    switch (normalizedName) {
+      case 'restricted_write':
       case 'mcp__levys-awesome-mcp__mcp__content-writer__restricted_write': {
         const { file_path, content, allowed_folder } = args;
-        
+
         if (!validatePath(file_path)) {
           return {
             content: [{
@@ -121,7 +174,10 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         }
 
         const normalizedAllowedFolder = path.normalize(allowed_folder);
-        const fullPath = path.resolve(normalizedAllowedFolder, file_path);
+        // Remove the allowed_folder prefix if it exists to avoid creating nested directories
+        const folderName = path.basename(normalizedAllowedFolder);
+        const cleanPath = file_path.replace(new RegExp(`^${folderName}[/\\\\]`), '');
+        const fullPath = path.resolve(normalizedAllowedFolder, cleanPath);
         const normalizedFullPath = path.normalize(fullPath);
 
         if (!normalizedFullPath.startsWith(path.resolve(normalizedAllowedFolder))) {
@@ -148,9 +204,10 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         };
       }
 
+      case 'frontend_write':
       case 'mcp__levys-awesome-mcp__mcp__content-writer__frontend_write': {
         const { file_path, content } = args;
-        
+
         if (!validatePath(file_path)) {
           return {
             content: [{
@@ -162,7 +219,9 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         }
 
         const frontendDir = path.join(process.cwd(), 'frontend');
-        const fullPath = path.resolve(frontendDir, file_path);
+        // Remove 'frontend/' prefix if it exists to avoid creating nested directories
+        const cleanPath = file_path.replace(/^frontend[/\\]/, '');
+        const fullPath = path.resolve(frontendDir, cleanPath);
 
         if (!fullPath.startsWith(path.resolve(frontendDir))) {
           return {
@@ -183,7 +242,7 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
 
         // Check if this looks like a proper frontend project structure
         const validation = validateProjectDirectory(frontendDir);
-        let message = `File written successfully to frontend/${file_path}`;
+        let message = `File written successfully to frontend/${cleanPath}`;
         if (!validation.valid && existsSync(frontendDir)) {
           message += `\n\nWARNING: The frontend/ directory exists but doesn't appear to be a proper frontend project (${validation.error}). This may not be the intended project structure.`;
         }
@@ -196,9 +255,10 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         };
       }
 
+      case 'backend_write':
       case 'mcp__levys-awesome-mcp__mcp__content-writer__backend_write': {
         const { file_path, content } = args;
-        
+
         if (!validatePath(file_path)) {
           return {
             content: [{
@@ -209,14 +269,56 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
           };
         }
 
+        // Check if the path starts with src/ or backend/
+        const srcDir = path.join(process.cwd(), 'src');
         const backendDir = path.join(process.cwd(), 'backend');
-        const fullPath = path.resolve(backendDir, file_path);
 
-        if (!fullPath.startsWith(path.resolve(backendDir))) {
+        // Try src/ first, then backend/
+        let targetDir: string;
+        let targetDirName: string;
+
+        if (file_path.startsWith('src/') || file_path.startsWith('src\\')) {
+          targetDir = srcDir;
+          targetDirName = 'src';
+          // Remove the src/ prefix from the file_path for proper resolution
+          const cleanPath = file_path.replace(/^src[\/\\]/, '');
+          var fullPath = path.resolve(targetDir, cleanPath);
+        } else if (file_path.startsWith('backend/') || file_path.startsWith('backend\\')) {
+          targetDir = backendDir;
+          targetDirName = 'backend';
+          // Remove the backend/ prefix from the file_path for proper resolution
+          const cleanPath = file_path.replace(/^backend[\/\\]/, '');
+          var fullPath = path.resolve(targetDir, cleanPath);
+        } else {
+          // Default to trying both directories
+          const fullPathSrc = path.resolve(srcDir, file_path);
+          const fullPathBackend = path.resolve(backendDir, file_path);
+
+          if (fullPathSrc.startsWith(path.resolve(srcDir))) {
+            targetDir = srcDir;
+            targetDirName = 'src';
+            var fullPath = fullPathSrc;
+          } else if (fullPathBackend.startsWith(path.resolve(backendDir))) {
+            targetDir = backendDir;
+            targetDirName = 'backend';
+            var fullPath = fullPathBackend;
+          } else {
+            // Try backend as default for backward compatibility
+            targetDir = backendDir;
+            targetDirName = 'backend';
+            var fullPath = fullPathBackend;
+          }
+        }
+
+        // Verify the path is within the allowed directories
+        const resolvedSrcDir = path.resolve(srcDir);
+        const resolvedBackendDir = path.resolve(backendDir);
+
+        if (!fullPath.startsWith(resolvedSrcDir) && !fullPath.startsWith(resolvedBackendDir)) {
           return {
             content: [{
               type: 'text',
-              text: 'Access denied: File path must be within backend/ folder'
+              text: 'Access denied: File path must be within backend/ or src/ folder'
             }],
             isError: true
           };
@@ -229,11 +331,13 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
 
         await writeFile(fullPath, content, 'utf8');
 
-        // Check if this looks like a proper backend project structure
-        const validation = validateProjectDirectory(backendDir);
-        let message = `File written successfully to backend/${file_path}`;
-        if (!validation.valid && existsSync(backendDir)) {
-          message += `\n\nWARNING: The backend/ directory exists but doesn't appear to be a proper backend project (${validation.error}). This may not be the intended project structure.`;
+        // Only validate project structure for backend directory
+        let message = `File written successfully to ${targetDirName}/${file_path.replace(/^(src|backend)[\/\\]/, '')}`;
+        if (targetDirName === 'backend') {
+          const validation = validateProjectDirectory(backendDir);
+          if (!validation.valid && existsSync(backendDir)) {
+            message += `\n\nWARNING: The backend/ directory exists but doesn't appear to be a proper backend project (${validation.error}). This may not be the intended project structure.`;
+          }
         }
 
         return {
@@ -244,6 +348,95 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         };
       }
 
+      case 'agents_write':
+      case 'mcp__levys-awesome-mcp__mcp__content-writer__agents_write': {
+        const { file_path, content } = args;
+
+        if (!validatePath(file_path)) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Invalid file path: Path traversal not allowed'
+            }],
+            isError: true
+          };
+        }
+
+        const agentsDir = path.join(process.cwd(), 'agents');
+        // Remove 'agents/' prefix if it exists to avoid creating nested directories
+        const cleanPath = file_path.replace(/^agents[/\\]/, '');
+        const fullPath = path.resolve(agentsDir, cleanPath);
+
+        if (!fullPath.startsWith(path.resolve(agentsDir))) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Access denied: File path must be within agents/ folder'
+            }],
+            isError: true
+          };
+        }
+
+        const dir = path.dirname(fullPath);
+        if (!existsSync(dir)) {
+          await mkdir(dir, { recursive: true });
+        }
+
+        await writeFile(fullPath, content, 'utf8');
+
+        return {
+          content: [{
+            type: 'text',
+            text: `File written successfully to agents/${cleanPath}`
+          }]
+        };
+      }
+
+      case 'docs_write':
+      case 'mcp__levys-awesome-mcp__mcp__content-writer__docs_write': {
+        const { file_path, content } = args;
+
+        if (!validatePath(file_path)) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Invalid file path: Path traversal not allowed'
+            }],
+            isError: true
+          };
+        }
+
+        const docsDir = path.join(process.cwd(), 'docs');
+        // Remove 'docs/' prefix if it exists to avoid creating nested directories
+        const cleanPath = file_path.replace(/^docs[/\\]/, '');
+        const fullPath = path.resolve(docsDir, cleanPath);
+
+        if (!fullPath.startsWith(path.resolve(docsDir))) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Access denied: File path must be within docs/ folder'
+            }],
+            isError: true
+          };
+        }
+
+        const dir = path.dirname(fullPath);
+        if (!existsSync(dir)) {
+          await mkdir(dir, { recursive: true });
+        }
+
+        await writeFile(fullPath, content, 'utf8');
+
+        return {
+          content: [{
+            type: 'text',
+            text: `File written successfully to docs/${cleanPath}`
+          }]
+        };
+      }
+
+      case 'put_summary':
       case 'mcp__levys-awesome-mcp__mcp__content-writer__put_summary': {
         const { session_id, agent_name, content } = args;
         
@@ -310,6 +503,7 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         };
       }
 
+      case 'get_summary':
       case 'mcp__levys-awesome-mcp__mcp__content-writer__get_summary': {
         const { session_id, agent_name } = args;
         
@@ -397,6 +591,77 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
             content: [{
               type: 'text',
               text: `Error reading summary file: ${error instanceof Error ? error.message : String(error)}`
+            }],
+            isError: true
+          };
+        }
+      }
+
+      case 'get_plan':
+      case 'mcp__levys-awesome-mcp__mcp__content-writer__get_plan': {
+        const { git_hash } = args;
+        
+        try {
+          // Get git commit hash for directory structure
+          const { executeCommand } = await import('../shared/utils.js');
+          let finalGitHash = git_hash;
+          
+          if (!finalGitHash) {
+            const result = await executeCommand('git', ['rev-parse', 'HEAD'], process.cwd());
+            if (result.success && result.stdout) {
+              finalGitHash = result.stdout.trim();
+            } else {
+              // Generate a pseudo-hash based on current timestamp if no git commit available
+              const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+              finalGitHash = `no-commit-${timestamp}`;
+            }
+          }
+          
+          // Check plan_and_progress directory
+          const planDir = path.resolve(process.cwd(), 'plan_and_progress', finalGitHash);
+          if (!existsSync(planDir)) {
+            return {
+              content: [{
+                type: 'text',
+                text: `No plan directory found for git hash: ${finalGitHash}`
+              }],
+              isError: true
+            };
+          }
+
+          // Get all JSON files in the plan directory
+          const files = readdirSync(planDir).filter((file: string) => file.startsWith('plan-') && file.endsWith('.json'));
+          
+          if (files.length === 0) {
+            return {
+              content: [{
+                type: 'text',
+                text: `No plan files found in plan_and_progress/${finalGitHash}/`
+              }],
+              isError: true
+            };
+          }
+
+          // Get the most recent plan file (they have timestamps)
+          const planFile = files.sort().reverse()[0]; // Most recent first
+          
+          // Read the plan file
+          const planPath = path.join(planDir, planFile);
+          const planContent = readFileSync(planPath, 'utf8');
+          const planData = JSON.parse(planContent);
+
+          return {
+            content: [{
+              type: 'text',
+              text: `Plan for git hash ${finalGitHash} (${planFile}):\n\n${JSON.stringify(planData, null, 2)}`
+            }]
+          };
+
+        } catch (error) {
+          return {
+            content: [{
+              type: 'text',
+              text: `Error reading plan file: ${error instanceof Error ? error.message : String(error)}`
             }],
             isError: true
           };

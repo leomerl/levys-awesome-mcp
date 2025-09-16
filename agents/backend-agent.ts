@@ -1,20 +1,7 @@
 #!/usr/bin/env tsx
 
 import { query } from "@anthropic-ai/claude-code";
-
-// Agent configuration for SDK usage
-interface AgentConfig {
-  name: string;
-  description: string;
-  prompt: string;
-  options: {
-    systemPrompt: string;
-    maxTurns: number;
-    model?: string;
-    allowedTools?: string[];
-    mcpServers?: string[];
-  };
-}
+import { AgentConfig } from '../src/types/agent-config.ts';
 
 const backendAgent: AgentConfig = {
   name: 'backend-agent',
@@ -25,6 +12,13 @@ const backendAgent: AgentConfig = {
 
 IMPORTANT: You can ONLY write/edit files within the backend/ folder using backend_write and backend_edit tools.
 
+## PROGRESS UPDATE DIRECTIVES:
+When you receive a message about updating progress for a task (e.g., "You have TASK-XXX currently marked as in_progress"):
+1. Check if you have fully completed the specified task
+2. If YES: Use mcp__levys-awesome-mcp__update_progress to mark it as completed
+3. If NO: Complete the remaining work first, then update the progress
+4. Include accurate files_modified list and a summary of what was accomplished
+
 ## FILE TRACKING & REPORTING:
 You MUST track all files you touch and generate a detailed JSON report at the end of your session.
 
@@ -34,11 +28,18 @@ CRITICAL: You are STRICTLY FORBIDDEN from using the 'any' type in TypeScript cod
 - Use proper TypeScript types: string, number, boolean, object, arrays, interfaces, unions, generics
 - When unsure of a type, use 'unknown' instead of 'any'
 
+## EMOJI CONSTRAINTS:
+CRITICAL: You are STRICTLY FORBIDDEN from using emojis in the codebase.
+- NEVER add emojis to code comments, function names, variable names, or any source code
+- NEVER add emojis to documentation strings, error messages, or log statements
+- Emojis are not professional and should not be included in any production code
+- Use clear, descriptive text instead of emojis for all code elements
+
 ## TODO CONSTRAINTS:
 - If you identify tasks to be done, complete them immediately in the same session
 
 ## Available Tools:
-- mcp__levys-awesome-mcp__mcp__content-writer__backend_write: Write new files to backend/ folder
+- mcp__levys-awesome-mcp__backend_write: Write new files to backend/ folder
 - mcp__language-server__definition: Get source code definition of symbols
 - mcp__language-server__diagnostics: Get diagnostic information for files
 - mcp__language-server__edit_file: Apply multiple text edits to files
@@ -50,19 +51,22 @@ CRITICAL: You are STRICTLY FORBIDDEN from using the 'any' type in TypeScript cod
 - Grep: Search file contents
 
 Remember: You are focused on backend development and can only modify files in the backend/ directory.`,
-    maxTurns: 10,
     model: 'sonnet',
     allowedTools: [
-      'mcp__levys-awesome-mcp__mcp__content-writer__backend_write',
-      'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
-      'mcp__levys-awesome-mcp__mcp__content-writer__get_summary',
+      'mcp__levys-awesome-mcp__backend_write',
+      'mcp__levys-awesome-mcp__put_summary',
+      'mcp__levys-awesome-mcp__get_summary',
+      'mcp__levys-awesome-mcp__update_progress',
       'Glob',
       'Grep',
       'Read'
     ],
-    mcpServers: [
-      'levys-awesome-mcp'
-    ]
+    mcpServers: {
+      "levys-awesome-mcp": {
+        command: "node",
+        args: ["dist/src/index.js"]
+      }
+    }
   }
 };
 
@@ -90,15 +94,9 @@ async function runAgent() {
     prompt,
     options: {
       systemPrompt: backendAgent.options.systemPrompt,
-      maxTurns: backendAgent.options.maxTurns,
       allowedTools: backendAgent.options.allowedTools,
       pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
-      mcpServers: {
-        "levys-awesome-mcp": {
-          command: "node",
-          args: ["dist/src/index.js"]
-        }
-      }
+      mcpServers: backendAgent.options.mcpServers
     }
   })) {
     if (message.type === "result") {

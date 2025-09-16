@@ -5,7 +5,7 @@ import * as path from 'path';
 
 export const testExecutorTools = [
   {
-    name: 'mcp__levys-awesome-mcp__mcp__test-executor__run_tests',
+    name: 'run_tests',
     description: 'Execute test suite with support for multiple test frameworks',
     inputSchema: {
       type: 'object' as const,
@@ -30,7 +30,7 @@ export const testExecutorTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__test-executor__validate_and_run_tests',
+    name: 'validate_and_run_tests',
     description: 'Validate test environment and run comprehensive test suite',
     inputSchema: {
       type: 'object' as const,
@@ -152,6 +152,7 @@ async function runTestFramework(framework: string, options: { coverage?: boolean
 export async function handleTestExecutorTool(name: string, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     switch (name) {
+      case 'run_tests':
       case 'mcp__levys-awesome-mcp__mcp__test-executor__run_tests': {
         const { framework = 'all', coverage = false, watch = false } = args;
         
@@ -177,6 +178,7 @@ export async function handleTestExecutorTool(name: string, args: any): Promise<{
         };
       }
 
+      case 'validate_and_run_tests':
       case 'mcp__levys-awesome-mcp__mcp__test-executor__validate_and_run_tests': {
         const { validate_only = false } = args;
         

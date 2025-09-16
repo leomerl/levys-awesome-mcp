@@ -26,12 +26,11 @@ export interface AgentConfigNew {
   prompt: string;
   options: {
     systemPrompt: string;
-    maxTurns: number;
     model?: string;
     temperature?: number;
     maxTokens?: number;
     tools?: string[];
-    mcpServers?: string[];
+    mcpServers?: Record<string, any>; // Changed from string[] to match SDK expectations
     permissions?: {
       mode?: 'default' | 'acceptEdits' | 'ask';
     };

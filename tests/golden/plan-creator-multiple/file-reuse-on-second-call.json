@@ -1,0 +1,51 @@
+{
+  "firstCall": {
+    "input": {
+      "task_description": "First plan creation test",
+      "synopsis": "Testing first plan creation",
+      "tasks": [
+        {
+          "id": "TASK-001",
+          "designated_agent": "backend-agent",
+          "description": "Create first task",
+          "files_to_modify": [
+            "test1.js"
+          ],
+          "dependencies": []
+        }
+      ]
+    },
+    "hasError": false,
+    "planFileCount": 1,
+    "progressFileCount": 1
+  },
+  "secondCall": {
+    "input": {
+      "task_description": "Second plan creation test",
+      "synopsis": "Testing plan update with existing files",
+      "tasks": [
+        {
+          "id": "TASK-002",
+          "designated_agent": "frontend-agent",
+          "description": "Create second task",
+          "files_to_modify": [
+            "test2.js"
+          ],
+          "dependencies": []
+        }
+      ]
+    },
+    "hasError": false,
+    "planFileCount": 1,
+    "progressFileCount": 1,
+    "sameFiles": {
+      "planFile": true,
+      "progressFile": true
+    }
+  },
+  "expectedBehavior": {
+    "singlePlanFile": true,
+    "singleProgressFile": true,
+    "filesReused": true
+  }
+}

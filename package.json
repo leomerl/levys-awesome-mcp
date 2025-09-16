@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "A comprehensive MCP (Model Context Protocol) server toolkit with agent management, build automation, and content writing capabilities",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
   "bin": {
     "levys-awesome-mcp": "./dist/src/index.js",
     "agent-generator": "./bin/agent-generator",
@@ -29,12 +29,14 @@
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run clean && npm run build && npm test",
     "prepare": "npm run build",
+    "postinstall": "node scripts/postinstall.js",
     "backend-agent": "npx tsx agents/backend-agent.ts --",
     "frontend-agent": "npx tsx agents/frontend-agent.ts --",
-    "testing-agent": "npx tsx agents/testing-agent.ts --",
-    "orchestrator": "npx tsx agents/orchestrator.ts --",
-    "linter": "npx tsx agents/linter.ts --",
-    "builder": "npx tsx agents/builder.ts --"
+    "test-agent": "npx tsx agents/test-agent.ts --",
+    "orchestrator-agent": "npx tsx agents/orchestrator-agent.ts --",
+    "linter-agent": "npx tsx agents/linter-agent.ts --",
+    "builder-agent": "npx tsx agents/builder.ts --",
+    "planner-agent": "npx tsx agents/planner-agent.ts --"
   },
   "keywords": [
     "mcp",
@@ -59,6 +61,9 @@
   "files": [
     "dist",
     "bin",
+    "agents",
+    "commands",
+    "scripts",
     "README.md",
     "CHANGELOG.md"
   ],
@@ -98,9 +103,9 @@
   },
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "import": "./dist/src/index.js",
+      "require": "./dist/src/index.js",
+      "types": "./dist/src/index.d.ts"
     },
     "./sdk": {
       "import": "./dist/src/sdk/index.js",

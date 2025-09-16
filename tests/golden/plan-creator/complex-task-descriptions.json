@@ -1,0 +1,32 @@
+{
+  "input": {
+    "task_description": "Update frontend components and backend API",
+    "synopsis": "Modernize application with new features",
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "designated_agent": "backend-agent",
+        "description": "Update API endpoints",
+        "files_to_modify": [
+          "api/routes.js"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "TASK-002",
+        "designated_agent": "frontend-agent",
+        "description": "Update frontend components",
+        "files_to_modify": [
+          "src/components/"
+        ],
+        "dependencies": [
+          "TASK-001"
+        ]
+      }
+    ]
+  },
+  "hasError": false,
+  "hasDependencies": true,
+  "taskCount": 2,
+  "contentDefined": true
+}

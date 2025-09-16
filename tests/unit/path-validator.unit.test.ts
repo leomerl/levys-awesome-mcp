@@ -1,33 +1,48 @@
 import { describe, it, expect } from 'vitest';
-import { PathValidator } from '../../src/utilities/fs/path-validator.ts';
+import { validatePath, normalizePath } from '../../src/utilities/fs/path-validator.js';
 
-describe('PathValidator Unit Tests', () => {
-  describe('validateFilePath', () => {
-    it('should accept valid paths within allowed folder', () => {
-      const result = PathValidator.validateFilePath('frontend/src/app.js', 'frontend');
-      expect(result.isValid).toBe(true);
+describe('Path Validator Unit Tests', () => {
+  describe('validatePath', () => {
+    it('should accept valid relative paths', () => {
+      expect(() => validatePath('frontend/src/app.js')).not.toThrow();
+      expect(() => validatePath('backend/models/user.ts')).not.toThrow();
+      expect(() => validatePath('tests/unit/test.spec.ts')).not.toThrow();
     });
 
     it('should reject directory traversal attempts', () => {
-      const result = PathValidator.validateFilePath('../etc/passwd', 'frontend');
-      expect(result.isValid).toBe(false);
+      expect(() => validatePath('../../../etc/passwd')).toThrow('Invalid file path');
+      expect(() => validatePath('frontend/../../../secrets')).toThrow('Invalid file path');
+      expect(() => validatePath('..\\windows\\system32')).toThrow('Invalid file path');
     });
 
     it('should reject absolute paths', () => {
-      const result = PathValidator.validateFilePath('/etc/passwd', 'frontend');
-      expect(result.isValid).toBe(false);
+      expect(() => validatePath('/etc/passwd')).toThrow('Invalid file path');
+      expect(() => validatePath('C:\\Windows\\System32')).toThrow('Invalid file path');
+    });
+
+    it('should reject null bytes', () => {
+      expect(() => validatePath('file\0.txt')).toThrow('Invalid file path');
+    });
+
+    it('should handle empty paths', () => {
+      expect(() => validatePath('')).toThrow('Invalid file path');
+      expect(() => validatePath('   ')).toThrow('Invalid file path');
     });
   });
 
-  describe('normalizeFolderPath', () => {
-    it('should prepend folder when missing', () => {
-      const normalized = PathValidator.normalizeFolderPath('src/app.js', 'frontend');
-      expect(normalized).toBe('frontend/src/app.js');
+  describe('normalizePath', () => {
+    it('should normalize path separators', () => {
+      expect(normalizePath('frontend\\src\\app.js')).toBe('frontend/src/app.js');
+      expect(normalizePath('backend/models/user.ts')).toBe('backend/models/user.ts');
     });
 
-    it('should throw on absolute paths', () => {
-      expect(() => PathValidator.normalizeFolderPath('/etc/passwd', 'frontend')).toThrow();
+    it('should resolve relative segments safely', () => {
+      expect(normalizePath('frontend/./src/app.js')).toBe('frontend/src/app.js');
+      expect(normalizePath('frontend/src/../components/button.js')).toBe('frontend/components/button.js');
+    });
+
+    it('should handle multiple slashes', () => {
+      expect(normalizePath('frontend//src///app.js')).toBe('frontend/src/app.js');
     });
   });
 });
-

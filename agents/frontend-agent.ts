@@ -1,43 +1,40 @@
 #!/usr/bin/env tsx
 
 import { query } from "@anthropic-ai/claude-code";
-
-// Agent configuration for SDK usage
-interface AgentConfig {
-  name: string;
-  description: string;
-  prompt: string;
-  options: {
-    systemPrompt: string;
-    maxTurns: number;
-    model?: string;
-    allowedTools?: string[];
-    mcpServers?: string[];
-  };
-}
+import { AgentConfig } from '../src/types/agent-config.ts';
 
 const frontendAgent: AgentConfig = {
   name: 'frontend-agent',
   description: 'Agent specialized for frontend development with write access only to frontend/ folder',
   prompt: 'Work on frontend code, components, and styling. You can only write/edit files in the frontend/ folder.',
   options: {
-    maxTurns: 10,
     model: 'sonnet',
     allowedTools: [
-      'mcp__levys-awesome-mcp__mcp__content-writer__frontend_write',
-      'mcp__levys-awesome-mcp__mcp__content-writer__put_summary',
-      'mcp__levys-awesome-mcp__mcp__content-writer__get_summary',
+      'mcp__levys-awesome-mcp__frontend_write',
+      'mcp__levys-awesome-mcp__put_summary',
+      'mcp__levys-awesome-mcp__get_summary',
+      'mcp__levys-awesome-mcp__update_progress',
       'Glob',
       'Grep', 
       'Read'
     ],
-    mcpServers: [
-      'levys-awesome-mcp'
-    ],
+    mcpServers: {
+      "levys-awesome-mcp": {
+        command: "node",
+        args: ["dist/src/index.js"]
+      }
+    },
     systemPrompt: `You are a frontend development agent with restricted access to the frontend/ folder only.
 
 IMPORTANT: You CANNOT use the mcp__agent-invoker__invoke_agent or Task tools.
 IMPORTANT: You can ONLY write/edit files within the frontend/ folder using frontend_write and frontend_edit tools.
+
+## PROGRESS UPDATE DIRECTIVES:
+When you receive a message about updating progress for a task (e.g., "You have TASK-XXX currently marked as in_progress"):
+1. Check if you have fully completed the specified task
+2. If YES: Use mcp__levys-awesome-mcp__update_progress to mark it as completed
+3. If NO: Complete the remaining work first, then update the progress
+4. Include accurate files_modified list and a summary of what was accomplished
 
 ## FILE TRACKING & REPORTING:
 You MUST track all files you touch and generate a detailed JSON report at the end of your session.
@@ -91,6 +88,13 @@ CRITICAL: You are STRICTLY FORBIDDEN from using the 'any' type in TypeScript cod
 - Always define proper interfaces for objects and function parameters
 - Use generic types (<T>) for reusable type-safe code
 
+## EMOJI CONSTRAINTS:
+CRITICAL: You are STRICTLY FORBIDDEN from using emojis in the codebase.
+- NEVER add emojis to code comments, function names, variable names, or any source code
+- NEVER add emojis to documentation strings, error messages, or log statements
+- Emojis are not professional and should not be included in any production code
+- Use clear, descriptive text instead of emojis for all code elements
+
 ## TODO CONSTRAINTS:
 CRITICAL: You are STRICTLY FORBIDDEN from creating TodoWrite entries without immediately resolving them.
 - NEVER use TodoWrite or Task tools to create TODO items
@@ -115,8 +119,8 @@ CRITICAL: You are STRICTLY FORBIDDEN from creating TodoWrite entries without imm
 - mcp__language-server__hover: Get type and documentation info for symbols
 - mcp__language-server__references: Find all usages of symbols in codebase
 - mcp__language-server__rename_symbol: Rename symbols and update all references
-- mcp__levys-awesome-mcp__mcp__content-writer__frontend_write
-- mcp__levys-awesome-mcp__mcp__content-writer__frontend_edit,
+- mcp__levys-awesome-mcp__frontend_write
+- mcp__levys-awesome-mcp__frontend_edit,
 - put_summary
 
 ## PROHIBITED TOOLS:
@@ -205,15 +209,9 @@ async function runAgent() {
     prompt,
     options: {
       systemPrompt: frontendAgent.options.systemPrompt,
-      maxTurns: frontendAgent.options.maxTurns,
       allowedTools: frontendAgent.options.allowedTools,
       pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
-      mcpServers: {
-        "levys-awesome-mcp": {
-          command: "node",
-          args: ["dist/src/index.js"]
-        }
-      }
+      mcpServers: frontendAgent.options.mcpServers
     }
   })) {
     if (message.type === "result") {

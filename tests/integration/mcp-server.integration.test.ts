@@ -35,15 +35,15 @@ describe('MCP Server Integration Tests', () => {
     
     // Verify expected tools are present
     const toolNames = tools.map((t: any) => t.name);
-    expect(toolNames).toContain('mcp__levys-awesome-mcp__mcp__content-writer__frontend_write');
-    expect(toolNames).toContain('mcp__levys-awesome-mcp__mcp__build-executor__build_project');
+    expect(toolNames).toContain('frontend_write');
+    expect(toolNames).toContain('build_project');
   });
 
   it('should handle valid tool call - content writer', async () => {
     const response = await client.call('tools/call', {
-      name: 'mcp__levys-awesome-mcp__mcp__content-writer__frontend_write',
+      name: 'frontend_write',
       arguments: {
-        file_path: 'test-file.txt',
+        file_path: 'frontend/test-file.txt',
         content: 'Hello, World!'
       }
     });
@@ -61,7 +61,7 @@ describe('MCP Server Integration Tests', () => {
 
   it('should handle invalid tool parameters', async () => {
     const response = await client.call('tools/call', {
-      name: 'mcp__levys-awesome-mcp__mcp__content-writer__frontend_write',
+      name: 'frontend_write',
       arguments: {
         // Missing required parameters
         content: 'Hello, World!'

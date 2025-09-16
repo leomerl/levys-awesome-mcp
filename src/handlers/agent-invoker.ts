@@ -7,15 +7,15 @@ import { query } from '@anthropic-ai/claude-code';
 import { SessionStore } from '../utilities/session/session-store.js';
 import { StreamingManager } from '../utilities/session/streaming-utils.js';
 import { AgentLoader } from '../utilities/agents/agent-loader.js';
-import { ValidationUtils } from '../utilities/config/validation.js';
-import { ReportManager } from '../utilities/session/report-manager.js';
 import { PermissionManager } from '../utilities/agents/permission-manager.js';
+import { updateTaskToInProgress, getInProgressTask, getCurrentGitHash } from '../utilities/progress/task-tracker.js';
 import * as path from 'path';
 import * as fs from 'fs';
+import { randomUUID } from 'crypto';
 
 export const agentInvokerTools = [
   {
-    name: 'mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent',
+    name: 'invoke_agent',
     description: 'Invoke another agent programmatically with enforced session.log creation',
     inputSchema: {
       type: 'object',
@@ -28,10 +28,6 @@ export const agentInvokerTools = [
           type: 'string',
           description: 'Prompt to send to the agent'
         },
-        maxTurns: {
-          type: 'number',
-          description: 'Maximum number of turns for the agent (optional, default: 10)'
-        },
         streaming: {
           type: 'boolean',
           description: 'Whether to enable real-time streaming output (optional, default: true)'
@@ -43,6 +39,14 @@ export const agentInvokerTools = [
         continueSessionId: {
           type: 'string',
           description: 'Session ID to continue a previous conversation (optional)'
+        },
+        taskNumber: {
+          type: 'number',
+          description: 'Task number to update progress for (e.g., 1 for TASK-001) (optional)'
+        },
+        updateProgress: {
+          type: 'boolean',
+          description: 'Whether to update task progress automatically (optional, default: false)'
         }
       },
       required: ['agentName', 'prompt'],
@@ -50,7 +54,7 @@ export const agentInvokerTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__agent-invoker__list_agents',
+    name: 'list_agents',
     description: 'List all available agents that can be invoked',
     inputSchema: {
       type: 'object',
@@ -62,9 +66,13 @@ export const agentInvokerTools = [
 
 export async function handleAgentInvokerTool(name: string, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
-    switch (name) {
-      case 'mcp__levys-awesome-mcp__mcp__agent-invoker__invoke_agent': {
-        const { agentName, prompt, maxTurns = 10, streaming = true, saveStreamToFile = true, continueSessionId } = args;
+    // Handle both short and prefixed names
+    const normalizedName = name.includes('invoke_agent') ? 'invoke_agent' : 
+                          name.includes('list_agents') ? 'list_agents' : name;
+    
+    switch (normalizedName) {
+      case 'invoke_agent': {
+        const { agentName, prompt, continueSessionId, taskNumber, updateProgress = false } = args;
         
         if (!agentName || !prompt) {
           return {
@@ -88,168 +96,260 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
           };
         }
 
-        // Initialize session with ENFORCED streaming and session.log creation
-        const sessionInit = await SessionStore.initializeSession(continueSessionId, agentName);
-        if (!sessionInit.success) {
-          return {
-            content: [{
-              type: 'text',
-              text: `Error: ${sessionInit.error}`
-            }],
-            isError: true
-          };
+        // Update task to in_progress if requested
+        if (updateProgress && taskNumber) {
+          const updateSuccess = await updateTaskToInProgress(taskNumber);
+          if (updateSuccess) {
+            console.log(`[AgentInvoker] Updated task ${taskNumber} to in_progress`);
+          } else {
+            console.log(`[AgentInvoker] Failed to update task ${taskNumber} to in_progress`);
+          }
         }
 
-        const { sessionId, existingHistory, isSessionContinuation } = sessionInit;
-        const messages: any[] = existingHistory?.messages || [];
-        let output = '';
-
-        // ENFORCE streaming and session.log creation - cannot be disabled
-        const streamingUtils = new StreamingManager(sessionId!, agentName, {
-          streaming: true,        // ALWAYS TRUE - enforced
-          saveStreamToFile: true, // ALWAYS TRUE - enforced
-          verbose: true
-        });
-
-        // Initialize session.log file - THIS IS ENFORCED
-        streamingUtils.initStreamFile();
+        // For resumed sessions, use the existing session ID
+        // For new sessions, we'll capture Claude Code's actual session ID on first message
+        let sessionId: string | undefined = continueSessionId;
+        let streamingUtils: StreamingManager | undefined;
+        let streamLogFile: string | undefined;
         
-        // Get stream log file reference for logging throughout the session
-        const streamLogFile = streamingUtils.getStreamLogFile();
+        const messages: any[] = [];
+        let claudeCodeSessionId: string | undefined; // To capture Claude Code's actual session ID
+        let isFirstMessage = true;
+        let agentCompleted = false; // Track if agent completed successfully
         
         try {
-          // Build enhanced prompt with session tracking
-          const enhancedPrompt = `${prompt}
+          // Step 1: Create specialized prompt (systemPrompt + task)
+          let specializedPrompt = '';
+          if (agentConfig.options?.systemPrompt) {
+            specializedPrompt = `${agentConfig.options.systemPrompt}
+
+task: ${prompt}`;
+          } else {
+            specializedPrompt = `task: ${prompt}`;
+          }
+
+          // Step 2: Build enhanced prompt (session info + restrictions)
+          const sessionInfo = `
 
 IMPORTANT: When you complete your task, create a summary report using available tools.
 SESSION_ID: ${sessionId}
 OUTPUT_DIR: output_streams/${sessionId}/
 `;
 
-          // Add initial prompt to session.log
-          if (streamLogFile) {
-            const timestamp = new Date().toISOString();
-            const promptLog = `[${timestamp}] USER PROMPT:\n${enhancedPrompt}\n\n`;
-            fs.appendFileSync(streamLogFile, promptLog, 'utf8');
+          // Helper function to generate restriction prompt
+          const generateRestrictionPrompt = async (
+            disallowedTools: string[], 
+            allowedTools: string[],
+            configType: string
+          ): Promise<string> => {
+            try {
+              // Filter out tools that are actually allowed (handle both short and prefixed names)
+              const promptDisallowedTools = disallowedTools.filter(tool => {
+                // Check if tool is directly in allowedTools
+                if (allowedTools.includes(tool)) return false;
+                
+                // Check if any allowed tool ends with this short name or matches the prefixed version
+                return !allowedTools.some(allowedTool => {
+                  const parts = allowedTool.split('__');
+                  const shortName = parts[parts.length - 1];
+                  return shortName === tool || allowedTool === `mcp__levys-awesome-mcp__${tool}`;
+                });
+              });
+              
+              const prompt = await PermissionManager.generateToolRestrictionPrompt(promptDisallowedTools);
+              const logMessage = configType === 'default' 
+                ? `[AgentInvoker] Generated restriction prompt for default config with ${promptDisallowedTools.length} disallowed tools (${prompt.length} characters)`
+                : `[AgentInvoker] Generated restriction prompt with ${promptDisallowedTools.length} disallowed tools (prompt length: ${prompt.length})`;
+              console.log(logMessage);
+              return prompt;
+            } catch (error) {
+              console.error(`[AgentInvoker] Error generating restriction prompt${configType === 'default' ? ' for default config' : ''}:`, error);
+              return '';
+            }
+          };
+
+          // Get agent permissions
+          let permissions: { allowedTools: string[]; disallowedTools: string[] };
+          let restrictionPrompt = '';
+          
+          if (agentConfig.options?.allowedTools) {
+            // Legacy TypeScript agent config with ENHANCED dynamic restrictions
+            const permissionConfig = {
+              allowedTools: agentConfig.options.allowedTools,
+              agentRole: 'write-restricted' as const, // Default role for legacy configs
+              useDynamicRestrictions: true // ENABLE dynamic restrictions for all agents
+            };
+            
+            permissions = await PermissionManager.getAgentPermissionsWithDynamicRestrictions(permissionConfig);
+            restrictionPrompt = await generateRestrictionPrompt(permissions.disallowedTools, permissions.allowedTools, 'legacy');
+          } else {
+            // Default permissions
+            const defaultConfig = {
+              allowedTools: [],
+              agentRole: 'read-only' as const,
+              useDynamicRestrictions: true
+            };
+            permissions = await PermissionManager.getAgentPermissionsWithDynamicRestrictions(defaultConfig);
+            restrictionPrompt = await generateRestrictionPrompt(permissions.disallowedTools, permissions.allowedTools, 'default');
           }
 
-          // Execute agent with Claude Code query - Enforce strict tool permissions
-          const permissions = PermissionManager.getAgentPermissions({
-            allowedTools: agentConfig.options?.allowedTools || []
-          });
+          // Build enhanced prompt with session info and restrictions
+          let enhancedPrompt = sessionInfo;
+          
+          // Add tool restriction information
+          if (restrictionPrompt && restrictionPrompt.trim().length > 0) {
+            enhancedPrompt = sessionInfo + restrictionPrompt;
+            console.log(`[AgentInvoker] Injected tool restriction prompt (${restrictionPrompt.length} characters)`);
+          } else {
+            // Generate a basic restriction warning when no specific restrictions are calculated
+            const basicRestrictionPrompt = `\n\n🚫 CRITICAL TOOL RESTRICTIONS 🚫\nYou are STRICTLY FORBIDDEN from using these tools:\n- TodoWrite: This tool is explicitly blocked and will cause errors\n- Task: This tool is explicitly blocked and will cause errors\n- Write: This tool is explicitly blocked and will cause errors\n- Edit: This tool is explicitly blocked and will cause errors\n- MultiEdit: This tool is explicitly blocked and will cause errors\n\nIf you attempt to use any of these forbidden tools, your execution will fail.\nUse only the tools explicitly listed in your allowed tools configuration.\n\n\n`;
+            enhancedPrompt = sessionInfo + basicRestrictionPrompt;
+            console.log(`[AgentInvoker] Added basic tool restriction warning (no dynamic restrictions calculated)`);
+          }
+
+          // Step 3: Combine specialized prompt + enhanced prompt for customSystemPrompt
+          const finalPrompt = specializedPrompt + enhancedPrompt;
+
+          // Prompt log will be added after we get the session ID
+
+          // CRITICAL FIX: Ensure no allowed tools are in disallowed list before passing to agent
+          console.log(`[AgentInvoker] Allowed tools for ${agentName}:`, permissions.allowedTools);
+          console.log(`[AgentInvoker] Initial disallowed tools count:`, permissions.disallowedTools.length);
+
+          const finalDisallowedTools = permissions.disallowedTools.filter(tool =>
+            !permissions.allowedTools.includes(tool)
+          );
+
+          console.log(`[AgentInvoker] Final disallowed tools count after filtering:`, finalDisallowedTools.length);
+          console.log(`[AgentInvoker] Is agents_write in allowed?`, permissions.allowedTools.includes('mcp__levys-awesome-mcp__agents_write'));
+          console.log(`[AgentInvoker] Is agents_write in final disallowed?`, finalDisallowedTools.includes('mcp__levys-awesome-mcp__agents_write'));
+
+          // Build query options with conditional resume parameter
+          const queryOptions: any = {
+            model: agentConfig.options?.model || 'sonnet',
+            allowedTools: permissions.allowedTools, // Use managed permissions
+            disallowedTools: finalDisallowedTools, // Use filtered disallowed tools
+            permissionMode: 'acceptEdits',
+            pathToClaudeCodeExecutable: path.resolve(process.cwd(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
+            mcpServers: {
+              "levys-awesome-mcp": {
+                command: "node",
+                args: ["dist/src/index.js"]
+              }
+            },
+            // Pass the complete prompt (systemPrompt + task + session + restrictions) as customSystemPrompt
+            customSystemPrompt: finalPrompt
+          };
+
+          // Only add resume parameter if continueSessionId is provided
+          if (continueSessionId) {
+            queryOptions.resume = String(continueSessionId);
+          }
+
+          // For logging: build a user-facing prompt that includes task and session info
+          const userFacingPrompt = `task: ${prompt}${enhancedPrompt}`;
 
           for await (const message of query({
-            prompt: enhancedPrompt,
-            options: {
-              maxTurns,
-              model: agentConfig.options?.model || 'sonnet',
-              allowedTools: permissions.allowedTools, // Use managed permissions
-              disallowedTools: permissions.disallowedTools, // Explicitly block problematic built-in tools
-              permissionMode: 'acceptEdits',
-              pathToClaudeCodeExecutable: path.resolve(process.cwd(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
-              mcpServers: {
-                "levys-awesome-mcp": {
-                  command: "node",
-                  args: ["dist/src/index.js"]
-                }
-              }
-            }
+            prompt: userFacingPrompt, // Pass user prompt with task prefix and session info
+            options: queryOptions
           })) {
             // Always collect messages for conversation history
             messages.push(message);
 
-            // Log ALL conversation messages to session.log in real-time - ENFORCED
-            await streamingUtils.logConversationMessage(message);
-            
-            // Save conversation history in real-time
-            await SessionStore.saveConversationHistory(sessionId!, agentName, messages);
-
-            // Collect output for response
-            if (message.type === "assistant") {
-              const content = message.message.content;
-              if (content) {
-                for (const item of content) {
-                  if (item.type === "text") {
-                    output += item.text + '\n';
-                  }
-                }
+            // Capture Claude Code's actual session ID and initialize streaming on first message
+            if (isFirstMessage && (message.type === 'system' || message.type === 'assistant' || message.type === 'result')) {
+              // Try to get session ID from message
+              if (message.session_id) {
+                claudeCodeSessionId = message.session_id;
+                console.log(`[AgentInvoker] Captured Claude Code session ID: ${claudeCodeSessionId}`);
+              } else if (message.type === 'system' && message.subtype === 'init' && message.uuid) {
+                // Fallback to UUID if no session_id
+                claudeCodeSessionId = message.uuid;
+                console.log(`[AgentInvoker] Using UUID as session ID: ${claudeCodeSessionId}`);
               }
-            } else if (message.type === "result" && message.is_error) {
-              const errorMsg = 'result' in message && typeof message.result === 'string' ? message.result : 'Unknown error';
-              return {
-                content: [{
-                  type: 'text',
-                  text: `Agent '${agentName}' execution failed: ${errorMsg}\n\nSession ID: ${sessionId}\nSession Log: output_streams/${sessionId}/session.log\n\nPartial output:\n${output}`
-                }],
-                isError: true
-              };
-            }
-          }
-
-          // Final save
-          await SessionStore.saveConversationHistory(sessionId!, agentName, messages);
-
-          // Check if summary report was created
-          const summaryCheck = ReportManager.checkForSummaryFiles(sessionId!, agentName);
-          if (!summaryCheck.found) {
-            // Request summary creation by continuing the session
-            const summaryPrompt = `Please create a summary report of what you accomplished in this session. Use the put_summary tool with session_id "${sessionId}" and agent_name "${agentName}" to save your report as JSON. Include: your tasks completed, any files created/modified, key findings, and overall results.`;
-            
-            // Log the summary request
-            if (streamLogFile) {
-              const timestamp = new Date().toISOString();
-              const summaryRequestLog = `[${timestamp}] REQUESTING SUMMARY REPORT:\nReason: No summary file found after agent execution\nPrompt: ${summaryPrompt}\n\n`;
-              fs.appendFileSync(streamLogFile, summaryRequestLog, 'utf8');
-            }
-
-            // Continue the session to request summary - Ensure put_summary tool is available
-            const summaryPermissions = PermissionManager.getSummaryPermissions({
-              allowedTools: agentConfig.options?.allowedTools || []
-            });
-            
-            for await (const message of query({
-              prompt: summaryPrompt,
-              options: {
-                maxTurns: 3, // Limited turns for summary creation
-                model: agentConfig.options?.model || 'sonnet',
-                allowedTools: summaryPermissions.allowedTools, // Include put_summary tool for report creation
-                disallowedTools: summaryPermissions.disallowedTools, // Maintain same restrictions for summary creation
-                permissionMode: 'acceptEdits',
-                pathToClaudeCodeExecutable: path.resolve(process.cwd(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
-                mcpServers: {
-                  "levys-awesome-mcp": {
-                    command: "node",
-                    args: ["dist/src/index.js"]
-                  }
-                }
-              }
-            })) {
-              messages.push(message);
-              await streamingUtils.logConversationMessage(message);
               
-              if (message.type === "assistant") {
-                const content = message.message.content;
-                if (content) {
-                  for (const item of content) {
-                    if (item.type === "text") {
-                      output += item.text + '\n';
-                    }
-                  }
+              // Use Claude Code's session ID if we got it, otherwise generate one
+              if (!sessionId) {
+                sessionId = claudeCodeSessionId || randomUUID();
+                console.log(`[AgentInvoker] Using session ID for directory: ${sessionId}`);
+              }
+              
+              // Now initialize streaming with the correct session ID
+              if (!streamingUtils && sessionId) {
+                // Ensure directory exists
+                const sessionDir = path.join('output_streams', sessionId);
+                if (!fs.existsSync(sessionDir)) {
+                  fs.mkdirSync(sessionDir, { recursive: true });
+                }
+                
+                streamingUtils = new StreamingManager(sessionId, agentName, {
+                  streaming: true,
+                  saveStreamToFile: true,
+                  verbose: true
+                });
+                streamingUtils.initStreamFile();
+                streamLogFile = streamingUtils.getStreamLogFile() || undefined;
+                
+                // Log initial info
+                if (streamLogFile) {
+                  const timestamp = new Date().toISOString();
+                  const mode = continueSessionId ? 'RESUMED' : 'NEW';
+                  const debugLog = `[${timestamp}] SESSION ${mode}:\nAgent: ${agentName}\nSession ID: ${sessionId}\nClaude Code Session ID: ${claudeCodeSessionId || 'pending'}\n\n`;
+                  fs.appendFileSync(streamLogFile, debugLog, 'utf8');
+                  
+                  // Log both the user prompt and the complete system prompt
+                  const promptLog = `[${timestamp}] USER PROMPT:\n${prompt}\n\n[${timestamp}] CUSTOM SYSTEM PROMPT (includes agent systemPrompt + task + session + restrictions):\n${finalPrompt}\n\n`;
+                  fs.appendFileSync(streamLogFile, promptLog, 'utf8');
                 }
               }
+              
+              isFirstMessage = false;
+            }
+            
+            // Update session ID if we get it later
+            if (!claudeCodeSessionId && message.session_id) {
+              claudeCodeSessionId = message.session_id;
+              console.log(`[AgentInvoker] Updated Claude Code session ID: ${claudeCodeSessionId}`);
             }
 
-            // Final save after summary request
-            await SessionStore.saveConversationHistory(sessionId!, agentName, messages);
+            // Log ALL conversation messages to session.log in real-time - ENFORCED
+            if (streamingUtils) {
+              await streamingUtils.logConversationMessage(message);
+            }
+            
+            // Save conversation history in real-time (only if we have sessionId)
+            if (sessionId) {
+              await SessionStore.saveConversationHistory(sessionId, agentName, messages);
+            }
 
-            // Check again if summary was created
-            const finalSummaryCheck = ReportManager.checkForSummaryFiles(sessionId!, agentName);
-            if (streamLogFile) {
-              const timestamp = new Date().toISOString();
-              const summaryResultLog = `[${timestamp}] SUMMARY REPORT CHECK:\nFound: ${finalSummaryCheck.found}\nFiles: ${finalSummaryCheck.files.join(', ') || 'none'}\n\n`;
-              fs.appendFileSync(streamLogFile, summaryResultLog, 'utf8');
+            // Track completion status without collecting output
+            if (message.type === "result") {
+              if (message.is_error) {
+                const errorMsg = 'result' in message && typeof message.result === 'string' ? message.result : 'Unknown error';
+                // Use actual session ID or a fallback
+                const errorSessionId = claudeCodeSessionId || sessionId || 'unknown';
+                const logPath = sessionId ? `output_streams/${sessionId}/session.log` : 'not created';
+                return {
+                  content: [{
+                    type: 'text',
+                    text: `Agent '${agentName}' execution failed: ${errorMsg}\n\nSession ID: ${errorSessionId}\nSession Log: ${logPath}`
+                  }],
+                  isError: true
+                };
+              } else {
+                // Agent completed successfully
+                agentCompleted = true;
+              }
             }
           }
+
+          // Ensure we have a session ID
+          if (!sessionId) {
+            sessionId = claudeCodeSessionId || randomUUID();
+          }
+          
+          // Final save
+          await SessionStore.saveConversationHistory(sessionId, agentName, messages);
 
           // Add completion marker to session.log
           if (streamLogFile) {
@@ -258,19 +358,92 @@ OUTPUT_DIR: output_streams/${sessionId}/
             fs.appendFileSync(streamLogFile, completionLog, 'utf8');
           }
 
-          // Check final summary status for response
-          const finalSummaryCheck = ReportManager.checkForSummaryFiles(sessionId!, agentName);
-          let summaryInfo = '';
-          if (finalSummaryCheck.found) {
-            summaryInfo = `\n**Summary Report:** reports/${sessionId}/${agentName}-summary.json`;
-          } else {
-            summaryInfo = `\n**Warning:** No summary report was created despite requesting one.`;
+          // Check if we need to handle progress update
+          if (updateProgress && agentCompleted) {
+            // Check for in-progress task
+            const inProgressTask = await getInProgressTask();
+            if (inProgressTask) {
+              console.log(`[AgentInvoker] Found in-progress task: ${inProgressTask.id}, reinvoking agent for progress update`);
+              
+              // Get git hash for progress update
+              const gitHash = await getCurrentGitHash();
+              if (!gitHash) {
+                console.error('[AgentInvoker] Could not get git hash for progress update');
+              } else {
+                // Reinvoke the agent with progress update directive
+                const progressUpdatePrompt = `You have ${inProgressTask.id} currently marked as in_progress.
+
+Please check if you have fully completed this task:
+- If YES: Use mcp__levys-awesome-mcp__update_progress to mark it as completed with:
+  - git_commit_hash: "${gitHash}"
+  - task_id: "${inProgressTask.id}"
+  - state: "completed"
+  - agent_session_id: "${sessionId}"
+  - files_modified: [list of files you modified]
+  - summary: "Brief summary of what was accomplished"
+  
+- If NO: Complete the remaining work for this task first, then update the progress file as above.
+
+Task details: ${inProgressTask.description}
+Files to modify: ${inProgressTask.files_to_modify.join(', ')}`;
+
+                console.log(`[AgentInvoker] Reinvoking ${agentName} for progress update`);
+                
+                // Reinvoke the agent for progress update
+                try {
+                  const progressMessages: any[] = [];
+                  
+                  for await (const message of query({
+                    prompt: progressUpdatePrompt,
+                    options: {
+                      model: agentConfig.options?.model || 'sonnet',
+                      allowedTools: [...(permissions.allowedTools || []), 'mcp__levys-awesome-mcp__update_progress'],
+                      disallowedTools: finalDisallowedTools.filter(tool => tool !== 'mcp__levys-awesome-mcp__update_progress'),
+                      permissionMode: 'acceptEdits',
+                      pathToClaudeCodeExecutable: path.resolve(process.cwd(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
+                      mcpServers: {
+                        "levys-awesome-mcp": {
+                          command: "node",
+                          args: ["dist/src/index.js"]
+                        }
+                      },
+                      resume: String(claudeCodeSessionId || sessionId),
+                      customSystemPrompt: agentConfig.options?.systemPrompt || ''
+                    }
+                  })) {
+                    progressMessages.push(message);
+                    
+                    // Log progress update messages to session.log
+                    if (streamingUtils) {
+                      await streamingUtils.logConversationMessage(message);
+                    }
+                    
+                    if (message.type === "result") {
+                      if (!message.is_error) {
+                        console.log(`[AgentInvoker] Progress update completed for ${inProgressTask.id}`);
+                      } else {
+                        console.error(`[AgentInvoker] Progress update failed for ${inProgressTask.id}`);
+                      }
+                    }
+                  }
+                  
+                  // Save the extended conversation history
+                  await SessionStore.saveConversationHistory(sessionId, agentName, [...messages, ...progressMessages]);
+                  
+                } catch (error) {
+                  console.error(`[AgentInvoker] Error during progress update reinvocation:`, error);
+                }
+              }
+            }
           }
 
+          // Use Claude Code's actual session ID for returning to user
+          const returnSessionId = claudeCodeSessionId || sessionId;
+          
           return {
             content: [{
               type: 'text',
-              text: `Agent '${agentName}' completed successfully.\n\n**Session ID:** ${sessionId}\n**Session Log:** output_streams/${sessionId}/session.log${summaryInfo}\n\n**Output:**\n${output.trim()}\n\n**ALL conversation data has been saved to session.log for debugging and analysis.**`
+              text: `Agent '${agentName}' completed successfully.\n\n**Session ID:** ${returnSessionId}\n**Full conversation saved to:** output_streams/${sessionId}/session.log\n\nThe complete agent conversation has been logged but not returned to preserve context boundaries.`
             }]
           };
 
@@ -282,20 +455,22 @@ OUTPUT_DIR: output_streams/${sessionId}/
             fs.appendFileSync(streamLogFile, errorLog, 'utf8');
           }
 
-          // Save conversation history even on error
-          await SessionStore.saveConversationHistory(sessionId!, agentName, messages);
+          // Save conversation history even on error (if we have sessionId)
+          if (sessionId) {
+            await SessionStore.saveConversationHistory(sessionId, agentName, messages);
+          }
 
           return {
             content: [{
               type: 'text',
-              text: `Agent '${agentName}' execution error: ${error instanceof Error ? error.message : String(error)}\n\nSession ID: ${sessionId}\nSession Log: output_streams/${sessionId}/session.log\n\nPartial output:\n${output}`
+              text: `Agent '${agentName}' execution error: ${error instanceof Error ? error.message : String(error)}\n\nSession ID: ${claudeCodeSessionId || sessionId || 'unknown'}\nSession Log: ${sessionId ? `output_streams/${sessionId}/session.log` : 'not created'}`
             }],
             isError: true
           };
         }
       }
 
-      case 'mcp__levys-awesome-mcp__mcp__agent-invoker__list_agents': {
+      case 'list_agents': {
         const agents = await AgentLoader.listAvailableAgents();
         return {
           content: [{
@@ -306,19 +481,13 @@ OUTPUT_DIR: output_streams/${sessionId}/
       }
 
       default:
-        return {
-          content: [{
-            type: 'text',
-            text: `Unknown agent invoker tool: ${name}`
-          }],
-          isError: true
-        };
+        throw new Error(`Unknown agent invoker tool: ${name}`);
     }
   } catch (error) {
     return {
       content: [{
         type: 'text',
-        text: `Agent invoker error: ${error instanceof Error ? error.message : String(error)}`
+        text: `Error in agent invoker tool: ${error instanceof Error ? error.message : String(error)}`
       }],
       isError: true
     };

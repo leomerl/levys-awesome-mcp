@@ -4,7 +4,7 @@ import * as path from 'path';
 
 export const agentGeneratorTools = [
   {
-    name: 'mcp__levys-awesome-mcp__mcp__agent-generator__convert_agent_ts_to_claude_md',
+    name: 'convert_agent_ts_to_claude_md',
     description: 'Convert a TypeScript agent file to Claude agent markdown format',
     inputSchema: {
       type: 'object' as const,
@@ -19,7 +19,7 @@ export const agentGeneratorTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__agent-generator__convert_all_agents_ts_to_claude_md',
+    name: 'convert_all_agents_ts_to_claude_md',
     description: 'Convert all TypeScript agent files in agents/ directory to Claude agent markdown format',
     inputSchema: {
       type: 'object' as const,
@@ -28,7 +28,7 @@ export const agentGeneratorTools = [
     }
   },
   {
-    name: 'mcp__levys-awesome-mcp__mcp__agent-generator__remove_all_agent_md_files',
+    name: 'remove_all_agent_md_files',
     description: 'Remove all generated agent markdown files from .claude/agents/ directory',
     inputSchema: {
       type: 'object' as const,
@@ -49,6 +49,105 @@ async function convertTSAgentToMD(agentPath: string): Promise<string> {
   // Extract systemPrompt (handle multiline template literals)
   const systemPromptMatch = fileContent.match(/systemPrompt:\s*`([\s\S]*?)`/);
   
+  // Extract prompt (can be at root or in options)
+  const promptMatch = fileContent.match(/prompt:\s*['"`]([^'"`]+)['"`]/);
+  
+  // Extract arrays using simple string parsing - no regex
+  function extractArrayNoRegex(fieldName: string): string[] {
+    const startPattern = `${fieldName}: [`;
+    let startIndex = fileContent.indexOf(startPattern);
+    
+    // Try with spaces around colon
+    if (startIndex === -1) {
+      const altPattern = `${fieldName} : [`;
+      startIndex = fileContent.indexOf(altPattern);
+    }
+    
+    if (startIndex === -1) return [];
+    
+    // Find the opening bracket
+    const openBracketIndex = fileContent.indexOf('[', startIndex);
+    if (openBracketIndex === -1) return [];
+    
+    // Find matching closing bracket by counting brackets
+    let bracketCount = 0;
+    let closeBracketIndex = -1;
+    
+    for (let i = openBracketIndex; i < fileContent.length; i++) {
+      if (fileContent[i] === '[') bracketCount++;
+      if (fileContent[i] === ']') {
+        bracketCount--;
+        if (bracketCount === 0) {
+          closeBracketIndex = i;
+          break;
+        }
+      }
+    }
+    
+    if (closeBracketIndex === -1) return [];
+    
+    // Extract content between brackets
+    const arrayContent = fileContent.substring(openBracketIndex + 1, closeBracketIndex);
+    
+    // Find all quoted strings manually
+    const result: string[] = [];
+    let inQuote = false;
+    let quoteChar = '';
+    let currentString = '';
+    
+    for (let i = 0; i < arrayContent.length; i++) {
+      const char = arrayContent[i];
+      
+      if (!inQuote && (char === '"' || char === "'")) {
+        inQuote = true;
+        quoteChar = char;
+        currentString = '';
+      } else if (inQuote && char === quoteChar) {
+        inQuote = false;
+        if (currentString.trim()) {
+          result.push(currentString);
+        }
+        currentString = '';
+      } else if (inQuote) {
+        currentString += char;
+      }
+    }
+    
+    return result;
+  }
+  
+  // Try to extract allowed tools from either schema
+  let allowedTools = extractArrayNoRegex('allowedTools');
+  if (allowedTools.length === 0) {
+    // Try old schema with permissions.tools.allowed
+    allowedTools = extractArrayNoRegex('allowed');
+  }
+  
+  let disallowedTools = extractArrayNoRegex('disallowedTools');
+  if (disallowedTools.length === 0) {
+    // Try old schema with permissions.tools.denied
+    disallowedTools = extractArrayNoRegex('denied');
+  }
+  
+  // Try to extract mcp servers from either schema
+  let mcpServers = extractArrayNoRegex('mcpServers');
+  if (mcpServers.length === 0) {
+    // Try to find servers in the old schema format
+    const mcpServersObj = fileContent.match(/mcpServers:\s*\{([^}]+)\}/);
+    if (mcpServersObj) {
+      const serversContent = mcpServersObj[1];
+      const serverNames = serversContent.match(/'([^']+)':\s*'allow'/g);
+      if (serverNames) {
+        mcpServers = serverNames.map(match => match.match(/'([^']+)':/)?.[1]).filter(Boolean) as string[];
+      }
+    }
+  }
+  
+  // Debug output
+  console.log('=== EXTRACTION DEBUG ===');
+  console.log('allowedTools found:', allowedTools);
+  console.log('mcpServers found:', mcpServers);
+  
   if (!nameMatch) {
     throw new Error('Could not find agent name in file');
   }
@@ -57,20 +156,62 @@ async function convertTSAgentToMD(agentPath: string): Promise<string> {
   const description = descMatch ? descMatch[1] : 'Agent description';
   const model = modelMatch ? modelMatch[1] : 'sonnet';
   const systemPrompt = systemPromptMatch ? systemPromptMatch[1].trim() : '';
+  const prompt = promptMatch ? promptMatch[1] : undefined;
   
-  // Format like demo.md
-  return `---
+  // Build markdown content
+  let markdown = `---
 name: ${name}
 description: ${description}
-model: ${model}
+model: ${model}`;
+
+
+  if (prompt) {
+    markdown += `
+prompt: ${prompt}`;
+  }
+
+  // Add allowedTools if present
+  if (allowedTools.length > 0) {
+    markdown += `
+allowedTools:`;
+    allowedTools.forEach(tool => {
+      markdown += `
+  - ${tool}`;
+    });
+  }
+
+  // Add disallowedTools if present
+  if (disallowedTools.length > 0) {
+    markdown += `
+disallowedTools:`;
+    disallowedTools.forEach(tool => {
+      markdown += `
+  - ${tool}`;
+    });
+  }
+
+  // Add mcpServers if present
+  if (mcpServers.length > 0) {
+    markdown += `
+mcpServers:`;
+    mcpServers.forEach(server => {
+      markdown += `
+  - ${server}`;
+    });
+  }
+
+  markdown += `
 ---
 
 ${systemPrompt}`;
+  
+  return markdown;
 }
 
 export async function handleAgentGeneratorTool(name: string, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     switch (name) {
+      case 'convert_agent_ts_to_claude_md':
       case 'mcp__levys-awesome-mcp__mcp__agent-generator__convert_agent_ts_to_claude_md': {
         const { agentPath } = args;
         
@@ -101,6 +242,7 @@ export async function handleAgentGeneratorTool(name: string, args: any): Promise
         };
       }
 
+      case 'convert_all_agents_ts_to_claude_md':
       case 'mcp__levys-awesome-mcp__mcp__agent-generator__convert_all_agents_ts_to_claude_md': {
         const agentsDir = path.join(process.cwd(), 'agents');
         const outputDir = path.join(process.cwd(), '.claude', 'agents');
@@ -152,6 +294,7 @@ export async function handleAgentGeneratorTool(name: string, args: any): Promise
         };
       }
 
+      case 'remove_all_agent_md_files':
       case 'mcp__levys-awesome-mcp__mcp__agent-generator__remove_all_agent_md_files': {
         const outputDir = path.join(process.cwd(), '.claude', 'agents');
         

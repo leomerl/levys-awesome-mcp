@@ -4,6 +4,11 @@
  */
 
 import * as path from 'path';
+import * as fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export class PathConfig {
   /**
@@ -46,7 +51,27 @@ export class PathConfig {
    * Get agents directory path
    */
   static getAgentsDirectory(): string {
-    return path.resolve(process.cwd(), 'agents');
+    // Simple approach: Always use the agents directory relative to this file
+    // From dist/src/utilities/config/paths.js:
+    // Go up to dist: ../../../../
+    // Then to agents: ../../../../agents
+
+    // But we want dist/agents for compiled version
+    const distAgentsPath = path.resolve(__dirname, '..', '..', '..', 'agents');
+
+    // Check if dist/agents exists (we're in the compiled package)
+    if (fs.existsSync(distAgentsPath)) {
+      return distAgentsPath;
+    }
+
+    // Fallback to source agents (go up to package root then to agents)
+    const sourceAgentsPath = path.resolve(__dirname, '..', '..', '..', '..', 'agents');
+    if (fs.existsSync(sourceAgentsPath)) {
+      return sourceAgentsPath;
+    }
+
+    // Return dist/agents as default
+    return distAgentsPath;
   }
 
   /**

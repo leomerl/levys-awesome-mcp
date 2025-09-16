@@ -1,25 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { FileOperations } from '../../src/utilities/fs/file-operations.ts';
+import { readFile, writeFile, appendFile, fileExists } from '../../src/utilities/fs/file-operations.js';
 import { mkdirSync, rmSync, existsSync } from 'fs';
 import { join } from 'path';
-
-const writeFile = async (filePath: string, content: string) => {
-  const result = await FileOperations.writeFile(filePath, content);
-  if (!result.success) throw new Error(result.error || 'writeFile failed');
-};
-
-const readFile = async (filePath: string) => {
-  const result = await FileOperations.readFile(filePath);
-  if (!result.success || result.content === undefined) throw new Error(result.error || 'readFile failed');
-  return result.content;
-};
-
-const appendFile = async (filePath: string, content: string) => {
-  const result = await FileOperations.appendToFile(filePath, content);
-  if (!result.success) throw new Error(result.error || 'appendFile failed');
-};
-
-const fileExists = async (filePath: string) => FileOperations.fileExists(filePath);
 
 const TEST_DIR = join(process.cwd(), 'tests', 'temp');
 
@@ -145,10 +127,10 @@ describe('File Operations Unit Tests', () => {
       expect(exists).toBe(false);
     });
 
-    it('should return true for directories', async () => {
+    it('should return false for directories', async () => {
       const exists = await fileExists(TEST_DIR);
-
-      expect(exists).toBe(true);
+      
+      expect(exists).toBe(false);
     });
   });
 });

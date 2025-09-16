@@ -1,0 +1,50 @@
+{
+  "initialPlan": {
+    "task_description": "Initial plan",
+    "synopsis": "Initial plan creation",
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "designated_agent": "backend-agent",
+        "description": "Initial task",
+        "files_to_modify": [
+          "test1.js"
+        ],
+        "dependencies": []
+      }
+    ]
+  },
+  "progressUpdate": {
+    "git_commit_hash": "38cd82392b52a0ed21b37eaeb2d56fbd4d7504a6",
+    "task_id": "TASK-001",
+    "state": "in_progress",
+    "agent_session_id": "session-123",
+    "summary": "Started working on task"
+  },
+  "updatedPlan": {
+    "task_description": "Updated plan",
+    "synopsis": "Plan update preserving state",
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "designated_agent": "backend-agent",
+        "description": "Updated task description",
+        "files_to_modify": [
+          "test1.js",
+          "test1-updated.js"
+        ],
+        "dependencies": []
+      }
+    ]
+  },
+  "result": {
+    "progressFileCount": 1,
+    "taskStatePreserved": true,
+    "preservedValues": {
+      "stateIsInProgress": true,
+      "sessionIdPreserved": true,
+      "summaryPreserved": true,
+      "descriptionUpdated": true
+    }
+  }
+}

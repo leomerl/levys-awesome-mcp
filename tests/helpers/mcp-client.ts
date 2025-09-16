@@ -22,6 +22,7 @@ export interface MCPResponse {
 export class MCPClient extends EventEmitter {
   private process: ChildProcess | null = null;
   private requestId = 0;
+  private timeout = 10000; // Default 10 seconds
   private pendingRequests = new Map<string | number, {
     resolve: (value: MCPResponse) => void;
     reject: (error: Error) => void;
@@ -95,8 +96,12 @@ export class MCPClient extends EventEmitter {
           this.pendingRequests.delete(id);
           reject(new Error('Request timeout'));
         }
-      }, 10000);
+      }, this.timeout);
     });
+  }
+
+  setTimeout(ms: number): void {
+    this.timeout = ms;
   }
 
   private handleResponse(response: MCPResponse): void {
@@ -109,9 +114,14 @@ export class MCPClient extends EventEmitter {
 
   async stop(): Promise<void> {
     if (this.process) {
+      // Clear pending requests first
+      for (const [id, pending] of this.pendingRequests) {
+        pending.reject(new Error('Client stopped'));
+      }
+      this.pendingRequests.clear();
+
       this.process.kill();
       this.process = null;
     }
-    this.pendingRequests.clear();
   }
 }

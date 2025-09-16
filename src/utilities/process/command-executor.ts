@@ -157,3 +157,37 @@ export class CommandExecutor {
     return Promise.all(promises);
   }
 }
+
+/**
+ * Convenience wrapper for executing a single command
+ */
+export async function executeCommand(
+  command: string,
+  options: CommandOptions = {}
+): Promise<CommandResult> {
+  // Split command into command and args
+  const parts = command.split(' ');
+  const cmd = parts[0];
+  const args = parts.slice(1);
+
+  return CommandExecutor.runCommand(cmd, args, options);
+}
+
+/**
+ * Convenience wrapper for executing commands in parallel
+ */
+export async function executeParallel(
+  commands: string[],
+  options: CommandOptions = {}
+): Promise<CommandResult[]> {
+  const commandConfigs = commands.map(command => {
+    const parts = command.split(' ');
+    return {
+      command: parts[0],
+      args: parts.slice(1),
+      options
+    };
+  });
+
+  return CommandExecutor.runCommandsParallel(commandConfigs);
+}

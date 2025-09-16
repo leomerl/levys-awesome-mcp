@@ -1,0 +1,68 @@
+for v1.0.1
+
+orchestrator handler
+unified agent interface
+self feedback loop
+reviewr agent
+optimizer agent
+code redundancy agent
+language server integration
+playwright integration
+
+
+plan include maxTurns
+
+independent tasks run in parallel
+
+block 3rd party mcp server tools
+
+
+
+SPARC command
+TDD iterations workflow
+apply strong tool use enforcement with canUseTool
+
+break down mcp servers
+
+agents:
+mock detector
+missing tests agent
+test orchestrator
+unit-tests
+integ tests
+dead files detector
+e2e testes
+golden tests agent
+tests coverage
+playwright
+
+tests:
+permissions
+streaming
+invocation
+
+
+to integrate:
+playwright
+context7
+serena
+crystal
+claudekit
+
+
+v1.0.0 DONE -
+agent names XXX-agent
+harden tools in agent prompts
+multiple_plan_and_progres
+summary enforcement
+resume conversation functionality
+generating restricted tools is written more than 5 times in code
+advanced agent prompts
+backend and frontend no emojis
+
+tests:
+forbidden tool explicit ask
+disallowed tools do not contain allowed tools
+streaming logs in realtime
+secret word passing
+report enforcement logic

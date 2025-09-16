@@ -66,14 +66,12 @@ export class MarkdownConverter {
     };
 
     if (agentConfig.options) {
-      info.maxTurns = agentConfig.options.maxTurns || 10;
       info.model = agentConfig.options.model || agentConfig.model || 'claude-3-5-sonnet-20241022';
       info.allowedTools = agentConfig.options.allowedTools || [];
-      info.mcpServers = agentConfig.options.mcpServers || [];
+      info.mcpServers = agentConfig.options.mcpServers ? Object.keys(agentConfig.options.mcpServers) : [];
       info.systemPrompt = agentConfig.options.systemPrompt || agentConfig.systemPrompt || '';
     } else {
       // Fallback for legacy format
-      info.maxTurns = 10;
       info.model = agentConfig.model || 'claude-3-5-sonnet-20241022';
       info.allowedTools = [];
       info.mcpServers = [];
@@ -127,8 +125,7 @@ export class MarkdownConverter {
             config.options = {
               ...config.options,
               allowedTools: tools,
-              systemPrompt: config.systemPrompt || '',
-              maxTurns: 10
+              systemPrompt: config.systemPrompt || ''
             };
             break;
         }

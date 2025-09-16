@@ -3,7 +3,7 @@
     "content": [
       {
         "type": "text",
-        "text": "Error in content writer tool: Unknown content writer tool: content-writer-write"
+        "text": "Error executing content-writer-write: Unknown tool: content-writer-write"
       }
     ],
     "isError": true

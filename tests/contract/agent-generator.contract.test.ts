@@ -14,7 +14,7 @@ describe('Agent Generator Contract Tests', () => {
 
   it('should get agent info', async () => {
     const result = await handleAgentGeneratorTool('mcp__levys-awesome-mcp__mcp__agent-generator__get_agent_info', {
-      agent_name: 'testing-agent'
+      agent_name: 'test-agent'
     });
 
     expect(result).toBeDefined();

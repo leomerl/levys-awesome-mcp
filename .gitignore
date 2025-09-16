@@ -7,6 +7,7 @@ yarn-error.log*
 # Build output
 dist/
 build/
+*.tgz
 
 # Environment files
 .env
@@ -57,6 +58,8 @@ coverage/
 # Output streams and reports (runtime directories)
 output_streams/
 reports/
+plan_and_progress/
+
 
 # Generated agent files
 .claude/agents/*.md
@@ -76,6 +79,6 @@ backend/
 
 # Legacy code
 
-tools/
-
 .claude/
+
+worktrees/
