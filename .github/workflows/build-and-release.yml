@@ -1,0 +1,67 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  build-and-package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run build
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+
+      - name: Create npm package
+        run: npm pack
+
+      - name: Get package name and version
+        id: package-info
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          PACKAGE_FILENAME="${PACKAGE_NAME}-${PACKAGE_VERSION}.tgz"
+          # Handle scoped packages
+          PACKAGE_FILENAME=$(echo "$PACKAGE_FILENAME" | sed 's/@//g' | sed 's/\//-/g')
+          echo "package-name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+          echo "package-version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+          echo "package-filename=$PACKAGE_FILENAME" >> $GITHUB_OUTPUT
+          echo "Package filename: $PACKAGE_FILENAME"
+
+      - name: Upload npm package as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package-${{ steps.package-info.outputs.package-version }}
+          path: "*.tgz"
+          retention-days: 30
+
+      - name: Upload package info
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-info
+          path: |
+            package.json
+            package-lock.json
+          retention-days: 30
