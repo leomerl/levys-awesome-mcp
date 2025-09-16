@@ -13,13 +13,18 @@ function copyCommandsToClaudeDir() {
     const packageRoot = join(__dirname, '..');
     const commandsSource = join(packageRoot, 'commands');
 
-    // Find the project root (where npm install was run from)
-    // This will be the cwd when postinstall runs
-    const projectRoot = process.cwd();
+    // Find the actual project root
+    // When installed as a dependency, we're in node_modules/levys-awesome-mcp
+    // So project root is two levels up from package root
+    let projectRoot;
 
-    // Skip if we're in the package itself (during development)
-    if (projectRoot === packageRoot) {
-      console.log('Skipping postinstall: running in package directory');
+    // Check if we're in node_modules
+    if (packageRoot.includes('node_modules')) {
+      // Go up from node_modules/levys-awesome-mcp to project root
+      projectRoot = join(packageRoot, '..', '..');
+    } else {
+      // We're running in development, skip
+      console.log('Skipping postinstall: not installed as a dependency');
       return;
     }
 
@@ -69,6 +74,7 @@ function copyCommandsToClaudeDir() {
     process.exit(0);
   }
 }
+
 
 // Run the copy function
 copyCommandsToClaudeDir();

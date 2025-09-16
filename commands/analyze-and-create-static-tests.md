@@ -2,7 +2,7 @@
 Description: Analyzes the codebase for missing static type tests and then creates them sequentially.
 ---
 
-invoke the orchestrator agent with this special prompt:
+invoke the orchestrator-agent with this special prompt:
 
 ```
 1. **Phase 1: Analysis**

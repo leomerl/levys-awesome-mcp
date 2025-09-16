@@ -23,8 +23,12 @@ export class AgentLoader {
       return null;
     }
     
-    const files = fs.readdirSync(agentsDir).filter(file => 
-      file.endsWith('.ts')
+    // Check if we're looking at compiled agents (dist/agents) or source agents
+    const isCompiledDir = agentsDir.includes('dist/agents');
+    const fileExtension = isCompiledDir ? '.js' : '.ts';
+
+    const files = fs.readdirSync(agentsDir).filter(file =>
+      file.endsWith(fileExtension) && !file.endsWith('.d.ts') && !file.endsWith('.map')
     );
     
     console.log(`[AgentLoader] Found ${files.length} .ts files in agents directory`);
@@ -116,21 +120,27 @@ export class AgentLoader {
   static listAvailableAgents(): string[] {
     const agentsDir = PathConfig.getAgentsDirectory();
     const agents: string[] = [];
-    
+
     if (!fs.existsSync(agentsDir)) {
       return agents;
     }
-    
-    const files = fs.readdirSync(agentsDir).filter(file => 
-      file.endsWith('.ts')
+
+    // Check if we're looking at compiled agents (dist/agents) or source agents
+    // The dist/agents path will end with 'dist/agents', source will end with just 'agents'
+    const isCompiledDir = agentsDir.endsWith(path.join('dist', 'agents'));
+    const fileExtension = isCompiledDir ? '.js' : '.ts';
+
+    const files = fs.readdirSync(agentsDir).filter(file =>
+      file.endsWith(fileExtension) && !file.endsWith('.d.ts') && !file.endsWith('.map')
     );
-    
+
     for (const file of files) {
       try {
         const fullPath = path.resolve(agentsDir, file);
         const content = fs.readFileSync(fullPath, 'utf8');
-        
+
         // Extract agent name from file content
+        // Works for both TypeScript and compiled JavaScript
         const nameMatch = content.match(/name:\s*['"`]([^'"`]+)['"`]/);
         if (nameMatch && ValidationUtils.validateAgentName(nameMatch[1])) {
           agents.push(nameMatch[1]);
@@ -139,7 +149,7 @@ export class AgentLoader {
         // Skip files that can't be read
       }
     }
-    
+
     return agents;
   }
 
@@ -154,8 +164,12 @@ export class AgentLoader {
       return agents;
     }
     
-    const files = fs.readdirSync(agentsDir).filter(file => 
-      file.endsWith('.ts')
+    // Check if we're looking at compiled agents (dist/agents) or source agents
+    const isCompiledDir = agentsDir.includes('dist/agents');
+    const fileExtension = isCompiledDir ? '.js' : '.ts';
+
+    const files = fs.readdirSync(agentsDir).filter(file =>
+      file.endsWith(fileExtension) && !file.endsWith('.d.ts') && !file.endsWith('.map')
     );
     
     for (const file of files) {
