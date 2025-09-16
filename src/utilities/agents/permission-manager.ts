@@ -376,18 +376,18 @@ export class PermissionManager {
     const allowedValidation = await ToolRegistry.validateToolList(config.allowedTools);
     
     // Validate denied tools if provided
-    let deniedValidation = { valid: true, unknownTools: [] as string[] };
+    let deniedValidation = { valid: true, invalidTools: [] as string[] };
     if (config.deniedTools && config.deniedTools.length > 0) {
       deniedValidation = await ToolRegistry.validateToolList(config.deniedTools);
     }
 
     // Generate recommendations
-    if (allowedValidation.unknownTools.length > 0) {
-      recommendations.push(`Unknown tools in allowedTools: ${allowedValidation.unknownTools.join(', ')}`);
+    if (allowedValidation.invalidTools.length > 0) {
+      recommendations.push(`Unknown tools in allowedTools: ${allowedValidation.invalidTools.join(', ')}`);
     }
-    
-    if (deniedValidation.unknownTools.length > 0) {
-      recommendations.push(`Unknown tools in deniedTools: ${deniedValidation.unknownTools.join(', ')}`);
+
+    if (deniedValidation.invalidTools.length > 0) {
+      recommendations.push(`Unknown tools in deniedTools: ${deniedValidation.invalidTools.join(', ')}`);
     }
 
     // Check for security best practices
@@ -406,8 +406,8 @@ export class PermissionManager {
 
     return {
       valid: allowedValidation.valid && deniedValidation.valid,
-      unknownAllowedTools: allowedValidation.unknownTools,
-      unknownDeniedTools: deniedValidation.unknownTools,
+      unknownAllowedTools: allowedValidation.invalidTools,
+      unknownDeniedTools: deniedValidation.invalidTools,
       recommendations
     };
   }
@@ -428,7 +428,7 @@ export class PermissionManager {
     for (const tool of disallowedTools) {
       let foundCategory = 'unknown';
       for (const [category, tools] of Object.entries(toolsByCategory)) {
-        if (tools.includes(tool)) {
+        if ((tools as string[]).includes(tool)) {
           foundCategory = category;
           break;
         }
@@ -469,7 +469,7 @@ export class PermissionManager {
   }> {
     const permissions = await this.getAgentPermissionsWithDynamicRestrictions(config);
     const stats = await ToolRegistry.getToolStatistics();
-    const totalTools = stats.totalMCPTools + stats.totalBuiltInTools;
+    const totalTools = stats.totalTools;
     
     const coveragePercent = (permissions.allowedTools.length / totalTools) * 100;
     

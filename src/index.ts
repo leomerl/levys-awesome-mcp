@@ -15,6 +15,7 @@ import {
 // Import tool handlers
 import { agentGeneratorTools, handleAgentGeneratorTool } from './handlers/agent-generator.js';
 import { agentInvokerTools, handleAgentInvokerTool } from './handlers/agent-invoker.js';
+import { agentCreatorTools, handleAgentCreatorTool } from './handlers/agent-creator.js';
 import { buildExecutorTools, handleBuildExecutorTool } from './handlers/build-executor.js';
 import { contentWriterTools, handleContentWriterTool } from './handlers/content-writer.js';
 import { codeAnalyzerTools, handleCodeAnalyzerTool } from './handlers/code-analyzer.js';
@@ -39,6 +40,7 @@ const server = new Server(
 const allTools = [
   ...agentGeneratorTools,
   ...agentInvokerTools,
+  ...agentCreatorTools,
   ...buildExecutorTools,
   ...contentWriterTools,
   ...codeAnalyzerTools,
@@ -67,9 +69,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return await handleAgentGeneratorTool(name, args);
     } 
     // Handle agent-invoker tools
-    else if (name.includes('invoke_agent') || 
+    else if (name.includes('invoke_agent') ||
              name.includes('list_agents')) {
       return await handleAgentInvokerTool(name, args);
+    }
+    // Handle agent-creator tools
+    else if (name.includes('create_agent') ||
+             name.includes('validate_agent')) {
+      return await handleAgentCreatorTool(name, args);
     } 
     // Handle build-executor tools
     else if (name.includes('build_project') || 

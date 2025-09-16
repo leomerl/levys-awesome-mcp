@@ -162,7 +162,7 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
       case 'restricted_write':
       case 'mcp__levys-awesome-mcp__mcp__content-writer__restricted_write': {
         const { file_path, content, allowed_folder } = args;
-        
+
         if (!validatePath(file_path)) {
           return {
             content: [{
@@ -174,7 +174,10 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         }
 
         const normalizedAllowedFolder = path.normalize(allowed_folder);
-        const fullPath = path.resolve(normalizedAllowedFolder, file_path);
+        // Remove the allowed_folder prefix if it exists to avoid creating nested directories
+        const folderName = path.basename(normalizedAllowedFolder);
+        const cleanPath = file_path.replace(new RegExp(`^${folderName}[/\\\\]`), '');
+        const fullPath = path.resolve(normalizedAllowedFolder, cleanPath);
         const normalizedFullPath = path.normalize(fullPath);
 
         if (!normalizedFullPath.startsWith(path.resolve(normalizedAllowedFolder))) {
@@ -204,7 +207,7 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
       case 'frontend_write':
       case 'mcp__levys-awesome-mcp__mcp__content-writer__frontend_write': {
         const { file_path, content } = args;
-        
+
         if (!validatePath(file_path)) {
           return {
             content: [{
@@ -216,7 +219,9 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         }
 
         const frontendDir = path.join(process.cwd(), 'frontend');
-        const fullPath = path.resolve(frontendDir, file_path);
+        // Remove 'frontend/' prefix if it exists to avoid creating nested directories
+        const cleanPath = file_path.replace(/^frontend[/\\]/, '');
+        const fullPath = path.resolve(frontendDir, cleanPath);
 
         if (!fullPath.startsWith(path.resolve(frontendDir))) {
           return {
@@ -237,7 +242,7 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
 
         // Check if this looks like a proper frontend project structure
         const validation = validateProjectDirectory(frontendDir);
-        let message = `File written successfully to frontend/${file_path}`;
+        let message = `File written successfully to frontend/${cleanPath}`;
         if (!validation.valid && existsSync(frontendDir)) {
           message += `\n\nWARNING: The frontend/ directory exists but doesn't appear to be a proper frontend project (${validation.error}). This may not be the intended project structure.`;
         }
@@ -358,7 +363,9 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         }
 
         const agentsDir = path.join(process.cwd(), 'agents');
-        const fullPath = path.resolve(agentsDir, file_path);
+        // Remove 'agents/' prefix if it exists to avoid creating nested directories
+        const cleanPath = file_path.replace(/^agents[/\\]/, '');
+        const fullPath = path.resolve(agentsDir, cleanPath);
 
         if (!fullPath.startsWith(path.resolve(agentsDir))) {
           return {
@@ -380,7 +387,7 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         return {
           content: [{
             type: 'text',
-            text: `File written successfully to agents/${file_path}`
+            text: `File written successfully to agents/${cleanPath}`
           }]
         };
       }
@@ -400,7 +407,9 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         }
 
         const docsDir = path.join(process.cwd(), 'docs');
-        const fullPath = path.resolve(docsDir, file_path);
+        // Remove 'docs/' prefix if it exists to avoid creating nested directories
+        const cleanPath = file_path.replace(/^docs[/\\]/, '');
+        const fullPath = path.resolve(docsDir, cleanPath);
 
         if (!fullPath.startsWith(path.resolve(docsDir))) {
           return {
@@ -422,7 +431,7 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         return {
           content: [{
             type: 'text',
-            text: `File written successfully to docs/${file_path}`
+            text: `File written successfully to docs/${cleanPath}`
           }]
         };
       }

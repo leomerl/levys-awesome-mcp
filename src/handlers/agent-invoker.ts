@@ -213,9 +213,16 @@ OUTPUT_DIR: output_streams/${sessionId}/
           // Prompt log will be added after we get the session ID
 
           // CRITICAL FIX: Ensure no allowed tools are in disallowed list before passing to agent
-          const finalDisallowedTools = permissions.disallowedTools.filter(tool => 
+          console.log(`[AgentInvoker] Allowed tools for ${agentName}:`, permissions.allowedTools);
+          console.log(`[AgentInvoker] Initial disallowed tools count:`, permissions.disallowedTools.length);
+
+          const finalDisallowedTools = permissions.disallowedTools.filter(tool =>
             !permissions.allowedTools.includes(tool)
           );
+
+          console.log(`[AgentInvoker] Final disallowed tools count after filtering:`, finalDisallowedTools.length);
+          console.log(`[AgentInvoker] Is agents_write in allowed?`, permissions.allowedTools.includes('mcp__levys-awesome-mcp__agents_write'));
+          console.log(`[AgentInvoker] Is agents_write in final disallowed?`, finalDisallowedTools.includes('mcp__levys-awesome-mcp__agents_write'));
 
           // Build query options with conditional resume parameter
           const queryOptions: any = {

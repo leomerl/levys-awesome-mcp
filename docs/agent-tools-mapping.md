@@ -81,6 +81,37 @@ This document defines which tools each agent has access to. All agents follow th
   - `mcp__levys-awesome-mcp__put_summary`
   - `mcp__levys-awesome-mcp__get_summary`
 
+### static-test-creator
+**Role**: Creates compile-time type tests for TypeScript code with generics and type transformations
+**Tools**:
+- Core: `Read`, `Glob`, `Grep`
+- MCP:
+  - `mcp__levys-awesome-mcp__backend_write`
+  - `mcp__levys-awesome-mcp__frontend_write`
+  - `mcp__levys-awesome-mcp__docs_write`
+
+### static-test-absence-detector
+**Role**: Analyzes TypeScript code to identify where static type tests are missing, creates plans for adding them, and coordinates with static-test-writer agent
+**Tools**:
+- Core: `Read`, `Glob`, `Grep`
+- MCP:
+  - `mcp__levys-awesome-mcp__create_plan`
+  - `mcp__levys-awesome-mcp__update_progress`
+  - `mcp__levys-awesome-mcp__invoke_agent`
+  - `mcp__levys-awesome-mcp__list_agents`
+  - `mcp__levys-awesome-mcp__put_summary`
+  - `mcp__levys-awesome-mcp__get_plan`
+
+### static-test-writer
+**Role**: Writes comprehensive compile-time type tests for TypeScript code based on specifications from static-test-absence-detector
+**Tools**:
+- Core: `Read`, `Glob`, `Grep`
+- MCP:
+  - `mcp__levys-awesome-mcp__backend_write`
+  - `mcp__levys-awesome-mcp__frontend_write`
+  - `mcp__levys-awesome-mcp__update_progress`
+  - `mcp__levys-awesome-mcp__put_summary`
+
 ## Security Restrictions
 
 ### Prohibited Tools

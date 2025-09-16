@@ -59,6 +59,7 @@ output_streams/
 reports/
 plan_and_progress/
 
+
 # Generated agent files
 .claude/agents/*.md
 .claude/agents/.generated_agents.json
@@ -76,8 +77,6 @@ frontend/
 backend/
 
 # Legacy code
-
-tools/
 
 .claude/
 
