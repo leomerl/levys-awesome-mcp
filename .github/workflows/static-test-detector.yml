@@ -24,6 +24,7 @@ jobs:
       contents: read
       issues: write
       pull-requests: write
+      packages: read
 
     steps:
       - name: Checkout repository
@@ -39,11 +40,16 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           scope: '@leomerl'
 
+      - name: Configure npm authentication for GitHub Packages
+        run: |
+          echo "@leomerl:registry=https://npm.pkg.github.com" >> ~/.npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
+
       - name: Install MCP package from GitHub Packages
         run: |
           echo "Installing MCP package from GitHub Packages registry..."
           # Install the specific package from GitHub Packages
-          npm install @leomerl/levys-awesome-mcp@v1.0.1 --registry=https://npm.pkg.github.com
+          npm install @leomerl/levys-awesome-mcp@v1.0.1
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
