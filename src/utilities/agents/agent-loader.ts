@@ -47,7 +47,8 @@ export class AgentLoader {
         
         // Extract the agent configuration object
         // Look for patterns like: const xxxAgent: AgentConfig = { ... }
-        const configPattern = /const\s+\w+Agent(?::\s*AgentConfig)?\s*=\s*({[\s\S]*?^});/m;
+        // Also handle cases without "Agent" suffix and different casing
+        const configPattern = /const\s+\w+(?:Agent)?(?::\s*AgentConfig)?\s*=\s*({[\s\S]*?^});/m;
         const configMatch = content.match(configPattern);
         
         if (!configMatch) {
@@ -121,7 +122,10 @@ export class AgentLoader {
     const agentsDir = PathConfig.getAgentsDirectory();
     const agents: string[] = [];
 
+    console.log(`[AgentLoader.listAvailableAgents] Checking directory: ${agentsDir}`);
+
     if (!fs.existsSync(agentsDir)) {
+      console.log(`[AgentLoader.listAvailableAgents] Directory does not exist: ${agentsDir}`);
       return agents;
     }
 
@@ -130,9 +134,14 @@ export class AgentLoader {
     const isCompiledDir = agentsDir.endsWith(path.join('dist', 'agents'));
     const fileExtension = isCompiledDir ? '.js' : '.ts';
 
+    console.log(`[AgentLoader.listAvailableAgents] Is compiled dir: ${isCompiledDir}, extension: ${fileExtension}`);
+
     const files = fs.readdirSync(agentsDir).filter(file =>
       file.endsWith(fileExtension) && !file.endsWith('.d.ts') && !file.endsWith('.map')
     );
+
+    console.log(`[AgentLoader.listAvailableAgents] Found ${files.length} ${fileExtension} files: ${files.join(', ')}`);
+
 
     for (const file of files) {
       try {
@@ -142,10 +151,18 @@ export class AgentLoader {
         // Extract agent name from file content
         // Works for both TypeScript and compiled JavaScript
         const nameMatch = content.match(/name:\s*['"`]([^'"`]+)['"`]/);
-        if (nameMatch && ValidationUtils.validateAgentName(nameMatch[1])) {
-          agents.push(nameMatch[1]);
+        if (nameMatch) {
+          console.log(`[AgentLoader] Found agent name in ${file}: ${nameMatch[1]}`);
+          if (ValidationUtils.validateAgentName(nameMatch[1])) {
+            agents.push(nameMatch[1]);
+          } else {
+            console.log(`[AgentLoader] Agent name '${nameMatch[1]}' from ${file} failed validation`);
+          }
+        } else {
+          console.log(`[AgentLoader] No agent name found in ${file}`);
         }
       } catch (error) {
+        console.log(`[AgentLoader] Error reading ${file}:`, error);
         // Skip files that can't be read
       }
     }
@@ -178,7 +195,8 @@ export class AgentLoader {
         const content = fs.readFileSync(fullPath, 'utf8');
         
         // Simple regex to extract agent config (basic implementation)
-        const exportMatch = content.match(/export\s+const\s+(\w+Agent)\s*=\s*({[\s\S]*?});/);
+        // Handle both exported and non-exported agents, with or without "Agent" suffix
+        const exportMatch = content.match(/(?:export\s+)?const\s+(\w+)(?:Agent)?\s*(?::\s*AgentConfig)?\s*=\s*({[\s\S]*?});/);
         if (exportMatch) {
           try {
             // This is a simplified approach - in production you'd want better parsing

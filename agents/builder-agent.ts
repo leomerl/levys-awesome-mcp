@@ -2,10 +2,10 @@
 // Reference: https://github.com/instantlyeasy/claude-code-sdk-ts
 
 import { query } from "@anthropic-ai/claude-code";
-import { StreamingManager } from '../src/utilities/session/streaming-utils.ts';
+import { StreamingManager } from '../src/utilities/session/streaming-utils.js';
 import { v4 as uuidv4 } from 'uuid';
 
-import { AgentConfig } from '../src/types/agent-config.ts';
+import { AgentConfig } from '../src/types/agent-config.js';
 
 const builderAgent: AgentConfig = {
   name: 'builder-agent',

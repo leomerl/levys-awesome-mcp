@@ -51,27 +51,20 @@ export class PathConfig {
    * Get agents directory path
    */
   static getAgentsDirectory(): string {
-    // Simple approach: Always use the agents directory relative to this file
-    // From dist/src/utilities/config/paths.js:
-    // Go up to dist: ../../../../
-    // Then to agents: ../../../../agents
-
-    // But we want dist/agents for compiled version
-    const distAgentsPath = path.resolve(__dirname, '..', '..', '..', 'agents');
-
-    // Check if dist/agents exists (we're in the compiled package)
-    if (fs.existsSync(distAgentsPath)) {
-      return distAgentsPath;
-    }
-
-    // Fallback to source agents (go up to package root then to agents)
+    // Always use the source agents directory at the project root
+    // From dist/src/utilities/config/paths.js, go up to project root then to agents
     const sourceAgentsPath = path.resolve(__dirname, '..', '..', '..', '..', 'agents');
-    if (fs.existsSync(sourceAgentsPath)) {
-      return sourceAgentsPath;
+
+    // Fallback: if we're in development (running from src/), adjust path
+    if (!fs.existsSync(sourceAgentsPath)) {
+      // Try from src/utilities/config/ to root
+      const devAgentsPath = path.resolve(__dirname, '..', '..', '..', 'agents');
+      if (fs.existsSync(devAgentsPath)) {
+        return devAgentsPath;
+      }
     }
 
-    // Return dist/agents as default
-    return distAgentsPath;
+    return sourceAgentsPath;
   }
 
   /**

@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
 import { query } from "@anthropic-ai/claude-code";
-import { AgentConfig } from '../src/types/agent-config.ts';
+import { AgentConfig } from '../src/types/agent-config.js';
 
 const statictestcreatorAgent: AgentConfig = {
   name: "static-test-creator",
@@ -127,7 +127,8 @@ Always verify the actual mutability and type constraints in the source code befo
       "Grep",
       "mcp__levys-awesome-mcp__backend_write",
       "mcp__levys-awesome-mcp__frontend_write",
-      "mcp__levys-awesome-mcp__docs_write"
+      "mcp__levys-awesome-mcp__docs_write",
+      "write"
     ],
     mcpServers: {
       "levys-awesome-mcp": {

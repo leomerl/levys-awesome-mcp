@@ -1,0 +1,5 @@
+Agent Detection (AgentLoader can detect all agents in agents/ dir)
+Session mkanagement (can resume by session id)
+streaqming utility (all conversation output is saved to a .log file)
+plan and progress (task completion is {verb} using plan and progress files)
+agent invocation (agents are orchestrated via invoke agent)

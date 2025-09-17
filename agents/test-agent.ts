@@ -1,4 +1,4 @@
-import { AgentConfig } from '../src/types/agent-config.ts';
+import { AgentConfig } from '../src/types/agent-config.js';
 
 const testingAgent: AgentConfig = {
   name: 'test-agent',

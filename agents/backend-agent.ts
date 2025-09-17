@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
 import { query } from "@anthropic-ai/claude-code";
-import { AgentConfig } from '../src/types/agent-config.ts';
+import { AgentConfig } from '../src/types/agent-config.js';
 
 const backendAgent: AgentConfig = {
   name: 'backend-agent',
