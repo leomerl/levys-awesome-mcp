@@ -212,28 +212,25 @@ jobs:
 
             if [ "$FILES_NEEDING_TESTS" -gt 0 ]; then
               # Use Claude Code to process the report and create issues
-              claude --no-interactive <<CLAUDE_EOF
-              I have a static test coverage analysis report from a GitHub Actions workflow.
-              Please read the report and create detailed GitHub issues for each file that needs static type tests.
+              CLAUDE_PROMPT="I have a static test coverage analysis report from a GitHub Actions workflow. "
+              CLAUDE_PROMPT="${CLAUDE_PROMPT}Please read the report and create detailed GitHub issues for each file that needs static type tests. "
+              CLAUDE_PROMPT="${CLAUDE_PROMPT}Repository: ${GITHUB_REPOSITORY}. "
+              CLAUDE_PROMPT="${CLAUDE_PROMPT}Workflow Run: ${GITHUB_RUN_URL}. "
+              CLAUDE_PROMPT="${CLAUDE_PROMPT}Report location: ${SUMMARY_FILE}. "
+              CLAUDE_PROMPT="${CLAUDE_PROMPT}Instructions: "
+              CLAUDE_PROMPT="${CLAUDE_PROMPT}1. Read the summary report at ${SUMMARY_FILE}. "
+              CLAUDE_PROMPT="${CLAUDE_PROMPT}2. For each file in missing_coverage_analysis.files_needing_tests, create a GitHub issue using 'gh issue create'. "
+              CLAUDE_PROMPT="${CLAUDE_PROMPT}3. Each issue should: "
+              CLAUDE_PROMPT="${CLAUDE_PROMPT}Have a clear title like 'Add static type tests for [filename]', "
+              CLAUDE_PROMPT="${CLAUDE_PROMPT}Include the specific functions and types that need tests, "
+              CLAUDE_PROMPT="${CLAUDE_PROMPT}Add labels: 'static-tests', 'type-coverage', 'technical-debt', "
+              CLAUDE_PROMPT="${CLAUDE_PROMPT}Reference this workflow run: ${GITHUB_RUN_URL}, "
+              CLAUDE_PROMPT="${CLAUDE_PROMPT}Mention that this was detected by Claude Code's static test analysis. "
+              CLAUDE_PROMPT="${CLAUDE_PROMPT}4. Group related files into a single issue if they're part of the same module. "
+              CLAUDE_PROMPT="${CLAUDE_PROMPT}5. Prioritize based on the complexity field in the report. "
+              CLAUDE_PROMPT="${CLAUDE_PROMPT}The gh CLI is already authenticated. Start by reading the report file."
 
-              Repository: ${GITHUB_REPOSITORY}
-              Workflow Run: ${GITHUB_RUN_URL}
-              Report location: ${SUMMARY_FILE}
-
-              Instructions:
-              1. Read the summary report at ${SUMMARY_FILE}
-              2. For each file in missing_coverage_analysis.files_needing_tests, create a GitHub issue using 'gh issue create'
-              3. Each issue should:
-                 - Have a clear title like "Add static type tests for [filename]"
-                 - Include the specific functions and types that need tests
-                 - Add labels: "static-tests", "type-coverage", "technical-debt"
-                 - Reference this workflow run: ${GITHUB_RUN_URL}
-                 - Mention that this was detected by Claude Code's static test analysis
-              4. Group related files into a single issue if they're part of the same module
-              5. Prioritize based on the complexity field in the report
-
-              The gh CLI is already authenticated. Start by reading the report file.
-CLAUDE_EOF
+              echo "$CLAUDE_PROMPT" | claude --no-interactive
             else
               echo "No files need tests according to the report. Skipping issue creation."
             fi
