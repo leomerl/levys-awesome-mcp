@@ -132,11 +132,9 @@ jobs:
             MISSING_FILES=$(jq -r '.missing_coverage_analysis.files_needing_tests[:3] | map("- `" + .file_path + "`: " + (.functions_needing_tests | length | tostring) + " functions, " + (.types_needing_tests | length | tostring) + " types") | join("\n")' "$SUMMARY_FILE" 2>/dev/null || echo "")
 
             # Create a detailed comment
-            cat > /tmp/comment_body.md << 'EOF'
-## 📊 Static Test Coverage Analysis
-
-**Summary:**
-EOF
+            echo "## 📊 Static Test Coverage Analysis" > /tmp/comment_body.md
+            echo "" >> /tmp/comment_body.md
+            echo "**Summary:**" >> /tmp/comment_body.md
             echo "- **Total Files Analyzed:** ${TOTAL_FILES}" >> /tmp/comment_body.md
             echo "- **Files Needing Tests:** ${FILES_NEEDING_TESTS}" >> /tmp/comment_body.md
             echo "- **Files with Partial Coverage:** ${FILES_PARTIAL}" >> /tmp/comment_body.md
