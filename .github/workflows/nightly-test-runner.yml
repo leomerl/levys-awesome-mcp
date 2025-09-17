@@ -1,0 +1,261 @@
+name: Nightly Test Runner
+
+on:
+  schedule:
+    # Run every night at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      create_issues:
+        description: 'Create GitHub issues for failed tests'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@leomerl'
+
+      - name: Install MCP package from GitHub Packages
+        run: |
+          echo "Installing MCP package from GitHub Packages registry..."
+          npm install @leomerl/levys-awesome-mcp@latest --registry=https://npm.pkg.github.com
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Run tests and capture results
+        id: test-runner
+        continue-on-error: true
+        run: |
+          # Create test results directory
+          mkdir -p test-results
+
+          # Run tests with JSON reporter
+          npm test -- --json --outputFile=test-results/results.json 2>&1 | tee test-results/output.log
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
+
+          # Also try to generate a more detailed report if jest/vitest supports it
+          if command -v npx jest &> /dev/null; then
+            npx jest --listTests > test-results/test-list.txt 2>/dev/null || true
+          fi
+
+          # Save exit code for later
+          echo "test_exit_code=${TEST_EXIT_CODE}" >> $GITHUB_OUTPUT
+
+          # Parse test results if JSON was generated
+          if [ -f test-results/results.json ]; then
+            TOTAL_TESTS=$(jq '.numTotalTests // 0' test-results/results.json)
+            FAILED_TESTS=$(jq '.numFailedTests // 0' test-results/results.json)
+            PASSED_TESTS=$(jq '.numPassedTests // 0' test-results/results.json)
+
+            echo "total_tests=${TOTAL_TESTS}" >> $GITHUB_OUTPUT
+            echo "failed_tests=${FAILED_TESTS}" >> $GITHUB_OUTPUT
+            echo "passed_tests=${PASSED_TESTS}" >> $GITHUB_OUTPUT
+
+            echo "Test Summary: ${PASSED_TESTS}/${TOTAL_TESTS} passed, ${FAILED_TESTS} failed"
+          else
+            echo "No JSON results generated, checking output log..."
+            # Try to extract info from output log
+            grep -E "(PASS|FAIL|✓|✗)" test-results/output.log > test-results/test-summary.txt || true
+          fi
+
+          exit ${TEST_EXIT_CODE}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.run_number }}
+          path: test-results/
+          retention-days: 30
+
+      - name: Create test summary comment
+        if: always()
+        run: |
+          # Create a summary of the test results
+          if [ -f test-results/results.json ]; then
+            cat > test-results/summary.md << EOF
+          ## 🧪 Nightly Test Results
+
+          **Date:** $(date -u +"%Y-%m-%d %H:%M UTC")
+          **Status:** ${{ steps.test-runner.outputs.test_exit_code == '0' && '✅ All tests passed' || '❌ Tests failed' }}
+
+          ### Statistics
+          - **Total Tests:** ${{ steps.test-runner.outputs.total_tests }}
+          - **Passed:** ${{ steps.test-runner.outputs.passed_tests }}
+          - **Failed:** ${{ steps.test-runner.outputs.failed_tests }}
+
+          **Workflow:** [View Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          EOF
+          else
+            cat > test-results/summary.md << EOF
+          ## 🧪 Nightly Test Results
+
+          **Date:** $(date -u +"%Y-%m-%d %H:%M UTC")
+          **Status:** ${{ steps.test-runner.outputs.test_exit_code == '0' && '✅ Tests completed' || '❌ Tests failed' }}
+          **Exit Code:** ${{ steps.test-runner.outputs.test_exit_code }}
+
+          Test output has been captured in the artifacts.
+
+          **Workflow:** [View Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          EOF
+          fi
+
+          echo "Summary created at test-results/summary.md"
+
+  claude-analyze-failures:
+    needs: run-tests
+    runs-on: ubuntu-latest
+    if: failure() && (github.event_name == 'schedule' || github.event.inputs.create_issues == 'true')
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Claude CLI
+        run: |
+          npm install -g @anthropics/claude-cli
+          claude --version || echo "Claude CLI installed"
+
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results-${{ github.run_number }}
+          path: ./test-results
+
+      - name: Configure gh CLI
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+          gh auth status
+
+      - name: Analyze failures and create issues with Claude Code
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_URL: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: |
+          echo "Processing test failures with Claude Code..."
+
+          # Check for test results
+          if [ -f test-results/results.json ] || [ -f test-results/output.log ]; then
+            # Use Claude Code to analyze failures and create issues
+            claude --no-interactive <<'EOF'
+            I have test results from a nightly test run that failed. Please analyze the failures and create GitHub issues for each distinct failure.
+
+            Repository: ${GITHUB_REPOSITORY}
+            Workflow Run: ${GITHUB_RUN_URL}
+            Test Results: ./test-results/
+
+            Instructions:
+            1. Read the test results in ./test-results/ (check results.json, output.log, and any other files)
+            2. Identify each distinct test failure (group related failures)
+            3. For each failure or group of related failures, create a GitHub issue using 'gh issue create'
+            4. Each issue should include:
+               - Clear title: "Test Failure: [test name or description]"
+               - The error message and stack trace
+               - The test file and line number if available
+               - Steps to reproduce if identifiable
+               - Labels: "bug", "test-failure", "nightly-test"
+               - Reference to this workflow run: ${GITHUB_RUN_URL}
+               - Note that this was detected by Claude Code's nightly test analysis
+            5. If there are many similar failures, group them into one issue
+            6. Prioritize based on:
+               - Critical path tests
+               - Number of affected tests
+               - Type of failure (timeout, assertion, error)
+
+            Before creating issues, check if similar issues already exist using:
+            gh issue list --label "test-failure" --state open
+
+            The gh CLI is already authenticated. Start by examining the test results.
+            EOF
+          else
+            echo "No test results found. Creating diagnostic issue..."
+
+            # Create an issue about missing test results
+            gh issue create \
+              --title "Nightly Tests: Unable to capture test results" \
+              --body "The nightly test run failed but no test results were captured.
+
+              **Workflow Run:** ${GITHUB_RUN_URL}
+              **Date:** $(date -u +"%Y-%m-%d %H:%M UTC")
+
+              This could indicate:
+              - Test framework configuration issue
+              - Build failure before tests could run
+              - Test command not found
+
+              Please check the workflow logs for more details.
+
+              _Created by Claude Code automation_" \
+              --label "bug" \
+              --label "test-failure" \
+              --label "nightly-test"
+          fi
+
+      - name: Create summary issue for multiple failures
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_URL: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: |
+          # Count existing issues created in this run
+          ISSUES_CREATED=$(gh issue list --label "nightly-test" --state open --json createdAt --jq "[.[] | select(.createdAt > \"$(date -u -d '5 minutes ago' --iso-8601)\")]  | length")
+
+          if [ "$ISSUES_CREATED" -gt 3 ]; then
+            echo "Multiple issues created. Adding summary issue..."
+
+            gh issue create \
+              --title "Nightly Test Run: Multiple Failures Detected" \
+              --body "The nightly test run detected multiple test failures and created ${ISSUES_CREATED} individual issues.
+
+              **Workflow Run:** ${GITHUB_RUN_URL}
+              **Date:** $(date -u +"%Y-%m-%d %H:%M UTC")
+
+              ### Related Issues
+              See all issues with label: [nightly-test](https://github.com/${GITHUB_REPOSITORY}/issues?q=is%3Aissue+is%3Aopen+label%3Anightly-test)
+
+              ### Next Steps
+              1. Review individual test failure issues
+              2. Prioritize critical failures
+              3. Consider disabling flaky tests temporarily
+
+              _Created by Claude Code automation_" \
+              --label "test-failure" \
+              --label "nightly-test" \
+              --label "meta"
+          fi
