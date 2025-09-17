@@ -212,7 +212,7 @@ jobs:
 
             if [ "$FILES_NEEDING_TESTS" -gt 0 ]; then
               # Use Claude Code to process the report and create issues
-              claude --no-interactive <<EOF
+              claude --no-interactive <<CLAUDE_EOF
               I have a static test coverage analysis report from a GitHub Actions workflow.
               Please read the report and create detailed GitHub issues for each file that needs static type tests.
 
@@ -233,7 +233,7 @@ jobs:
               5. Prioritize based on the complexity field in the report
 
               The gh CLI is already authenticated. Start by reading the report file.
-EOF
+CLAUDE_EOF
             else
               echo "No files need tests according to the report. Skipping issue creation."
             fi
