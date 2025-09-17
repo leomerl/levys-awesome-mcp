@@ -1,0 +1,42 @@
+{
+  "folderMappings": {
+    "backend": [
+      "backend/",
+      "src/"
+    ],
+    "frontend": [
+      "frontend/"
+    ],
+    "agents": [
+      "agents/"
+    ],
+    "docs": [
+      "docs/"
+    ],
+    "reports": [
+      "reports/"
+    ],
+    "plans": [
+      "plan_and_progress/"
+    ]
+  },
+  "defaultPaths": {
+    "backend": ".",
+    "frontend": "frontend/",
+    "agents": "agents/",
+    "docs": "docs/",
+    "reports": "reports/",
+    "plans": "plan_and_progress/"
+  },
+  "pathValidation": {
+    "allowPathTraversal": false,
+    "restrictToConfiguredFolders": true,
+    "createDirectoriesIfNotExist": true
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "description": "Configuration file for content-writer tool folder mappings",
+    "createdBy": "backend-agent",
+    "lastModified": "2024-12-19"
+  }
+}

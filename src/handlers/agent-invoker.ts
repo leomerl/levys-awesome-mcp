@@ -72,6 +72,7 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
     
     switch (normalizedName) {
       case 'invoke_agent': {
+        console.log(`[AgentInvoker] Raw args received:`, JSON.stringify(args));
         const { agentName, prompt, continueSessionId, taskNumber, updateProgress = false } = args;
         
         if (!agentName || !prompt) {
@@ -106,17 +107,21 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
           }
         }
 
-        // For resumed sessions, use the existing session ID
-        // For new sessions, we'll capture Claude Code's actual session ID on first message
-        let sessionId: string | undefined = continueSessionId;
+        // Generate session ID upfront for new sessions
+        // Check for "undefined" string which can come from MCP calls
+        console.log(`[AgentInvoker] continueSessionId received:`, continueSessionId, `type:`, typeof continueSessionId);
+        // Handle both undefined value and "undefined" string
+        const shouldGenerateNew = !continueSessionId || continueSessionId === 'undefined' || continueSessionId === undefined;
+        let sessionId: string = shouldGenerateNew ? randomUUID() : continueSessionId;
+        console.log(`[AgentInvoker] Generated/using sessionId:`, sessionId, `(shouldGenerateNew: ${shouldGenerateNew})`);
         let streamingUtils: StreamingManager | undefined;
         let streamLogFile: string | undefined;
-        
+
         const messages: any[] = [];
         let claudeCodeSessionId: string | undefined; // To capture Claude Code's actual session ID
         let isFirstMessage = true;
         let agentCompleted = false; // Track if agent completed successfully
-        
+
         try {
           // Step 1: Create specialized prompt (systemPrompt + task)
           let specializedPrompt = '';
@@ -129,6 +134,12 @@ task: ${prompt}`;
           }
 
           // Step 2: Build enhanced prompt (session info + restrictions)
+          // Debug: Ensure sessionId is defined at this point
+          if (!sessionId) {
+            console.error(`[AgentInvoker] CRITICAL: sessionId is undefined when building sessionInfo!`);
+            sessionId = randomUUID();
+            console.log(`[AgentInvoker] Generated emergency sessionId: ${sessionId}`);
+          }
           const sessionInfo = `
 
 IMPORTANT: When you complete your task, create a summary report using available tools.
@@ -267,15 +278,9 @@ OUTPUT_DIR: output_streams/${sessionId}/
                 claudeCodeSessionId = message.uuid;
                 console.log(`[AgentInvoker] Using UUID as session ID: ${claudeCodeSessionId}`);
               }
-              
-              // Use Claude Code's session ID if we got it, otherwise generate one
-              if (!sessionId) {
-                sessionId = claudeCodeSessionId || randomUUID();
-                console.log(`[AgentInvoker] Using session ID for directory: ${sessionId}`);
-              }
-              
+
               // Now initialize streaming with the correct session ID
-              if (!streamingUtils && sessionId) {
+              if (!streamingUtils) {
                 // Ensure directory exists
                 const sessionDir = path.join('output_streams', sessionId);
                 if (!fs.existsSync(sessionDir)) {
@@ -317,18 +322,16 @@ OUTPUT_DIR: output_streams/${sessionId}/
               await streamingUtils.logConversationMessage(message);
             }
             
-            // Save conversation history in real-time (only if we have sessionId)
-            if (sessionId) {
-              await SessionStore.saveConversationHistory(sessionId, agentName, messages);
-            }
+            // Save conversation history in real-time
+            await SessionStore.saveConversationHistory(sessionId, agentName, messages);
 
             // Track completion status without collecting output
             if (message.type === "result") {
               if (message.is_error) {
                 const errorMsg = 'result' in message && typeof message.result === 'string' ? message.result : 'Unknown error';
-                // Use actual session ID or a fallback
-                const errorSessionId = claudeCodeSessionId || sessionId || 'unknown';
-                const logPath = sessionId ? `output_streams/${sessionId}/session.log` : 'not created';
+                // Use actual session ID
+                const errorSessionId = claudeCodeSessionId || sessionId;
+                const logPath = `output_streams/${sessionId}/session.log`;
                 return {
                   content: [{
                     type: 'text',
@@ -343,11 +346,6 @@ OUTPUT_DIR: output_streams/${sessionId}/
             }
           }
 
-          // Ensure we have a session ID
-          if (!sessionId) {
-            sessionId = claudeCodeSessionId || randomUUID();
-          }
-          
           // Final save
           await SessionStore.saveConversationHistory(sessionId, agentName, messages);
 
@@ -455,15 +453,13 @@ Files to modify: ${inProgressTask.files_to_modify.join(', ')}`;
             fs.appendFileSync(streamLogFile, errorLog, 'utf8');
           }
 
-          // Save conversation history even on error (if we have sessionId)
-          if (sessionId) {
-            await SessionStore.saveConversationHistory(sessionId, agentName, messages);
-          }
+          // Save conversation history even on error
+          await SessionStore.saveConversationHistory(sessionId, agentName, messages);
 
           return {
             content: [{
               type: 'text',
-              text: `Agent '${agentName}' execution error: ${error instanceof Error ? error.message : String(error)}\n\nSession ID: ${claudeCodeSessionId || sessionId || 'unknown'}\nSession Log: ${sessionId ? `output_streams/${sessionId}/session.log` : 'not created'}`
+              text: `Agent '${agentName}' execution error: ${error instanceof Error ? error.message : String(error)}\n\nSession ID: ${claudeCodeSessionId || sessionId}\nSession Log: output_streams/${sessionId}/session.log`
             }],
             isError: true
           };

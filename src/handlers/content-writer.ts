@@ -2,6 +2,8 @@ import { writeFile, mkdir } from 'fs/promises';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import * as path from 'path';
 import { validatePath, validateProjectDirectory } from '../shared/utils.js';
+import { loadContentWriterConfigWithFallback, getFolderMappings, getDefaultPath, isPathAllowed } from '../config/content-writer-config.js';
+import type { ContentWriterConfig } from '../config/content-writer-config.js';
 
 export const contentWriterTools = [
   {
@@ -28,13 +30,13 @@ export const contentWriterTools = [
   },
   {
     name: 'frontend_write',
-    description: 'Write files to the frontend/ folder only.',
+    description: 'Write files to frontend folders. Allowed folders are configurable via content-writer.json and may include frontend/, ui/, client/, etc.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         file_path: {
           type: 'string',
-          description: 'Path to the file to write (must be within frontend/ folder)'
+          description: 'Path to the file to write (must be within configured frontend folders)'
         },
         content: {
           type: 'string',
@@ -46,13 +48,13 @@ export const contentWriterTools = [
   },
   {
     name: 'backend_write',
-    description: 'Write files to the backend/ or src/ folders.',
+    description: 'Write files to backend folders. Allowed folders are configurable via content-writer.json and may include backend/, src/, api/, server/, etc.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         file_path: {
           type: 'string',
-          description: 'Path to the file to write (must be within backend/ or src/ folder)'
+          description: 'Path to the file to write (must be within configured backend folders)'
         },
         content: {
           type: 'string',
@@ -153,6 +155,138 @@ export const contentWriterTools = [
   }
 ];
 
+/**
+ * Resolves the appropriate target directory and validates path for frontend writes
+ */
+function resolveFrontendPath(filePath: string, config: ContentWriterConfig): {
+  targetDir: string;
+  targetDirName: string;
+  fullPath: string;
+  isValid: boolean;
+} {
+  // Use configuration-based approach
+  const frontendFolders = getFolderMappings(config, 'frontend');
+  const defaultFrontendPath = getDefaultPath(config, 'frontend');
+  
+  // Check if the path is allowed for frontend category
+  if (!isPathAllowed(config, filePath, 'frontend')) {
+    return {
+      targetDir: '',
+      targetDirName: '',
+      fullPath: '',
+      isValid: false
+    };
+  }
+  
+  // Find which frontend folder the path belongs to
+  for (const frontendFolder of frontendFolders) {
+    const normalizedFrontendFolder = path.normalize(frontendFolder);
+    const frontendDir = path.join(process.cwd(), normalizedFrontendFolder);
+    
+    // Check if path starts with this frontend folder
+    if (filePath.startsWith(normalizedFrontendFolder) || filePath.startsWith(normalizedFrontendFolder.replace(/\/$/, ''))) {
+      const cleanPath = filePath.replace(new RegExp(`^${normalizedFrontendFolder.replace(/[\/\\]/g, '[/\\\\]')}`), '');
+      const fullPath = path.resolve(frontendDir, cleanPath);
+      
+      // Validate the resolved path is within the frontend directory
+      if (fullPath.startsWith(path.resolve(frontendDir))) {
+        return {
+          targetDir: frontendDir,
+          targetDirName: normalizedFrontendFolder.replace(/\/$/, ''),
+          fullPath,
+          isValid: true
+        };
+      }
+    }
+  }
+  
+  // Default to the primary frontend folder if no specific match
+  const defaultDir = path.join(process.cwd(), defaultFrontendPath);
+  const fullPath = path.resolve(defaultDir, filePath);
+  
+  if (fullPath.startsWith(path.resolve(defaultDir))) {
+    return {
+      targetDir: defaultDir,
+      targetDirName: defaultFrontendPath.replace(/\/$/, ''),
+      fullPath,
+      isValid: true
+    };
+  }
+  
+  return {
+    targetDir: '',
+    targetDirName: '',
+    fullPath: '',
+    isValid: false
+  };
+}
+
+/**
+ * Resolves the appropriate target directory and validates path for backend writes
+ */
+function resolveBackendPath(filePath: string, config: ContentWriterConfig): {
+  targetDir: string;
+  targetDirName: string;
+  fullPath: string;
+  isValid: boolean;
+} {
+  // Use configuration-based approach
+  const backendFolders = getFolderMappings(config, 'backend');
+  const defaultBackendPath = getDefaultPath(config, 'backend');
+  
+  // Check if the path is allowed for backend category
+  if (!isPathAllowed(config, filePath, 'backend')) {
+    return {
+      targetDir: '',
+      targetDirName: '',
+      fullPath: '',
+      isValid: false
+    };
+  }
+  
+  // Find which backend folder the path belongs to
+  for (const backendFolder of backendFolders) {
+    const normalizedBackendFolder = path.normalize(backendFolder);
+    const backendDir = path.join(process.cwd(), normalizedBackendFolder);
+    
+    // Check if path starts with this backend folder
+    if (filePath.startsWith(normalizedBackendFolder) || filePath.startsWith(normalizedBackendFolder.replace(/\/$/, ''))) {
+      const cleanPath = filePath.replace(new RegExp(`^${normalizedBackendFolder.replace(/[\/\\]/g, '[/\\\\]')}`), '');
+      const fullPath = path.resolve(backendDir, cleanPath);
+      
+      // Validate the resolved path is within the backend directory
+      if (fullPath.startsWith(path.resolve(backendDir))) {
+        return {
+          targetDir: backendDir,
+          targetDirName: normalizedBackendFolder.replace(/\/$/, ''),
+          fullPath,
+          isValid: true
+        };
+      }
+    }
+  }
+  
+  // Default to the primary backend folder if no specific match
+  const defaultDir = path.join(process.cwd(), defaultBackendPath);
+  const fullPath = path.resolve(defaultDir, filePath);
+  
+  if (fullPath.startsWith(path.resolve(defaultDir))) {
+    return {
+      targetDir: defaultDir,
+      targetDirName: defaultBackendPath.replace(/\/$/, ''),
+      fullPath,
+      isValid: true
+    };
+  }
+  
+  return {
+    targetDir: '',
+    targetDirName: '',
+    fullPath: '',
+    isValid: false
+  };
+}
+
 export async function handleContentWriterTool(name: string, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     // Normalize tool names - handle both short and long forms from Claude Code
@@ -218,12 +352,13 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
           };
         }
 
-        const frontendDir = path.join(process.cwd(), 'frontend');
-        // Remove 'frontend/' prefix if it exists to avoid creating nested directories
-        const cleanPath = file_path.replace(/^frontend[/\\]/, '');
-        const fullPath = path.resolve(frontendDir, cleanPath);
-
-        if (!fullPath.startsWith(path.resolve(frontendDir))) {
+        // Load configuration with fallback for backward compatibility
+        const config = loadContentWriterConfigWithFallback();
+        
+        // Resolve frontend path using configuration
+        const pathResult = resolveFrontendPath(file_path, config);
+        
+        if (!pathResult.isValid) {
           return {
             content: [{
               type: 'text',
@@ -233,6 +368,8 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
           };
         }
 
+        const { targetDir, targetDirName, fullPath } = pathResult;
+
         const dir = path.dirname(fullPath);
         if (!existsSync(dir)) {
           await mkdir(dir, { recursive: true });
@@ -241,10 +378,10 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         await writeFile(fullPath, content, 'utf8');
 
         // Check if this looks like a proper frontend project structure
-        const validation = validateProjectDirectory(frontendDir);
-        let message = `File written successfully to frontend/${cleanPath}`;
-        if (!validation.valid && existsSync(frontendDir)) {
-          message += `\n\nWARNING: The frontend/ directory exists but doesn't appear to be a proper frontend project (${validation.error}). This may not be the intended project structure.`;
+        const validation = validateProjectDirectory(targetDir);
+        let message = `File written successfully to ${targetDirName}/${file_path.replace(/^frontend[\/\\]/, '')}`;
+        if (!validation.valid && existsSync(targetDir)) {
+          message += `\n\nWARNING: The ${targetDirName}/ directory exists but doesn't appear to be a proper frontend project (${validation.error}). This may not be the intended project structure.`;
         }
 
         return {
@@ -269,52 +406,13 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
           };
         }
 
-        // Check if the path starts with src/ or backend/
-        const srcDir = path.join(process.cwd(), 'src');
-        const backendDir = path.join(process.cwd(), 'backend');
-
-        // Try src/ first, then backend/
-        let targetDir: string;
-        let targetDirName: string;
-
-        if (file_path.startsWith('src/') || file_path.startsWith('src\\')) {
-          targetDir = srcDir;
-          targetDirName = 'src';
-          // Remove the src/ prefix from the file_path for proper resolution
-          const cleanPath = file_path.replace(/^src[\/\\]/, '');
-          var fullPath = path.resolve(targetDir, cleanPath);
-        } else if (file_path.startsWith('backend/') || file_path.startsWith('backend\\')) {
-          targetDir = backendDir;
-          targetDirName = 'backend';
-          // Remove the backend/ prefix from the file_path for proper resolution
-          const cleanPath = file_path.replace(/^backend[\/\\]/, '');
-          var fullPath = path.resolve(targetDir, cleanPath);
-        } else {
-          // Default to trying both directories
-          const fullPathSrc = path.resolve(srcDir, file_path);
-          const fullPathBackend = path.resolve(backendDir, file_path);
-
-          if (fullPathSrc.startsWith(path.resolve(srcDir))) {
-            targetDir = srcDir;
-            targetDirName = 'src';
-            var fullPath = fullPathSrc;
-          } else if (fullPathBackend.startsWith(path.resolve(backendDir))) {
-            targetDir = backendDir;
-            targetDirName = 'backend';
-            var fullPath = fullPathBackend;
-          } else {
-            // Try backend as default for backward compatibility
-            targetDir = backendDir;
-            targetDirName = 'backend';
-            var fullPath = fullPathBackend;
-          }
-        }
-
-        // Verify the path is within the allowed directories
-        const resolvedSrcDir = path.resolve(srcDir);
-        const resolvedBackendDir = path.resolve(backendDir);
-
-        if (!fullPath.startsWith(resolvedSrcDir) && !fullPath.startsWith(resolvedBackendDir)) {
+        // Load configuration with fallback for backward compatibility
+        const config = loadContentWriterConfigWithFallback();
+        
+        // Resolve backend path using configuration
+        const pathResult = resolveBackendPath(file_path, config);
+        
+        if (!pathResult.isValid) {
           return {
             content: [{
               type: 'text',
@@ -323,6 +421,8 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
             isError: true
           };
         }
+
+        const { targetDir, targetDirName, fullPath } = pathResult;
 
         const dir = path.dirname(fullPath);
         if (!existsSync(dir)) {
@@ -334,8 +434,8 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
         // Only validate project structure for backend directory
         let message = `File written successfully to ${targetDirName}/${file_path.replace(/^(src|backend)[\/\\]/, '')}`;
         if (targetDirName === 'backend') {
-          const validation = validateProjectDirectory(backendDir);
-          if (!validation.valid && existsSync(backendDir)) {
+          const validation = validateProjectDirectory(targetDir);
+          if (!validation.valid && existsSync(targetDir)) {
             message += `\n\nWARNING: The backend/ directory exists but doesn't appear to be a proper backend project (${validation.error}). This may not be the intended project structure.`;
           }
         }

@@ -1,11 +1,12 @@
 import { executeCommand, validateProjectDirectory } from '../shared/utils.js';
 import * as path from 'path';
 import { existsSync } from 'fs';
+import { loadContentWriterConfigWithFallback, getDefaultPath } from '../config/content-writer-config.js';
 
 export const buildExecutorTools = [
   {
     name: 'build_project',
-    description: 'Build the entire project (backend typecheck + frontend build)',
+    description: 'Build the entire project (backend typecheck + frontend build). Folders are configurable via content-writer.json',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -14,7 +15,7 @@ export const buildExecutorTools = [
   },
   {
     name: 'build_backend',
-    description: 'Build/typecheck the backend only',
+    description: 'Build/typecheck the backend only. Backend folder is configurable via content-writer.json',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -23,7 +24,7 @@ export const buildExecutorTools = [
   },
   {
     name: 'build_frontend',
-    description: 'Build the frontend only',
+    description: 'Build the frontend only. Frontend folder is configurable via content-writer.json',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -40,32 +41,37 @@ export async function handleBuildExecutorTool(name: string, args: any): Promise<
         const results = [];
         let allSuccess = true;
 
+        // Load configuration with fallback to defaults
+        const config = loadContentWriterConfigWithFallback();
+
         // Validate and build backend
-        const backendDir = path.join(process.cwd(), 'backend');
+        const backendPath = getDefaultPath(config, 'backend');
+        const backendDir = path.join(process.cwd(), backendPath);
         const backendValidation = validateProjectDirectory(backendDir, ['typecheck']);
         if (backendValidation.valid) {
           const backendResult = await executeCommand('npm', ['run', 'typecheck'], backendDir);
-          results.push(`Backend Typecheck: ${backendResult.success ? 'SUCCESS' : 'FAILED'}`);
+          results.push(`Backend Typecheck (${backendPath}): ${backendResult.success ? 'SUCCESS' : 'FAILED'}`);
           if (!backendResult.success) {
             results.push(`Backend Error: ${backendResult.stderr || backendResult.error}`);
             allSuccess = false;
           }
         } else {
-          results.push(`Backend: SKIPPED - ${backendValidation.error}`);
+          results.push(`Backend (${backendPath}): SKIPPED - ${backendValidation.error}`);
         }
 
         // Validate and build frontend
-        const frontendDir = path.join(process.cwd(), 'frontend');
+        const frontendPath = getDefaultPath(config, 'frontend');
+        const frontendDir = path.join(process.cwd(), frontendPath);
         const frontendValidation = validateProjectDirectory(frontendDir, ['build']);
         if (frontendValidation.valid) {
           const frontendResult = await executeCommand('npm', ['run', 'build'], frontendDir);
-          results.push(`Frontend Build: ${frontendResult.success ? 'SUCCESS' : 'FAILED'}`);
+          results.push(`Frontend Build (${frontendPath}): ${frontendResult.success ? 'SUCCESS' : 'FAILED'}`);
           if (!frontendResult.success) {
             results.push(`Frontend Error: ${frontendResult.stderr || frontendResult.error}`);
             allSuccess = false;
           }
         } else {
-          results.push(`Frontend: SKIPPED - ${frontendValidation.error}`);
+          results.push(`Frontend (${frontendPath}): SKIPPED - ${frontendValidation.error}`);
         }
 
         return {
@@ -79,14 +85,17 @@ export async function handleBuildExecutorTool(name: string, args: any): Promise<
 
       case 'build_backend':
       case 'mcp__levys-awesome-mcp__mcp__build-executor__build_backend': {
-        const backendDir = path.join(process.cwd(), 'backend');
+        // Load configuration with fallback to defaults
+        const config = loadContentWriterConfigWithFallback();
+        const backendPath = getDefaultPath(config, 'backend');
+        const backendDir = path.join(process.cwd(), backendPath);
         const validation = validateProjectDirectory(backendDir, ['typecheck']);
-        
+
         if (!validation.valid) {
           return {
             content: [{
               type: 'text',
-              text: `Backend build failed: ${validation.error}`
+              text: `Backend build failed (${backendPath}): ${validation.error}`
             }],
             isError: true
           };
@@ -96,7 +105,7 @@ export async function handleBuildExecutorTool(name: string, args: any): Promise<
         return {
           content: [{
             type: 'text',
-            text: `Backend Typecheck ${result.success ? 'SUCCESS' : 'FAILED'}:\n${result.stdout}\n${result.stderr}`
+            text: `Backend Typecheck (${backendPath}) ${result.success ? 'SUCCESS' : 'FAILED'}:\n${result.stdout}\n${result.stderr}`
           }],
           isError: !result.success
         };
@@ -104,14 +113,17 @@ export async function handleBuildExecutorTool(name: string, args: any): Promise<
 
       case 'build_frontend':
       case 'mcp__levys-awesome-mcp__mcp__build-executor__build_frontend': {
-        const frontendDir = path.join(process.cwd(), 'frontend');
+        // Load configuration with fallback to defaults
+        const config = loadContentWriterConfigWithFallback();
+        const frontendPath = getDefaultPath(config, 'frontend');
+        const frontendDir = path.join(process.cwd(), frontendPath);
         const validation = validateProjectDirectory(frontendDir, ['build']);
-        
+
         if (!validation.valid) {
           return {
             content: [{
               type: 'text',
-              text: `Frontend build failed: ${validation.error}`
+              text: `Frontend build failed (${frontendPath}): ${validation.error}`
             }],
             isError: true
           };
@@ -121,7 +133,7 @@ export async function handleBuildExecutorTool(name: string, args: any): Promise<
         return {
           content: [{
             type: 'text',
-            text: `Frontend Build ${result.success ? 'SUCCESS' : 'FAILED'}:\n${result.stdout}\n${result.stderr}`
+            text: `Frontend Build (${frontendPath}) ${result.success ? 'SUCCESS' : 'FAILED'}:\n${result.stdout}\n${result.stderr}`
           }],
           isError: !result.success
         };
