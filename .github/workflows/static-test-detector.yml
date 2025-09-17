@@ -43,7 +43,7 @@ jobs:
         run: |
           echo "Installing MCP package from GitHub Packages registry..."
           # Install the specific package from GitHub Packages
-          npm install @leomerl/levys-awesome-mcp@latest --registry=https://npm.pkg.github.com
+          npm install @leomerl/levys-awesome-mcp@v1.0.1 --registry=https://npm.pkg.github.com
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
