@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { existsSync, rmSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
+import { existsSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from 'fs';
 import { readFile, mkdir } from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
@@ -14,11 +14,7 @@ describe('Content Writer Configuration Integration Tests', () => {
 
   // Helper to create a temporary config file
   const createTempConfig = (config: ContentWriterConfig): string => {
-    const configPath = path.join(tempDir, 'src', 'content-writer.json');
-    const srcDir = path.join(tempDir, 'src');
-    if (!existsSync(srcDir)) {
-      mkdirSync(srcDir, { recursive: true });
-    }
+    const configPath = path.join(tempDir, 'content-writer.json');
     writeFileSync(configPath, JSON.stringify(config, null, 2));
     return configPath;
   };

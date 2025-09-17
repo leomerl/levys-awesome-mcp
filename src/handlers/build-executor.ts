@@ -1,7 +1,7 @@
 import { executeCommand, validateProjectDirectory } from '../shared/utils.js';
 import * as path from 'path';
 import { existsSync } from 'fs';
-import { loadContentWriterConfigWithFallback, getDefaultPath } from '../config/content-writer-config.js';
+import { loadContentWriterConfigSync, getDefaultPath } from '../config/content-writer-config.js';
 
 export const buildExecutorTools = [
   {
@@ -42,7 +42,7 @@ export async function handleBuildExecutorTool(name: string, args: any): Promise<
         let allSuccess = true;
 
         // Load configuration with fallback to defaults
-        const config = loadContentWriterConfigWithFallback();
+        const config = loadContentWriterConfigSync();
 
         // Validate and build backend
         const backendPath = getDefaultPath(config, 'backend');
@@ -86,7 +86,7 @@ export async function handleBuildExecutorTool(name: string, args: any): Promise<
       case 'build_backend':
       case 'mcp__levys-awesome-mcp__mcp__build-executor__build_backend': {
         // Load configuration with fallback to defaults
-        const config = loadContentWriterConfigWithFallback();
+        const config = loadContentWriterConfigSync();
         const backendPath = getDefaultPath(config, 'backend');
         const backendDir = path.join(process.cwd(), backendPath);
         const validation = validateProjectDirectory(backendDir, ['typecheck']);
@@ -114,7 +114,7 @@ export async function handleBuildExecutorTool(name: string, args: any): Promise<
       case 'build_frontend':
       case 'mcp__levys-awesome-mcp__mcp__build-executor__build_frontend': {
         // Load configuration with fallback to defaults
-        const config = loadContentWriterConfigWithFallback();
+        const config = loadContentWriterConfigSync();
         const frontendPath = getDefaultPath(config, 'frontend');
         const frontendDir = path.join(process.cwd(), frontendPath);
         const validation = validateProjectDirectory(frontendDir, ['build']);

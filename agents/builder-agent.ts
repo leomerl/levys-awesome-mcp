@@ -4,6 +4,7 @@
 import { query } from "@anthropic-ai/claude-code";
 import { StreamingManager } from '../src/utilities/session/streaming-utils.js';
 import { v4 as uuidv4 } from 'uuid';
+import path from "path";
 
 import { AgentConfig } from '../src/types/agent-config.js';
 
@@ -152,7 +153,7 @@ async function runAgent() {
         systemPrompt: builderAgent.options.systemPrompt,
         allowedTools: builderAgent.options.allowedTools,
         disallowedTools: ['TodoWrite', 'Task'], // Block built-in TodoWrite and Task tools
-        pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
+        pathToClaudeCodeExecutable: path.resolve(process.cwd(), "node_modules/@anthropic-ai/claude-code/cli.js"),
         mcpServers: builderAgent.options.mcpServers
     }
   })) {
@@ -194,7 +195,7 @@ async function runAgent() {
         model: builderAgent.options.model,
         allowedTools: builderAgent.options.allowedTools,
         disallowedTools: ['TodoWrite', 'Task', 'Write', 'Bash'], // Block built-in TodoWrite and Task tools
-        pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
+        pathToClaudeCodeExecutable: path.resolve(process.cwd(), "node_modules/@anthropic-ai/claude-code/cli.js"),
         mcpServers: builderAgent.options.mcpServers
       }
     })) {

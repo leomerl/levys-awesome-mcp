@@ -2,6 +2,7 @@
 
 import { query } from "@anthropic-ai/claude-code";
 import { AgentConfig } from '../src/types/agent-config.js';
+import path from "path";
 
 const orchestratorAgent: AgentConfig = {
   name: 'orchestrator-agent',
@@ -353,7 +354,7 @@ async function runAgent() {
         model: orchestratorAgent.options.model,
         allowedTools: orchestratorAgent.options.allowedTools,
         disallowedTools: ['Task'], // Block built-in Task tool
-        pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
+        pathToClaudeCodeExecutable: path.resolve(process.cwd(), "node_modules/@anthropic-ai/claude-code/cli.js"),
         mcpServers: orchestratorAgent.options.mcpServers
     }
   })) {

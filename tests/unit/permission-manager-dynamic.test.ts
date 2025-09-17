@@ -8,14 +8,7 @@ import { PermissionManager, AgentPermissionConfig } from '../../src/utilities/ag
 import { ToolRegistry } from '../../src/utilities/tools/tool-registry.js';
 
 describe('PermissionManager - Dynamic Tool Restrictions', () => {
-  beforeEach(() => {
-    // Clear caches before each test
-    ToolRegistry.clearCache();
-  });
-
-  afterEach(() => {
-    ToolRegistry.clearCache();
-  });
+  // No cache to clear - no caching mechanism
 
   describe('Dynamic Permission Calculation', () => {
     it('should apply dynamic restrictions when enabled', async () => {

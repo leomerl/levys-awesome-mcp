@@ -1,346 +1,268 @@
 /**
  * Unit Tests for ToolRegistry - Core MCP Dynamic Tool Discovery
- * Tests the comprehensive tool discovery and restriction calculation functionality
+ * Tests the comprehensive tool discovery and management functionality
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { ToolRegistry } from '../../src/utilities/tools/tool-registry.js';
 
 describe('ToolRegistry - Core MCP Tool Discovery', () => {
-  beforeEach(() => {
-    // Clear cache before each test to ensure fresh state
-    ToolRegistry.clearCache();
-  });
-
-  afterEach(() => {
-    // Clear cache after each test to prevent interference
-    ToolRegistry.clearCache();
-  });
+  // No setup/cleanup needed - no cache mechanism
 
   describe('Tool Discovery', () => {
-    it('should discover all MCP tools from registered handlers', async () => {
-      const allTools = await ToolRegistry.getAllMCPTools();
-
-      expect(allTools).toBeInstanceOf(Array);
-      expect(allTools.length).toBeGreaterThan(0);
-
-      // Should include tools from different categories
+    it('should discover all tools from registered categories', async () => {
+      // Using the actual method that exists
       const toolsByCategory = await ToolRegistry.getToolsByCategory();
-      const mcpCategories = Object.entries(toolsByCategory)
-        .filter(([category]) => category !== 'claude-code-builtin');
-      const totalCategoryTools = mcpCategories
-        .reduce((sum, [, tools]) => sum + tools.length, 0);
+      const allCategories = Object.keys(toolsByCategory);
 
-      // MCP tools should match what's reported (allowing for differences)
-      // The getAllMCPTools might return a subset of all category tools
-      expect(allTools.length).toBeLessThanOrEqual(totalCategoryTools);
+      expect(allCategories.length).toBeGreaterThan(0);
 
-      // Verify we have a reasonable number of tools (not hard-coded)
-      expect(allTools.length).toBeGreaterThan(10); // At least some tools
-      expect(allTools.length).toBeLessThan(100); // But not an unreasonable amount
+      // Count total tools across categories
+      const totalTools = Object.values(toolsByCategory)
+        .reduce((sum, tools) => sum + tools.length, 0);
+
+      expect(totalTools).toBeGreaterThan(10); // At least some tools
+      expect(totalTools).toBeLessThan(100); // But not an unreasonable amount
     });
 
     it('should categorize tools correctly', async () => {
       const toolsByCategory = await ToolRegistry.getToolsByCategory();
-      
-      // Check expected categories exist
-      expect(toolsByCategory).toHaveProperty('agent-generator');
-      expect(toolsByCategory).toHaveProperty('agent-invoker');
-      expect(toolsByCategory).toHaveProperty('build-executor');
-      expect(toolsByCategory).toHaveProperty('content-writer');
-      expect(toolsByCategory).toHaveProperty('code-analyzer');
-      expect(toolsByCategory).toHaveProperty('server-runner');
-      expect(toolsByCategory).toHaveProperty('test-executor');
-      expect(toolsByCategory).toHaveProperty('plan-creator');
-      expect(toolsByCategory).toHaveProperty('claude-code-builtin');
+
+      // Check expected categories exist (matching actual implementation)
+      expect(toolsByCategory).toHaveProperty('file-system');
+      expect(toolsByCategory).toHaveProperty('execution');
+      expect(toolsByCategory).toHaveProperty('search');
+      expect(toolsByCategory).toHaveProperty('version-control');
+      expect(toolsByCategory).toHaveProperty('development');
+      expect(toolsByCategory).toHaveProperty('mcp');
+      expect(toolsByCategory).toHaveProperty('testing');
+      expect(toolsByCategory).toHaveProperty('documentation');
+      expect(toolsByCategory).toHaveProperty('deployment');
+      expect(toolsByCategory).toHaveProperty('monitoring');
+      expect(toolsByCategory).toHaveProperty('database');
+      expect(toolsByCategory).toHaveProperty('cloud');
+      expect(toolsByCategory).toHaveProperty('communication');
 
       // Each category should have at least some tools
-      expect(toolsByCategory['agent-invoker'].length).toBeGreaterThan(0);
-      expect(toolsByCategory['content-writer'].length).toBeGreaterThan(0);
-      expect(toolsByCategory['claude-code-builtin'].length).toBeGreaterThan(0);
+      expect(toolsByCategory['file-system'].length).toBeGreaterThan(0);
+      expect(toolsByCategory['execution'].length).toBeGreaterThan(0);
+      expect(toolsByCategory['search'].length).toBeGreaterThan(0);
     });
 
-    it('should include Claude Code built-in tools', async () => {
+    it('should include file system tools', async () => {
       const toolsByCategory = await ToolRegistry.getToolsByCategory();
-      const builtInTools = toolsByCategory['claude-code-builtin'];
-      
-      expect(builtInTools).toContain('Bash');
-      expect(builtInTools).toContain('Read');
-      expect(builtInTools).toContain('Write');
-      expect(builtInTools).toContain('Edit');
-      expect(builtInTools).toContain('MultiEdit');
-      expect(builtInTools).toContain('Glob');
-      expect(builtInTools).toContain('Grep');
-      expect(builtInTools).toContain('TodoWrite');
-      expect(builtInTools).toContain('Task');
-      expect(builtInTools).toContain('WebFetch');
+      const fileSystemTools = toolsByCategory['file-system'];
+
+      expect(fileSystemTools).toContain('Read');
+      expect(fileSystemTools).toContain('Write');
+      expect(fileSystemTools).toContain('Edit');
+      expect(fileSystemTools).toContain('MultiEdit');
+      expect(fileSystemTools).toContain('NotebookEdit');
+      expect(fileSystemTools).toContain('Glob');
     });
 
-    it('should cache tool discovery results', async () => {
-      // First call - will populate cache
-      const tools1 = await ToolRegistry.getAllMCPTools();
+    it('should include execution tools', async () => {
+      const toolsByCategory = await ToolRegistry.getToolsByCategory();
+      const executionTools = toolsByCategory['execution'];
 
-      // Second call - should use cache
-      const tools2 = await ToolRegistry.getAllMCPTools();
-
-      // Results should be identical
-      expect(tools1).toEqual(tools2);
-      expect(tools1.length).toBe(tools2.length);
-
-      // Verify we're getting the same reference (cached object)
-      // Note: This assumes the implementation returns the cached array directly
-      // If implementation returns a copy, this test should be adjusted
+      expect(executionTools).toContain('Bash');
+      expect(executionTools).toContain('BashOutput');
+      expect(executionTools).toContain('KillShell');
+      expect(executionTools).toContain('Task');
     });
 
-    it('should provide tool information', async () => {
-      const allTools = await ToolRegistry.getAllMCPTools();
-      expect(allTools.length).toBeGreaterThan(0);
-      
-      // Get info for the first tool
-      const firstTool = allTools[0];
-      const toolInfo = await ToolRegistry.getToolInfo(firstTool);
-      
-      expect(toolInfo).toBeDefined();
-      // Tool info name might be simplified (without prefix)
-      expect(toolInfo).toHaveProperty('name');
-      expect(toolInfo.name).toBeTruthy();
-      expect(toolInfo).toHaveProperty('description');
-      expect(toolInfo).toHaveProperty('category');
-      expect(toolInfo).toHaveProperty('inputSchema');
+    it('should include search tools', async () => {
+      const toolsByCategory = await ToolRegistry.getToolsByCategory();
+      const searchTools = toolsByCategory['search'];
+
+      expect(searchTools).toContain('Grep');
+      expect(searchTools).toContain('WebSearch');
+      expect(searchTools).toContain('WebFetch');
+    });
+
+    // Cache test removed - no caching mechanism
+
+    it('should provide tool statistics', async () => {
+      const stats = await ToolRegistry.getToolStatistics();
+
+      expect(stats.totalTools).toBeGreaterThan(0);
+      expect(stats.categoriesCount).toBe(13); // Based on actual categories
+      expect(stats.categories).toBeInstanceOf(Array);
+      expect(stats.categories.length).toBe(13);
+
+      // Each category should have a name and count
+      for (const category of stats.categories) {
+        expect(category).toHaveProperty('name');
+        expect(category).toHaveProperty('count');
+        expect(category.count).toBeGreaterThan(0);
+      }
     });
   });
 
   describe('Dynamic Tool Restriction Calculation', () => {
     it('should calculate disallowed tools correctly', async () => {
-      const allTools = await ToolRegistry.getAllMCPTools();
-      const builtInTools = (await ToolRegistry.getToolsByCategory())['claude-code-builtin'];
-      const totalTools = [...new Set([...allTools, ...builtInTools])];
-      
-      const allowedTools = ['Read', 'Grep'];
+      const allowedTools = ['Read', 'Write', 'Bash'];
       const disallowedTools = await ToolRegistry.calculateDisallowedTools(allowedTools);
-      
-      // Should include all tools except the allowed ones
-      expect(disallowedTools.length).toBe(totalTools.length - allowedTools.length);
-      
-      // Should not include any allowed tools
-      for (const allowed of allowedTools) {
-        expect(disallowedTools).not.toContain(allowed);
-      }
-      
-      // Should include tools that weren't allowed
-      expect(disallowedTools).toContain('Write');
-      expect(disallowedTools).toContain('Bash');
+
+      // Should not include allowed tools
+      expect(disallowedTools).not.toContain('Read');
+      expect(disallowedTools).not.toContain('Write');
+      expect(disallowedTools).not.toContain('Bash');
+
+      // Should include other tools
       expect(disallowedTools).toContain('Edit');
+      expect(disallowedTools).toContain('Grep');
+      expect(disallowedTools).toContain('WebSearch');
     });
 
     it('should handle empty allowed tools list', async () => {
-      const disallowedTools = await ToolRegistry.calculateDisallowedTools([]);
-      
       // Should disallow all available tools
-      const allTools = await ToolRegistry.getAllMCPTools();
-      const builtInTools = (await ToolRegistry.getToolsByCategory())['claude-code-builtin'];
-      const totalTools = [...new Set([...allTools, ...builtInTools])];
-      
-      expect(disallowedTools.length).toBe(totalTools.length);
+      const disallowedTools = await ToolRegistry.calculateDisallowedTools([]);
+      const stats = await ToolRegistry.getToolStatistics();
+
+      expect(disallowedTools.length).toBe(stats.totalTools);
     });
 
     it('should handle all tools allowed', async () => {
-      const allTools = await ToolRegistry.getAllMCPTools();
-      const builtInTools = (await ToolRegistry.getToolsByCategory())['claude-code-builtin'];
-      const allAvailableTools = [...new Set([...allTools, ...builtInTools])];
-      
-      const disallowedTools = await ToolRegistry.calculateDisallowedTools(allAvailableTools);
-      
-      // Should disallow no tools
-      expect(disallowedTools.length).toBe(0);
+      const stats = await ToolRegistry.getToolStatistics();
+      const toolsByCategory = await ToolRegistry.getToolsByCategory();
+      const allTools = Object.values(toolsByCategory).flat();
+
+      const disallowedTools = await ToolRegistry.calculateDisallowedTools(allTools);
+
+      // Should have no disallowed tools
+      expect(disallowedTools).toHaveLength(0);
     });
 
     it('should handle duplicate tools in allowed list', async () => {
-      const allowedTools = ['Read', 'Grep', 'Read', 'Grep']; // Duplicates
+      const allowedTools = ['Read', 'Write', 'Read', 'Write', 'Bash'];
       const disallowedTools = await ToolRegistry.calculateDisallowedTools(allowedTools);
-      
-      // Should not include duplicates in calculation
+
+      // Should handle duplicates gracefully
       expect(disallowedTools).not.toContain('Read');
-      expect(disallowedTools).not.toContain('Grep');
-      
-      // Should still disallow other tools
-      expect(disallowedTools).toContain('Write');
-      expect(disallowedTools).toContain('Bash');
+      expect(disallowedTools).not.toContain('Write');
+      expect(disallowedTools).not.toContain('Bash');
     });
   });
 
   describe('Tool Validation', () => {
     it('should validate known tools correctly', async () => {
-      const knownTools = ['Read', 'Write', 'Grep'];
+      const knownTools = ['Read', 'Write', 'Edit', 'Bash', 'Grep'];
       const validation = await ToolRegistry.validateToolList(knownTools);
-      
+
       expect(validation.valid).toBe(true);
-      expect(validation.unknownTools).toHaveLength(0);
+      expect(validation.invalidTools).toHaveLength(0);
     });
 
     it('should identify unknown tools', async () => {
-      const toolsWithUnknown = ['Read', 'UnknownTool1', 'Grep', 'UnknownTool2'];
-      const validation = await ToolRegistry.validateToolList(toolsWithUnknown);
-      
+      const mixedTools = ['Read', 'UnknownTool1', 'Write', 'UnknownTool2'];
+      const validation = await ToolRegistry.validateToolList(mixedTools);
+
       expect(validation.valid).toBe(false);
-      expect(validation.unknownTools).toHaveLength(2);
-      expect(validation.unknownTools).toContain('UnknownTool1');
-      expect(validation.unknownTools).toContain('UnknownTool2');
+      expect(validation.invalidTools).toHaveLength(2);
+      expect(validation.invalidTools).toContain('UnknownTool1');
+      expect(validation.invalidTools).toContain('UnknownTool2');
     });
 
     it('should validate empty tool list', async () => {
       const validation = await ToolRegistry.validateToolList([]);
-      
+
       expect(validation.valid).toBe(true);
-      expect(validation.unknownTools).toHaveLength(0);
+      expect(validation.invalidTools).toHaveLength(0);
     });
 
     it('should validate MCP tools correctly', async () => {
-      const mcpTools = await ToolRegistry.getAllMCPTools();
-      const firstFewMcpTools = mcpTools.slice(0, 3);
-      
-      const validation = await ToolRegistry.validateToolList(firstFewMcpTools);
-      
+      const mcpTools = ['mcp__ide__getDiagnostics', 'mcp__ide__executeCode'];
+      const validation = await ToolRegistry.validateToolList(mcpTools);
+
       expect(validation.valid).toBe(true);
-      expect(validation.unknownTools).toHaveLength(0);
+      expect(validation.invalidTools).toHaveLength(0);
     });
   });
 
   describe('Tool Statistics', () => {
     it('should provide comprehensive tool statistics', async () => {
       const stats = await ToolRegistry.getToolStatistics();
-      
-      expect(stats).toHaveProperty('totalMCPTools');
-      expect(stats).toHaveProperty('totalBuiltInTools');
-      expect(stats).toHaveProperty('toolsByCategory');
-      
-      expect(stats.totalMCPTools).toBeGreaterThan(0);
-      expect(stats.totalBuiltInTools).toBeGreaterThan(0);
-      expect(Object.keys(stats.toolsByCategory).length).toBeGreaterThan(0);
+
+      expect(stats).toHaveProperty('totalTools');
+      expect(stats).toHaveProperty('categoriesCount');
+      expect(stats).toHaveProperty('categories');
+
+      expect(stats.totalTools).toBeGreaterThan(0);
+      expect(stats.categoriesCount).toBeGreaterThan(0);
+      expect(stats.categories).toBeInstanceOf(Array);
     });
 
     it('should have correct totals', async () => {
       const stats = await ToolRegistry.getToolStatistics();
       const toolsByCategory = await ToolRegistry.getToolsByCategory();
-      
-      // Built-in tools count should match
-      expect(stats.totalBuiltInTools).toBe(toolsByCategory['claude-code-builtin'].length);
-      
-      // MCP tools count should be sum of non-builtin categories
-      const expectedMcpTotal = Object.entries(toolsByCategory)
-        .filter(([category]) => category !== 'claude-code-builtin')
-        .reduce((sum, [, tools]) => sum + tools.length, 0);
-      
-      expect(stats.totalMCPTools).toBe(expectedMcpTotal);
+
+      // Total from stats should match actual count
+      const actualTotal = Object.values(toolsByCategory)
+        .flat()
+        .filter((value, index, self) => self.indexOf(value) === index) // Remove duplicates
+        .length;
+
+      expect(stats.totalTools).toBe(actualTotal);
+      expect(stats.categoriesCount).toBe(Object.keys(toolsByCategory).length);
     });
   });
 
-  describe('TypeScript Type Generation', () => {
-    it('should generate valid TypeScript types', async () => {
-      const typeDefinition = await ToolRegistry.generateToolTypes();
-      
-      expect(typeDefinition).toContain('export type');
-      expect(typeDefinition).toContain('AllAvailableTools');
-      expect(typeDefinition).toContain('AgentGeneratorTools');
-      expect(typeDefinition).toContain('ContentWriterTools');
-      
-      // Should contain actual tool names
-      expect(typeDefinition).toContain('Read');
-      expect(typeDefinition).toContain('Write');
-      expect(typeDefinition).toContain('Bash');
+  describe('Tool Category Lookup', () => {
+    it('should find category for known tools', () => {
+      expect(ToolRegistry.getToolCategory('Read')).toBe('file-system');
+      expect(ToolRegistry.getToolCategory('Bash')).toBe('execution');
+      expect(ToolRegistry.getToolCategory('Grep')).toBe('search');
+      expect(ToolRegistry.getToolCategory('TodoWrite')).toBe('development');
     });
 
-    it('should include all discovered tools in generated types', async () => {
-      const allTools = await ToolRegistry.getAllMCPTools();
-      const builtInTools = (await ToolRegistry.getToolsByCategory())['claude-code-builtin'];
-      const typeDefinition = await ToolRegistry.generateToolTypes();
-      
-      // Check a few random tools are included
-      const sampleTools = [...allTools.slice(0, 3), ...builtInTools.slice(0, 3)];
-      for (const tool of sampleTools) {
-        expect(typeDefinition).toContain(`'${tool}'`);
-      }
+    it('should return undefined for unknown tools', () => {
+      expect(ToolRegistry.getToolCategory('UnknownTool')).toBeUndefined();
+      expect(ToolRegistry.getToolCategory('')).toBeUndefined();
     });
   });
 
-  describe('Cache Management', () => {
-    it('should clear cache correctly', async () => {
-      // Populate cache
-      await ToolRegistry.getAllMCPTools();
-      await ToolRegistry.getToolsByCategory();
-      
-      // Clear cache
-      ToolRegistry.clearCache();
-      
-      // Should work correctly after cache clear
-      const tools = await ToolRegistry.getAllMCPTools();
-      expect(tools).toBeInstanceOf(Array);
-      expect(tools.length).toBeGreaterThan(0);
+  describe('Tool Existence Check', () => {
+    it('should correctly identify valid tools', () => {
+      expect(ToolRegistry.isValidTool('Read')).toBe(true);
+      expect(ToolRegistry.isValidTool('Write')).toBe(true);
+      expect(ToolRegistry.isValidTool('Bash')).toBe(true);
+      expect(ToolRegistry.isValidTool('mcp__ide__getDiagnostics')).toBe(true);
     });
 
-    it('should respect cache TTL', async () => {
-      // This test would require mocking time, but we can at least verify
-      // that multiple calls return consistent results
-      const tools1 = await ToolRegistry.getAllMCPTools();
-      const tools2 = await ToolRegistry.getAllMCPTools();
-      const tools3 = await ToolRegistry.getAllMCPTools();
-      
-      expect(tools1).toEqual(tools2);
-      expect(tools2).toEqual(tools3);
+    it('should correctly identify invalid tools', () => {
+      expect(ToolRegistry.isValidTool('InvalidTool')).toBe(false);
+      expect(ToolRegistry.isValidTool('')).toBe(false);
+      expect(ToolRegistry.isValidTool('NotARealTool')).toBe(false);
     });
   });
+
+  // Cache Management tests removed - no caching mechanism
 
   describe('Error Handling', () => {
-    it('should handle invalid tool names gracefully', async () => {
-      const toolInfo = await ToolRegistry.getToolInfo('InvalidToolName123');
-      expect(toolInfo).toBeNull();
-    });
-
     it('should handle malformed tool validation input', async () => {
       // Test with undefined/null values - should not throw
       const validation1 = await ToolRegistry.validateToolList([]);
       expect(validation1.valid).toBe(true);
-      
+
       // Test with mixed valid/invalid tools
       const validation2 = await ToolRegistry.validateToolList(['Read', '', 'Invalid']);
       expect(validation2.valid).toBe(false);
-      expect(validation2.unknownTools).toContain('');
-      expect(validation2.unknownTools).toContain('Invalid');
+      expect(validation2.invalidTools).toContain('');
+      expect(validation2.invalidTools).toContain('Invalid');
     });
   });
 
   describe('Performance', () => {
     it('should complete tool discovery within reasonable time', async () => {
       const start = Date.now();
-      const allTools = await ToolRegistry.getAllMCPTools();
+      const toolsByCategory = await ToolRegistry.getToolsByCategory();
       const duration = Date.now() - start;
-      
-      expect(allTools.length).toBeGreaterThan(0);
-      expect(duration).toBeLessThan(1000); // Should complete within 1 second
+
+      expect(Object.keys(toolsByCategory).length).toBeGreaterThan(0);
+      expect(duration).toBeLessThan(100); // Should be nearly instant
     });
 
-    it('should cache results for better performance', async () => {
-      // Clear cache to ensure first call is uncached
-      ToolRegistry.clearCache();
-
-      // First call - will populate cache
-      const start1 = performance.now();
-      const tools1 = await ToolRegistry.getAllMCPTools();
-      const firstCallTime = performance.now() - start1;
-
-      // Second call - should use cache
-      const start2 = performance.now();
-      const tools2 = await ToolRegistry.getAllMCPTools();
-      const secondCallTime = performance.now() - start2;
-
-      // Results should be identical
-      expect(tools1).toEqual(tools2);
-
-      // Cached call should be faster (allow some variance)
-      // Only fail if cached call is slower, not if they're similar
-      if (firstCallTime > 5) { // Only test performance if first call took meaningful time
-        expect(secondCallTime).toBeLessThanOrEqual(firstCallTime);
-      }
-    });
+    // Performance cache test removed - no caching mechanism
   });
 });

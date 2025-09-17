@@ -5,6 +5,7 @@
 
 import { AgentConfig } from '../types/agent-config.js';
 import { z } from 'zod';
+import path from 'path';
 
 // Schema for claude-code query API options
 const ClaudeCodeOptionsSchema = z.object({
@@ -121,7 +122,7 @@ export function validateAgentConfig(config: unknown): ValidationResult {
         allowedTools: parsedConfig.options.allowedTools,
         disallowedTools: parsedConfig.options.disallowedTools,
         mcpServers: parsedConfig.options.mcpServers,
-        pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js"
+        pathToClaudeCodeExecutable: path.resolve(process.cwd(), "node_modules/@anthropic-ai/claude-code/cli.js")
       };
     }
 

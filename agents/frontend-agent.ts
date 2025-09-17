@@ -2,6 +2,7 @@
 
 import { query } from "@anthropic-ai/claude-code";
 import { AgentConfig } from '../src/types/agent-config.js';
+import path from "path";
 
 const frontendAgent: AgentConfig = {
   name: 'frontend-agent',
@@ -210,7 +211,7 @@ async function runAgent() {
     options: {
       systemPrompt: frontendAgent.options.systemPrompt,
       allowedTools: frontendAgent.options.allowedTools,
-      pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
+      pathToClaudeCodeExecutable: path.resolve(process.cwd(), "node_modules/@anthropic-ai/claude-code/cli.js"),
       mcpServers: frontendAgent.options.mcpServers
     }
   })) {

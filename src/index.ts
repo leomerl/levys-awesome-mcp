@@ -92,7 +92,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
              name.includes('restricted_write') ||
              name.includes('put_summary') ||
              name.includes('get_summary') ||
-             name.includes('get_plan')) {
+             name.includes('get_plan') ||
+             name.includes('get_content_writer_config')) {
       return await handleContentWriterTool(name, args);
     } 
     // Handle code-analyzer tools

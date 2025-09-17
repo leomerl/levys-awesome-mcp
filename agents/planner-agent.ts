@@ -2,6 +2,7 @@
 
 import { query } from "@anthropic-ai/claude-code";
 import { AgentConfig } from '../src/types/agent-config.js';
+import path from "path";
 
 const plannerAgent: AgentConfig = {
   name: 'planner-agent',
@@ -179,7 +180,7 @@ async function runAgent() {
         systemPrompt: plannerAgent.options.systemPrompt,
         model: plannerAgent.options.model,
         allowedTools: plannerAgent.options.allowedTools,
-        pathToClaudeCodeExecutable: "node_modules/@anthropic-ai/claude-code/cli.js",
+        pathToClaudeCodeExecutable: path.resolve(process.cwd(), "node_modules/@anthropic-ai/claude-code/cli.js"),
         mcpServers: plannerAgent.options.mcpServers
       }
     })) {

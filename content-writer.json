@@ -5,7 +5,8 @@
       "src/"
     ],
     "frontend": [
-      "frontend/"
+      "frontend/",
+      "ui/"
     ],
     "agents": [
       "agents/"

@@ -152,6 +152,14 @@ export const contentWriterTools = [
         }
       }
     }
+  },
+  {
+    name: 'get_content_writer_config',
+    description: 'Shows the current content-writer configuration being used, including folder mappings and settings.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {}
+    }
   }
 ];
 
@@ -167,9 +175,36 @@ function resolveFrontendPath(filePath: string, config: ContentWriterConfig): {
   // Use configuration-based approach
   const frontendFolders = getFolderMappings(config, 'frontend');
   const defaultFrontendPath = getDefaultPath(config, 'frontend');
-  
+
+  // If path doesn't start with any configured folder, prepend the default path
+  let processedPath = filePath;
+  const normalizedFilePath = path.normalize(filePath);
+  const hasConfiguredPrefix = frontendFolders.some(folder => {
+    const normalizedFolder = path.normalize(folder);
+    const normalizedFolderNoSlash = normalizedFolder.replace(/[\/\\]$/, '');
+    return normalizedFilePath.startsWith(normalizedFolder) ||
+           normalizedFilePath.startsWith(normalizedFolderNoSlash + path.sep) ||
+           normalizedFilePath.startsWith(normalizedFolderNoSlash + '/') ||
+           normalizedFilePath.startsWith(normalizedFolderNoSlash + '\\');
+  });
+
+  if (!hasConfiguredPrefix) {
+    // Check if we should restrict to configured folders only and the path has an explicit folder prefix
+    if (config.pathValidation.restrictToConfiguredFolders && (filePath.includes('/') || filePath.includes('\\'))) {
+      // Path has a folder prefix but it's not in configured folders - reject
+      return {
+        targetDir: '',
+        targetDirName: '',
+        fullPath: '',
+        isValid: false
+      };
+    }
+    // Prepend default path if no prefix exists or restriction is disabled
+    processedPath = path.join(defaultFrontendPath, filePath);
+  }
+
   // Check if the path is allowed for frontend category
-  if (!isPathAllowed(config, filePath, 'frontend')) {
+  if (!isPathAllowed(config, processedPath, 'frontend')) {
     return {
       targetDir: '',
       targetDirName: '',
@@ -182,12 +217,19 @@ function resolveFrontendPath(filePath: string, config: ContentWriterConfig): {
   for (const frontendFolder of frontendFolders) {
     const normalizedFrontendFolder = path.normalize(frontendFolder);
     const frontendDir = path.join(process.cwd(), normalizedFrontendFolder);
-    
+
     // Check if path starts with this frontend folder
-    if (filePath.startsWith(normalizedFrontendFolder) || filePath.startsWith(normalizedFrontendFolder.replace(/\/$/, ''))) {
+    const normalizedFilePath = path.normalize(filePath);
+    const normalizedFolderNoSlash = normalizedFrontendFolder.replace(/[\/\\]$/, '');
+    if (normalizedFilePath.startsWith(normalizedFrontendFolder) ||
+        normalizedFilePath.startsWith(normalizedFolderNoSlash + path.sep) ||
+        normalizedFilePath.startsWith(normalizedFolderNoSlash + '/') ||
+        normalizedFilePath.startsWith(normalizedFolderNoSlash + '\\')) {
       const cleanPath = filePath.replace(new RegExp(`^${normalizedFrontendFolder.replace(/[\/\\]/g, '[/\\\\]')}`), '');
-      const fullPath = path.resolve(frontendDir, cleanPath);
-      
+      // Remove leading separators and normalize the clean path to handle cross-platform separators
+      const normalizedCleanPath = path.normalize(cleanPath.replace(/^[\/\\]+/, ''));
+      const fullPath = path.resolve(frontendDir, normalizedCleanPath);
+
       // Validate the resolved path is within the frontend directory
       if (fullPath.startsWith(path.resolve(frontendDir))) {
         return {
@@ -199,11 +241,14 @@ function resolveFrontendPath(filePath: string, config: ContentWriterConfig): {
       }
     }
   }
-  
+
   // Default to the primary frontend folder if no specific match
   const defaultDir = path.join(process.cwd(), defaultFrontendPath);
-  const fullPath = path.resolve(defaultDir, filePath);
-  
+  // Normalize the processed path to handle cross-platform separators
+  const normalizedProcessedPath = path.normalize(processedPath);
+  // Since processedPath already includes the default path, resolve against cwd
+  const fullPath = path.resolve(process.cwd(), normalizedProcessedPath);
+
   if (fullPath.startsWith(path.resolve(defaultDir))) {
     return {
       targetDir: defaultDir,
@@ -233,9 +278,36 @@ function resolveBackendPath(filePath: string, config: ContentWriterConfig): {
   // Use configuration-based approach
   const backendFolders = getFolderMappings(config, 'backend');
   const defaultBackendPath = getDefaultPath(config, 'backend');
-  
+
+  // If path doesn't start with any configured folder, prepend the default path
+  let processedPath = filePath;
+  const normalizedFilePath = path.normalize(filePath);
+  const hasConfiguredPrefix = backendFolders.some(folder => {
+    const normalizedFolder = path.normalize(folder);
+    const normalizedFolderNoSlash = normalizedFolder.replace(/[\/\\]$/, '');
+    return normalizedFilePath.startsWith(normalizedFolder) ||
+           normalizedFilePath.startsWith(normalizedFolderNoSlash + path.sep) ||
+           normalizedFilePath.startsWith(normalizedFolderNoSlash + '/') ||
+           normalizedFilePath.startsWith(normalizedFolderNoSlash + '\\');
+  });
+
+  if (!hasConfiguredPrefix) {
+    // Check if we should restrict to configured folders only and the path has an explicit folder prefix
+    if (config.pathValidation.restrictToConfiguredFolders && (filePath.includes('/') || filePath.includes('\\'))) {
+      // Path has a folder prefix but it's not in configured folders - reject
+      return {
+        targetDir: '',
+        targetDirName: '',
+        fullPath: '',
+        isValid: false
+      };
+    }
+    // Prepend default path if no prefix exists or restriction is disabled
+    processedPath = path.join(defaultBackendPath, filePath);
+  }
+
   // Check if the path is allowed for backend category
-  if (!isPathAllowed(config, filePath, 'backend')) {
+  if (!isPathAllowed(config, processedPath, 'backend')) {
     return {
       targetDir: '',
       targetDirName: '',
@@ -248,12 +320,19 @@ function resolveBackendPath(filePath: string, config: ContentWriterConfig): {
   for (const backendFolder of backendFolders) {
     const normalizedBackendFolder = path.normalize(backendFolder);
     const backendDir = path.join(process.cwd(), normalizedBackendFolder);
-    
+
     // Check if path starts with this backend folder
-    if (filePath.startsWith(normalizedBackendFolder) || filePath.startsWith(normalizedBackendFolder.replace(/\/$/, ''))) {
+    const normalizedFilePath = path.normalize(filePath);
+    const normalizedFolderNoSlash = normalizedBackendFolder.replace(/[\/\\]$/, '');
+    if (normalizedFilePath.startsWith(normalizedBackendFolder) ||
+        normalizedFilePath.startsWith(normalizedFolderNoSlash + path.sep) ||
+        normalizedFilePath.startsWith(normalizedFolderNoSlash + '/') ||
+        normalizedFilePath.startsWith(normalizedFolderNoSlash + '\\')) {
       const cleanPath = filePath.replace(new RegExp(`^${normalizedBackendFolder.replace(/[\/\\]/g, '[/\\\\]')}`), '');
-      const fullPath = path.resolve(backendDir, cleanPath);
-      
+      // Remove leading separators and normalize the clean path to handle cross-platform separators
+      const normalizedCleanPath = path.normalize(cleanPath.replace(/^[\/\\]+/, ''));
+      const fullPath = path.resolve(backendDir, normalizedCleanPath);
+
       // Validate the resolved path is within the backend directory
       if (fullPath.startsWith(path.resolve(backendDir))) {
         return {
@@ -265,11 +344,14 @@ function resolveBackendPath(filePath: string, config: ContentWriterConfig): {
       }
     }
   }
-  
+
   // Default to the primary backend folder if no specific match
   const defaultDir = path.join(process.cwd(), defaultBackendPath);
-  const fullPath = path.resolve(defaultDir, filePath);
-  
+  // Normalize the processed path to handle cross-platform separators
+  const normalizedProcessedPath = path.normalize(processedPath);
+  // Since processedPath already includes the default path, resolve against cwd
+  const fullPath = path.resolve(process.cwd(), normalizedProcessedPath);
+
   if (fullPath.startsWith(path.resolve(defaultDir))) {
     return {
       targetDir: defaultDir,
@@ -294,7 +376,8 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
     
     switch (normalizedName) {
       case 'restricted_write':
-      case 'mcp__levys-awesome-mcp__mcp__content-writer__restricted_write': {
+      case 'mcp__levys-awesome-mcp__mcp__content-writer__restricted_write':
+      case 'mcp__levys-awesome-mcp__mcp__restricted_write': {
         const { file_path, content, allowed_folder } = args;
 
         if (!validatePath(file_path)) {
@@ -339,10 +422,15 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
       }
 
       case 'frontend_write':
-      case 'mcp__levys-awesome-mcp__mcp__content-writer__frontend_write': {
+      case 'mcp__levys-awesome-mcp__mcp__content-writer__frontend_write':
+      case 'mcp__levys-awesome-mcp__mcp__frontend_write': {
         const { file_path, content } = args;
 
-        if (!validatePath(file_path)) {
+        // Load configuration with fallback for backward compatibility
+        const config = loadContentWriterConfigWithFallback();
+
+        // Configuration-aware path validation
+        if (!config.pathValidation.allowPathTraversal && file_path.includes('..')) {
           return {
             content: [{
               type: 'text',
@@ -352,8 +440,16 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
           };
         }
 
-        // Load configuration with fallback for backward compatibility
-        const config = loadContentWriterConfigWithFallback();
+        // Basic path validation (no absolute paths)
+        if (file_path.startsWith('/') || file_path.includes('\\..')) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Invalid file path: Absolute paths not allowed'
+            }],
+            isError: true
+          };
+        }
         
         // Resolve frontend path using configuration
         const pathResult = resolveFrontendPath(file_path, config);
@@ -393,10 +489,15 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
       }
 
       case 'backend_write':
-      case 'mcp__levys-awesome-mcp__mcp__content-writer__backend_write': {
+      case 'mcp__levys-awesome-mcp__mcp__content-writer__backend_write':
+      case 'mcp__levys-awesome-mcp__mcp__backend_write': {
         const { file_path, content } = args;
 
-        if (!validatePath(file_path)) {
+        // Load configuration with fallback for backward compatibility
+        const config = loadContentWriterConfigWithFallback();
+
+        // Configuration-aware path validation
+        if (!config.pathValidation.allowPathTraversal && file_path.includes('..')) {
           return {
             content: [{
               type: 'text',
@@ -406,8 +507,16 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
           };
         }
 
-        // Load configuration with fallback for backward compatibility
-        const config = loadContentWriterConfigWithFallback();
+        // Basic path validation (no absolute paths)
+        if (file_path.startsWith('/') || file_path.includes('\\..')) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Invalid file path: Absolute paths not allowed'
+            }],
+            isError: true
+          };
+        }
         
         // Resolve backend path using configuration
         const pathResult = resolveBackendPath(file_path, config);
@@ -691,6 +800,36 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
             content: [{
               type: 'text',
               text: `Error reading summary file: ${error instanceof Error ? error.message : String(error)}`
+            }],
+            isError: true
+          };
+        }
+      }
+
+      case 'get_content_writer_config':
+      case 'mcp__levys-awesome-mcp__mcp__content-writer__get_content_writer_config': {
+        try {
+          // Load the current configuration
+          const config = loadContentWriterConfigWithFallback();
+
+          // Get the current working directory
+          const cwd = process.cwd();
+
+          // Check if config file exists
+          const configPath = path.resolve(cwd, 'content-writer.json');
+          const configFileExists = existsSync(configPath);
+
+          return {
+            content: [{
+              type: 'text',
+              text: `Content Writer Configuration:\n\nWorking Directory: ${cwd}\nConfig File Path: ${configPath}\nConfig File Exists: ${configFileExists}\n\nCurrent Configuration:\n${JSON.stringify(config, null, 2)}\n\n${!configFileExists ? 'Note: Using default configuration since content-writer.json was not found in the project root.' : ''}`
+            }]
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: 'text',
+              text: `Error loading configuration: ${error instanceof Error ? error.message : String(error)}`
             }],
             isError: true
           };

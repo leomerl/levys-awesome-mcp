@@ -74,41 +74,6 @@ export class ConfigNotFoundError extends Error {
   }
 }
 
-/**
- * Creates a default configuration for backward compatibility
- * @returns ContentWriterConfig Default configuration with hardcoded paths
- */
-export function createDefaultConfig(): ContentWriterConfig {
-  return {
-    folderMappings: {
-      backend: ["backend/", "src/"],
-      frontend: ["frontend/"],
-      agents: ["agents/"],
-      docs: ["docs/"],
-      reports: ["reports/"],
-      plans: ["plan_and_progress/"]
-    },
-    defaultPaths: {
-      backend: "src",
-      frontend: "frontend",
-      agents: "agents",
-      docs: "docs",
-      reports: "reports",
-      plans: "plan_and_progress"
-    },
-    pathValidation: {
-      allowPathTraversal: false,
-      restrictToConfiguredFolders: true,
-      createDirectoriesIfNotExist: true
-    },
-    metadata: {
-      version: "1.0.0",
-      description: "Default fallback configuration for backward compatibility",
-      createdBy: "system",
-      lastModified: new Date().toISOString()
-    }
-  };
-}
 
 /**
  * Validates the structure of the configuration object
@@ -116,7 +81,7 @@ export function createDefaultConfig(): ContentWriterConfig {
  * @throws {ConfigValidationError} If the configuration structure is invalid
  */
 function validateConfig(config: unknown): asserts config is ContentWriterConfig {
-  if (!config || typeof config !== 'object') {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) {
     throw new ConfigValidationError('Configuration must be a valid object');
   }
 
@@ -204,10 +169,11 @@ export async function loadContentWriterConfig(
     // Read the configuration file
     const configContent = await fs.promises.readFile(absolutePath, 'utf-8');
     
-    // Parse JSON
+    // Parse JSON (strip BOM if present)
     let parsedConfig: unknown;
     try {
-      parsedConfig = JSON.parse(configContent);
+      const cleanContent = configContent.replace(/^\ufeff/, ''); // Remove BOM
+      parsedConfig = JSON.parse(cleanContent);
     } catch (error) {
       throw new SyntaxError(`Invalid JSON syntax in configuration file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -250,10 +216,11 @@ export function loadContentWriterConfigSync(
     // Read the configuration file synchronously
     const configContent = fs.readFileSync(absolutePath, 'utf-8');
     
-    // Parse JSON
+    // Parse JSON (strip BOM if present)
     let parsedConfig: unknown;
     try {
-      parsedConfig = JSON.parse(configContent);
+      const cleanContent = configContent.replace(/^\ufeff/, ''); // Remove BOM
+      parsedConfig = JSON.parse(cleanContent);
     } catch (error) {
       throw new SyntaxError(`Invalid JSON syntax in configuration file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -274,23 +241,6 @@ export function loadContentWriterConfigSync(
   }
 }
 
-/**
- * Loads configuration with fallback to default values for backward compatibility
- * @param configPath - Optional path to the configuration file (defaults to content-writer.json in project root)
- * @returns ContentWriterConfig The configuration (loaded from file or default fallback)
- */
-export function loadContentWriterConfigWithFallback(
-  configPath: string = 'content-writer.json'
-): ContentWriterConfig {
-  try {
-    return loadContentWriterConfigSync(configPath);
-  } catch (error) {
-    // Log warning but continue with default configuration for backward compatibility
-    console.warn('Warning: Failed to load content-writer configuration file, falling back to default hardcoded paths:', 
-      error instanceof Error ? error.message : String(error));
-    return createDefaultConfig();
-  }
-}
 
 /**
  * Gets the folder mappings for a specific category
@@ -313,6 +263,42 @@ export function getDefaultPath(config: ContentWriterConfig, category: keyof Defa
 }
 
 /**
+ * Creates a default configuration for backward compatibility
+ * @returns ContentWriterConfig Default configuration with hardcoded paths
+ */
+export function createDefaultConfig(): ContentWriterConfig {
+  return {
+    folderMappings: {
+      backend: ["backend/", "src/"],
+      frontend: ["frontend/"],
+      agents: ["agents/"],
+      docs: ["docs/"],
+      reports: ["reports/"],
+      plans: ["plan_and_progress/"]
+    },
+    defaultPaths: {
+      backend: "src",
+      frontend: "frontend",
+      agents: "agents",
+      docs: "docs",
+      reports: "reports",
+      plans: "plan_and_progress"
+    },
+    pathValidation: {
+      allowPathTraversal: false,
+      restrictToConfiguredFolders: true,
+      createDirectoriesIfNotExist: true
+    },
+    metadata: {
+      version: "1.0.0",
+      description: "Default fallback configuration for backward compatibility",
+      createdBy: "system",
+      lastModified: new Date().toISOString()
+    }
+  };
+}
+
+/**
  * Checks if a given path is allowed based on the configuration
  * @param config - The loaded configuration
  * @param filePath - The path to validate
@@ -320,21 +306,44 @@ export function getDefaultPath(config: ContentWriterConfig, category: keyof Defa
  * @returns boolean True if the path is allowed, false otherwise
  */
 export function isPathAllowed(
-  config: ContentWriterConfig, 
-  filePath: string, 
+  config: ContentWriterConfig,
+  filePath: string,
   category: keyof FolderMappings
 ): boolean {
   const allowedPaths = config.folderMappings[category];
-  const normalizedPath = path.normalize(filePath);
-  
-  // Check if path traversal is allowed
-  if (!config.pathValidation.allowPathTraversal && normalizedPath.includes('..')) {
+
+  // Check if path traversal is allowed (check original path before normalization)
+  if (!config.pathValidation.allowPathTraversal && filePath.includes('..')) {
     return false;
   }
+
+  const normalizedPath = path.normalize(filePath);
   
   // Check if path starts with any of the allowed paths for the category
   return allowedPaths.some(allowedPath => {
     const normalizedAllowedPath = path.normalize(allowedPath);
-    return normalizedPath.startsWith(normalizedAllowedPath);
+    const normalizedAllowedPathNoSlash = normalizedAllowedPath.replace(/[\/\\]$/, '');
+    return normalizedPath.startsWith(normalizedAllowedPath) ||
+           normalizedPath.startsWith(normalizedAllowedPathNoSlash + path.sep) ||
+           normalizedPath.startsWith(normalizedAllowedPathNoSlash + '/') ||
+           normalizedPath.startsWith(normalizedAllowedPathNoSlash + '\\');
   });
+}
+
+/**
+ * Loads configuration with fallback to default values for backward compatibility
+ * @param configPath - Optional path to the configuration file (defaults to content-writer.json in project root)
+ * @returns ContentWriterConfig The configuration (loaded from file or default fallback)
+ */
+export function loadContentWriterConfigWithFallback(
+  configPath: string = 'content-writer.json'
+): ContentWriterConfig {
+  try {
+    return loadContentWriterConfigSync(configPath);
+  } catch (error) {
+    // Log warning but continue with default configuration for backward compatibility
+    console.warn('Warning: Failed to load content-writer configuration file, falling back to default hardcoded paths:',
+      error instanceof Error ? error.message : String(error));
+    return createDefaultConfig();
+  }
 }
