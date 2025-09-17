@@ -127,7 +127,9 @@ Always verify the actual mutability and type constraints in the source code befo
       "Grep",
       "mcp__levys-awesome-mcp__backend_write",
       "mcp__levys-awesome-mcp__frontend_write",
-      "mcp__levys-awesome-mcp__docs_write"
+      "mcp__levys-awesome-mcp__docs_write",
+      "mcp__levys-awesome-mcp__put_summary",
+      "mcp__levys-awesome-mcp__buildbackend"
     ],
     mcpServers: {
       "levys-awesome-mcp": {

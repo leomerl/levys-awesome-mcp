@@ -1,0 +1,258 @@
+name: Static Test Coverage Detector
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - '**/*.ts'
+      - '**/*.tsx'
+  workflow_dispatch:
+    inputs:
+      create_issues:
+        description: 'Create GitHub issues for missing tests'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  detect-missing-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@leomerl'
+
+      - name: Install MCP package from GitHub Packages
+        run: |
+          echo "Installing MCP package from GitHub Packages registry..."
+          # Install the specific package from GitHub Packages
+          npm install @leomerl/levys-awesome-mcp@latest --registry=https://npm.pkg.github.com
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install project dependencies
+        run: |
+          npm ci
+          npm install -g tsx
+
+      - name: Build project
+        run: npm run build
+
+      - name: Configure gh CLI
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+          gh auth status
+
+      - name: Run static test absence detector
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_CI: 'true'
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          CREATE_ISSUES: ${{ github.event.inputs.create_issues || 'false' }}
+        run: |
+          echo "Running static test absence detector..."
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Event: $GITHUB_EVENT_NAME"
+          echo "PR: ${GITHUB_PR_NUMBER:-none}"
+          echo "Create Issues: $CREATE_ISSUES"
+
+          # Prepare the prompt based on the context
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            PROMPT="Analyze the changed files in PR #${GITHUB_PR_NUMBER} for missing static type tests. \
+                    You are running in GitHub Actions for repository ${GITHUB_REPOSITORY}. \
+                    Comment on the PR with a summary of findings using 'gh pr comment ${GITHUB_PR_NUMBER}'. \
+                    DO NOT create issues for PR analysis. \
+                    The gh CLI is already authenticated with GITHUB_TOKEN."
+          elif [ "$GITHUB_EVENT_NAME" = "schedule" ] || [ "$CREATE_ISSUES" = "true" ]; then
+            PROMPT="Perform comprehensive analysis of the entire codebase for missing static type tests. \
+                    You are running in GitHub Actions for repository ${GITHUB_REPOSITORY}. \
+                    Create GitHub issues for each file or component that needs tests using 'gh issue create'. \
+                    The gh CLI is already authenticated. \
+                    Use these labels: 'static-tests', 'type-coverage', 'technical-debt'. \
+                    Set milestone to 'Static Test Coverage' if it exists (check with 'gh api repos/${GITHUB_REPOSITORY}/milestones')."
+          else
+            PROMPT="Analyze the codebase for missing static type tests and generate a report. \
+                    You are running in GitHub Actions for repository ${GITHUB_REPOSITORY}. \
+                    Save findings to reports/ directory but do not create issues or PRs."
+          fi
+
+          # Run the agent
+          npx tsx agents/static-test-absence-detector.ts "$PROMPT"
+
+      - name: Upload analysis reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-coverage-analysis-${{ github.run_number }}
+          path: |
+            reports/
+            plan_and_progress/
+          retention-days: 30
+
+      - name: Post PR summary comment
+        if: github.event_name == 'pull_request' && always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if a summary report exists
+          SUMMARY_FILE=$(find reports -name "*-summary.json" -type f 2>/dev/null | head -1)
+          if [ -n "$SUMMARY_FILE" ] && [ -f "$SUMMARY_FILE" ]; then
+            echo "Found summary at: $SUMMARY_FILE"
+
+            # Extract metrics from the summary
+            TOTAL_FILES=$(jq -r '.metrics.total_files_analyzed // 0' "$SUMMARY_FILE")
+            FILES_NEEDING_TESTS=$(jq -r '.metrics.files_needing_tests // 0' "$SUMMARY_FILE")
+            FILES_PARTIAL=$(jq -r '.metrics.files_with_partial_coverage // 0' "$SUMMARY_FILE")
+            FILES_COMPLETE=$(jq -r '.metrics.files_with_complete_coverage // 0' "$SUMMARY_FILE")
+
+            # Extract top missing coverage items (if any)
+            MISSING_FILES=$(jq -r '.missing_coverage_analysis.files_needing_tests[:3] | map("- `" + .file_path + "`: " + (.functions_needing_tests | length | tostring) + " functions, " + (.types_needing_tests | length | tostring) + " types") | join("\n")' "$SUMMARY_FILE" 2>/dev/null || echo "")
+
+            # Create a detailed comment
+            COMMENT_BODY="## 📊 Static Test Coverage Analysis
+
+**Summary:**
+- **Total Files Analyzed:** ${TOTAL_FILES}
+- **Files Needing Tests:** ${FILES_NEEDING_TESTS}
+- **Files with Partial Coverage:** ${FILES_PARTIAL}
+- **Files with Complete Coverage:** ${FILES_COMPLETE}"
+
+            if [ -n "$MISSING_FILES" ]; then
+              COMMENT_BODY="${COMMENT_BODY}
+
+**Top Files Needing Tests:**
+${MISSING_FILES}"
+            fi
+
+            COMMENT_BODY="${COMMENT_BODY}
+
+📁 [View detailed reports](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+_Generated by Static Test Detector Agent_"
+
+            # Post the comment
+            gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT_BODY"
+          else
+            echo "No summary report found, skipping PR comment"
+          fi
+
+  # Claude Code job to process reports and create detailed issues
+  claude-create-issues:
+    needs: detect-missing-tests
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'schedule' || github.event.inputs.create_issues == 'true') && always()
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download analysis reports
+        uses: actions/download-artifact@v4
+        with:
+          name: test-coverage-analysis-${{ github.run_number }}
+          path: ./analysis-reports
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Claude CLI
+        run: |
+          npm install -g @anthropics/claude-cli
+          # Verify installation
+          claude --version || echo "Claude CLI installed"
+
+      - name: Configure gh CLI
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+          gh auth status
+
+      - name: Process reports and create issues with Claude Code
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_URL: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: |
+          echo "Processing analysis reports with Claude Code..."
+
+          # Find the summary report
+          SUMMARY_FILE=$(find ./analysis-reports -name "*-summary.json" -type f | head -1)
+
+          if [ -n "$SUMMARY_FILE" ] && [ -f "$SUMMARY_FILE" ]; then
+            echo "Found summary report: $SUMMARY_FILE"
+
+            # Extract key metrics
+            FILES_NEEDING_TESTS=$(jq -r '.metrics.files_needing_tests // 0' "$SUMMARY_FILE")
+
+            if [ "$FILES_NEEDING_TESTS" -gt 0 ]; then
+              # Use Claude Code to process the report and create issues
+              claude --no-interactive <<EOF
+              I have a static test coverage analysis report from a GitHub Actions workflow.
+              Please read the report and create detailed GitHub issues for each file that needs static type tests.
+
+              Repository: ${GITHUB_REPOSITORY}
+              Workflow Run: ${GITHUB_RUN_URL}
+              Report location: ${SUMMARY_FILE}
+
+              Instructions:
+              1. Read the summary report at ${SUMMARY_FILE}
+              2. For each file in missing_coverage_analysis.files_needing_tests, create a GitHub issue using 'gh issue create'
+              3. Each issue should:
+                 - Have a clear title like "Add static type tests for [filename]"
+                 - Include the specific functions and types that need tests
+                 - Add labels: "static-tests", "type-coverage", "technical-debt"
+                 - Reference this workflow run: ${GITHUB_RUN_URL}
+                 - Mention that this was detected by Claude Code's static test analysis
+              4. Group related files into a single issue if they're part of the same module
+              5. Prioritize based on the complexity field in the report
+
+              The gh CLI is already authenticated. Start by reading the report file.
+EOF
+            else
+              echo "No files need tests according to the report. Skipping issue creation."
+            fi
+          else
+            echo "No summary report found. Creating diagnostic issue..."
+
+            # Create an issue about the missing report
+            gh issue create \
+              --title "Static Test Analysis: Report Generation Failed" \
+              --body "The static test analysis workflow ran but didn't generate a summary report.
+
+              **Workflow Run:** ${GITHUB_RUN_URL}
+              **Trigger:** ${{ github.event_name }}
+
+              Please check the workflow logs for errors.
+
+              _Created by Claude Code automation_" \
+              --label "bug" \
+              --label "static-tests"
+          fi
