@@ -80,7 +80,7 @@ jobs:
   create-issues:
     needs: analyze-static-tests
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' && success()
+    if: github.event.inputs.create_issues == 'true' && success()
     permissions:
       contents: read
       issues: write
