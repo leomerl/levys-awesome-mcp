@@ -91,26 +91,11 @@ jobs:
       id-token: write
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Download analysis reports
         uses: actions/download-artifact@v4
         with:
           name: static-test-analysis-${{ github.run_number }}
           path: ./analysis-reports
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build project
-        run: npm run build
 
       - name: Configure gh CLI
         run: |
@@ -121,17 +106,14 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: |
-            --mcp-config '{"mcpServers": {"levys-awesome-mcp": {"command": "node", "args": ["dist/src/index.js"]}}}'
-            --allowedTools mcp__levys-awesome-mcp__invoke_agent,mcp__levys-awesome-mcp__list_agents,mcp__levys-awesome-mcp__get_summary
           prompt: |
             I need you to create GitHub issues based on the static test analysis report. Please:
 
-            1. Read the analysis report from ./analysis-reports/ directory
-            2. Use the get_summary tool to get the analysis summary
+            1. Read the analysis report files from ./analysis-reports/ directory
+            2. Examine the JSON reports to understand what static type tests are missing
             3. Create GitHub issues for files/functions that need static type tests
             4. Create one issue per gap or group related gaps logically
-            5. Use the authenticated gh CLI to create issues
+            5. Use the authenticated gh CLI to create issues with proper titles and descriptions
 
             Context:
             - Repository: ${{ github.repository }}
@@ -139,3 +121,4 @@ jobs:
             - Event: ${{ github.event_name }}
 
             The gh CLI is already authenticated with GITHUB_TOKEN for creating issues.
+            Use standard tools like Read and Bash to examine the reports and create issues.
