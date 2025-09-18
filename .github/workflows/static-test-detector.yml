@@ -109,11 +109,11 @@ jobs:
           fi
 
           # Run the agent
-          echo "Executing: npx tsx agents/static-test-detector.ts"
+          echo "Executing: npx tsx agents/static-test-absence-detector.ts"
           echo "Prompt: $PROMPT"
 
-          if ! npx tsx agents/static-test-detector.ts "$PROMPT"; then
-            echo "Error: static-test-detector failed"
+          if ! npx tsx agents/static-test-absence-detector.ts "$PROMPT"; then
+            echo "Error: static-test-absence-detector failed"
             echo "Exit code: $?"
             exit 1
           fi

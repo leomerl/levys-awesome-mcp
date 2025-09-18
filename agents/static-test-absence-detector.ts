@@ -224,5 +224,8 @@ async function runAgent() {
 
 // Only run when script is called directly (not when imported)
 if (import.meta.url === `file://${process.argv[1]}`) {
-  runAgent().catch(console.error);
+  runAgent().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
 }
