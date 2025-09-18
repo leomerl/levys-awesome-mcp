@@ -1,11 +1,6 @@
 name: Static Test Coverage Detector
 
 on:
-  pull_request:
-    types: [opened, synchronize]
-    paths:
-      - '**/*.ts'
-      - '**/*.tsx'
   workflow_dispatch:
     inputs:
       create_issues:
@@ -85,7 +80,7 @@ jobs:
   create-issues:
     needs: analyze-static-tests
     runs-on: ubuntu-latest
-    if: (github.event_name == 'schedule' || github.event.inputs.create_issues == 'true') && success()
+    if: github.event_name == 'schedule' && success()
     permissions:
       contents: read
       issues: write

@@ -47,14 +47,10 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
             --mcp-config '{"mcpServers": {"levys-awesome-mcp": {"command": "node", "args": ["dist/src/index.js"]}}}'
-            --allowedTools mcp__levys-awesome-mcp__invoke_agent,mcp__levys-awesome-mcp__list_agents,mcp__levys-awesome-mcp__backend_write,mcp__levys-awesome-mcp__frontend_write,Read,Glob,Grep,Bash(gh pr create:*),Bash(git:*)
+            --allowedTools mcp__levys-awesome-mcp__invoke_agent,mcp__levys-awesome-mcp__list_agents,mcp__levys-awesome-mcp__backend_write,mcp__levys-awesome-mcp__frontend_write,Read,Glob,Grep,Bash(gh issue comment:*),Bash(gh api:*)
           allowed_bots: claude
           prompt: |
-            I need you to create static type tests for TypeScript code. Here's the plan:
-
-            1. First, react with an emoji to acknowledge the request
-            2. Invoke the static-test-creator agent to analyze the code and create tests
-            3. After the agent completes, use bash commands to handle git operations and PR creation
+            I need you to create static type tests for TypeScript code. Please complete steps 1 and 2:
 
             Issue details:
             ${{ github.event_name == 'issue_comment' && format('Based on this issue comment: {0}', github.event.comment.body) || format('Based on this GitHub issue: {0}', github.event.issue.body) }}
@@ -70,7 +66,23 @@ jobs:
 
             Read the target file(s), identify functions/types that need static tests, generate comprehensive compile-time tests using the test dictionary pattern, and add the tests to the same file(s). Ensure all tests compile correctly."
 
-            Step 3: After the agent completes the test creation, use bash commands to:
+            Context:
+            - Repository: ${{ github.repository }}
+            - Issue: #${{ github.event.issue.number }}
+            - Event: ${{ github.event_name }}
+            - Workflow Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Handle Git Operations and PR Creation
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --allowedTools Bash(npm run build:*),Bash(git:*),Bash(gh pr create:*),Bash(gh issue comment:*)
+          allowed_bots: claude
+          prompt: |
+            Now complete step 3 - handle git operations and PR creation:
+
+            Step 3: Use bash commands to:
             - Try to build the project with npm run build
             - If build fails, comment "@static-test-creator The build failed after adding tests. Please fix the compilation errors." and stop
             - If build succeeds, continue with:
