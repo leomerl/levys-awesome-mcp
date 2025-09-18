@@ -204,6 +204,13 @@ async function runAgent() {
     process.exit(1);
   }
 
+  // Check for API key
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error('Error: ANTHROPIC_API_KEY environment variable is not set');
+    console.error('Please set it before running the agent');
+    process.exit(1);
+  }
+
   console.log("Running Analyzes TypeScript code to detect missing compile-time type tests for generic functions, conditional types, and type transformations...");
   console.log(`Prompt: ${prompt}\n`);
 
@@ -216,8 +223,11 @@ async function runAgent() {
         console.log(message.text);
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to execute agent:", error);
+    if (error.message?.includes('process exited with code 1')) {
+      console.error('This usually means the ANTHROPIC_API_KEY is invalid or missing');
+    }
     process.exit(1);
   }
 }
