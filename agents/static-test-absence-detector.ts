@@ -1,24 +1,7 @@
 #!/usr/bin/env tsx
 
+import { query } from "@anthropic-ai/claude-code";
 import { AgentConfig } from '../src/types/agent-config.js';
-
-// Try to import Claude Code SDK, fall back to Anthropic SDK if not available
-let claudeCodeQuery: any = null;
-let Anthropic: any = null;
-
-try {
-  const claudeCode = await import("@anthropic-ai/claude-code");
-  claudeCodeQuery = claudeCode.query;
-} catch (error) {
-  console.log("Claude Code SDK not available, will use direct Anthropic SDK");
-}
-
-try {
-  const anthropicModule = await import('@anthropic-ai/sdk');
-  Anthropic = anthropicModule.default;
-} catch (error) {
-  console.log("Anthropic SDK not available");
-}
 
 const statictestabsencedetectorAgent: AgentConfig = {
   name: "static-test-absence-detector",
@@ -233,90 +216,19 @@ async function runAgent() {
   console.log("- GitHub CI:", process.env.GITHUB_CI || "false");
 
   try {
-    // Try Claude Code SDK first, fall back to Anthropic SDK
-    let success = false;
-
-    if (claudeCodeQuery) {
-      console.log("Attempting to use Claude Code SDK...");
-      try {
-        for await (const message of claudeCodeQuery({
-          prompt,
-          options: statictestabsencedetectorAgent.options
-        })) {
-          if (message.type === "text" && "text" in message) {
-            console.log((message as any).text);
-          }
-        }
-        success = true;
-      } catch (error: any) {
-        console.error("Claude Code SDK failed:", error.message);
-        if (error.message?.includes('process exited with code 1')) {
-          console.log("Falling back to direct Anthropic SDK...");
-        } else {
-          // If it's not a process exit error, re-throw
-          throw error;
-        }
+    console.log("Using Claude Code SDK...");
+    for await (const message of query({
+      prompt,
+      options: statictestabsencedetectorAgent.options
+    })) {
+      if (message.type === "text" && "text" in message) {
+        console.log((message as any).text);
       }
-    }
-
-    // Fallback to direct Anthropic SDK if Claude Code failed or isn't available
-    if (!success && Anthropic) {
-      console.log("Using direct Anthropic SDK...");
-      try {
-        const anthropic = new Anthropic({
-          apiKey: process.env.ANTHROPIC_API_KEY,
-        });
-
-        const stream = await anthropic.messages.create({
-          model: "sonnet",
-          max_tokens: 8192,
-          system: statictestabsencedetectorAgent.options?.systemPrompt || "",
-          messages: [
-            {
-              role: "user",
-              content: prompt
-            }
-          ],
-          stream: true
-        });
-
-        for await (const messageStreamEvent of stream) {
-          if (messageStreamEvent.type === 'content_block_delta' &&
-              messageStreamEvent.delta.type === 'text_delta') {
-            process.stdout.write(messageStreamEvent.delta.text);
-          }
-        }
-        console.log(); // Add newline at the end
-        success = true;
-      } catch (error: any) {
-        console.error("Failed to execute with Anthropic SDK:", error);
-        if (error.message?.includes('401') || error.message?.includes('authentication')) {
-          console.error('This usually means the ANTHROPIC_API_KEY is invalid');
-        }
-        throw error;
-      }
-    }
-
-    if (!success) {
-      console.error("No available SDK found. Please install either @anthropic-ai/claude-code or @anthropic-ai/sdk");
-      process.exit(1);
     }
   } catch (error: any) {
     console.error("Failed to execute agent:", error);
-    if (error.status === 401 || error.message?.includes('401') || error.message?.includes('authentication')) {
-      console.error('');
-      console.error('🔑 AUTHENTICATION ERROR');
-      console.error('The ANTHROPIC_API_KEY appears to be invalid or missing.');
-      console.error('');
-      console.error('In GitHub Actions:');
-      console.error('- Verify the ANTHROPIC_API_KEY secret is properly set in repository settings');
-      console.error('- Ensure the API key has not expired');
-      console.error('- Check that the API key has the correct permissions');
-      console.error('');
-      console.error('For local development:');
-      console.error('- Set ANTHROPIC_API_KEY environment variable');
-      console.error('- Verify the API key is valid and active');
-      console.error('');
+    if (error.message?.includes('process exited with code 1')) {
+      console.error('The Claude Code process exited with an error. This usually means there is an issue with the ANTHROPIC_API_KEY or Claude Code setup.');
     }
     process.exit(1);
   }
