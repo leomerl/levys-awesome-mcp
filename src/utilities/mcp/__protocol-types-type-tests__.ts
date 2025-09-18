@@ -734,7 +734,7 @@ type TestValidRequestBrand = Expect<Equal<
 >>;
 
 type TestInvalidRequestBrand = Expect<Equal<
-  ValidateRequestBrand<{ jsonrpc: '2.0' } as MCPRequest>,
+  ValidateRequestBrand<({ jsonrpc: '2.0' } as MCPRequest)>,
   never
 >>;
 
