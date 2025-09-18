@@ -113,10 +113,11 @@ jobs:
 
             1. Read the analysis report files from ./reports/ directory
             2. Examine the JSON reports to understand what static type tests are missing
-            3. Create GitHub issues for files/functions that need static type tests
-            4. Create one issue per gap or group related gaps logically
-            5. Use the authenticated gh CLI to create issues with proper titles and descriptions
-            6. In each issue description, include @claude to mention him and tell him to fix it
+            3. First, use gh issue list to check existing open issues and avoid duplicates
+            4. Create GitHub issues for files/functions that need static type tests
+            5. Create one issue per gap or group related gaps logically
+            6. Use the authenticated gh CLI to create issues with proper titles and descriptions
+            7. In each issue description, include @claude to mention him and tell him to fix it
 
             Context:
             - Repository: ${{ github.repository }}
