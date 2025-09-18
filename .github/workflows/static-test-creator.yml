@@ -64,6 +64,8 @@ jobs:
             - Functions with complex parameter types
             - Any code that uses 'any' type that should have proper type definitions
 
+            Step 3: Build the code and fix errors
+
             Read the target file(s), identify functions/types that need static tests, generate comprehensive compile-time tests using the test dictionary pattern, and add the tests to the same file(s). Ensure all tests compile correctly."
 
             Context:
@@ -80,7 +82,7 @@ jobs:
             --allowedTools Bash(npm run build:*),Bash(git:*),Bash(gh pr create:*),Bash(gh issue comment:*)
           allowed_bots: claude
           prompt: |
-            Now complete step 3 - handle git operations and PR creation:
+            Now complete step 4 - handle git operations and PR creation:
 
             Step 3: Use bash commands to:
             - Create a new branch for the changes using git commands
