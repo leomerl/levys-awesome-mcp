@@ -1,231 +1,498 @@
 /**
- * Agent Configuration Parser and Validator
- * Handles parsing, validation, and normalization of agent configurations
+ * Agent configuration parser with comprehensive validation
  */
 
-import { AgentConfig, AgentConfigLegacy } from '../../types/agent-config.js';
-import { ValidationUtils } from '../config/validation.js';
+import { z } from 'zod';
+import type { 
+  AgentConfig, 
+  AgentConfigLegacy
+} from '../../types/agent-config.js';
 
+// Define types locally since they're not in agent-config.ts
+type AgentModel = 'sonnet' | 'opus' | 'haiku';
+type AgentOptions = {
+  maxTokens?: number;
+  temperature?: number;
+  streaming?: boolean;
+  saveToFile?: boolean;
+};
+
+/**
+ * Zod schema for agent configuration validation
+ */
+const AgentConfigSchema = z.object({
+  name: z.string()
+    .min(1, 'Agent name is required')
+    .regex(/^[a-z0-9-]+$/, 'Agent name must be lowercase alphanumeric with hyphens'),
+  description: z.string().min(1, 'Description is required'),
+  systemPrompt: z.string().min(1, 'System prompt is required'),
+  model: z.enum(['sonnet', 'opus', 'haiku'] as const).optional(),
+  allowedTools: z.array(z.string()).optional(),
+  mcpServers: z.array(z.object({
+    name: z.string(),
+    config: z.object({
+      command: z.string().optional(),
+      env: z.record(z.string()).optional(),
+      args: z.array(z.string()).optional()
+    })
+  })).optional(),
+  options: z.object({
+    maxTokens: z.number().positive().optional(),
+    temperature: z.number().min(0).max(2).optional(),
+    streaming: z.boolean().optional(),
+    saveToFile: z.boolean().optional()
+  }).optional(),
+  permissions: z.object({
+    mode: z.enum(['default', 'acceptEdits', 'ask'] as const).optional(),
+    tools: z.object({
+      allowed: z.array(z.string()),
+      denied: z.array(z.string())
+    }).optional(),
+    mcpServers: z.record(z.enum(['allow', 'deny', 'ask'] as const)).optional()
+  }).optional()
+});
+
+// Extended AgentConfig interface with required fields
+interface ParsedAgentConfig extends AgentConfig {
+  name: string;
+  description: string;
+  systemPrompt: string;
+  model?: string; // Made optional to match AgentConfig
+}
+
+/**
+ * Configuration validation result type
+ */
 export interface ConfigValidationResult {
   isValid: boolean;
   errors: string[];
   warnings: string[];
-  normalizedConfig?: AgentConfig;
+  normalizedConfig?: ParsedAgentConfig;
 }
 
+/**
+ * Configuration parser with enhanced error handling and validation
+ */
 export class AgentConfigParser {
   /**
-   * Parse and validate agent configuration
+   * Parse and validate raw configuration input
    */
   static parseAndValidate(rawConfig: any): ConfigValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
-
-    // Check for required fields
-    if (!rawConfig || typeof rawConfig !== 'object') {
-      return {
-        isValid: false,
-        errors: ['Configuration must be an object'],
-        warnings: []
-      };
-    }
-
-    if (!rawConfig.name || typeof rawConfig.name !== 'string') {
-      errors.push('Missing or invalid name field');
-    } else if (!ValidationUtils.validateAgentName(rawConfig.name)) {
-      errors.push('Invalid agent name format (alphanumeric, hyphens, underscores only)');
-    }
-
-    if (!rawConfig.description || typeof rawConfig.description !== 'string') {
-      errors.push('Missing or invalid description field');
-    }
-
-    // Stop if critical errors found
-    if (errors.length > 0) {
-      return {
-        isValid: false,
-        errors,
-        warnings
-      };
-    }
-
+    
     try {
-      const normalizedConfig = this.normalizeConfig(rawConfig);
+      const result = AgentConfigSchema.safeParse(rawConfig);
       
-      // Validate normalized config
-      const validationErrors = this.validateNormalizedConfig(normalizedConfig);
-      errors.push(...validationErrors);
-
-      // Check for warnings
-      const configWarnings = this.checkConfigWarnings(normalizedConfig);
-      warnings.push(...configWarnings);
-
+      if (!result.success) {
+        result.error.issues.forEach(issue => {
+          errors.push(`${issue.path.join('.')}: ${issue.message}`);
+        });
+        
+        return {
+          isValid: false,
+          errors,
+          warnings
+        };
+      }
+      
+      // Check for warnings (optional fields that could be improved)
+      if (!result.data.model) {
+        warnings.push('No model specified, defaulting to sonnet');
+      }
+      
+      const normalizedConfig = this.normalizeConfig(result.data);
+      
       return {
-        isValid: errors.length === 0,
+        isValid: true,
         errors,
         warnings,
-        normalizedConfig: errors.length === 0 ? normalizedConfig : undefined
+        normalizedConfig
       };
     } catch (error) {
+      errors.push(error instanceof Error ? error.message : 'Unknown parsing error');
       return {
         isValid: false,
-        errors: [`Configuration parsing error: ${error instanceof Error ? error.message : String(error)}`],
+        errors,
         warnings
       };
     }
   }
-
+  
   /**
-   * Normalize configuration from various formats to standard format
+   * Normalize configuration with defaults
    */
-  static normalizeConfig(rawConfig: any): AgentConfig {
-    const config: AgentConfig = {
-      name: rawConfig.name,
-      description: rawConfig.description
+  static normalizeConfig(rawConfig: any): ParsedAgentConfig {
+    const config = rawConfig as Partial<AgentConfig>;
+    
+    const defaults: ParsedAgentConfig = {
+      name: config.name || '',
+      description: config.description || '',
+      systemPrompt: config.systemPrompt || config.prompt || '',
+      model: config.model || 'sonnet',
+      permissions: {
+        mode: config.permissions?.mode || 'default',
+        tools: config.permissions?.tools || {
+          allowed: [],
+          denied: []
+        },
+        mcpServers: config.permissions?.mcpServers || {}
+      },
+      context: config.context || {
+        maxTokens: 4096,
+        temperature: 0.7
+      },
+      options: config.options,
+      color: config.color
     };
-
-    // Handle different configuration structures
-    if (rawConfig.options) {
-      // New format
-      config.options = {
-        systemPrompt: rawConfig.options.systemPrompt || rawConfig.systemPrompt || '',
-        model: rawConfig.options.model || rawConfig.model || 'claude-3-5-sonnet-20241022',
-        allowedTools: rawConfig.options.allowedTools || [],
-        mcpServers: rawConfig.options.mcpServers || undefined
-      };
-    } else if (rawConfig.permissions) {
-      // Legacy format - convert to new format
-      config.options = {
-        systemPrompt: rawConfig.systemPrompt || '',
-        model: rawConfig.model || 'claude-3-5-sonnet-20241022',
-        allowedTools: rawConfig.permissions.tools?.allowed || [],
-        mcpServers: undefined // Legacy format doesn't use mcpServers in options
-      };
-
-      // Store legacy permissions for compatibility
-      config.permissions = rawConfig.permissions;
-    } else {
-      // Basic format - create minimal options
-      config.options = {
-        systemPrompt: rawConfig.systemPrompt || rawConfig.prompt || '',
-        model: rawConfig.model || 'claude-3-5-sonnet-20241022',
-        allowedTools: rawConfig.allowedTools || [],
-        mcpServers: rawConfig.mcpServers || undefined
-      };
-    }
-
-    // Set other properties
-    config.systemPrompt = config.options.systemPrompt;
-    config.model = config.options.model;
-    config.color = rawConfig.color;
-
-    // Handle legacy context
-    if (rawConfig.context) {
-      config.context = rawConfig.context;
-    }
-
-    return config;
+    
+    return defaults;
   }
-
+  
   /**
-   * Validate normalized configuration
+   * Convert legacy configuration format to new format
    */
-  private static validateNormalizedConfig(config: AgentConfig): string[] {
-    const errors: string[] = [];
-
-    // Validate options
-    if (!config.options) {
-      errors.push('Missing options configuration');
-      return errors;
-    }
-
-
-    // Validate model
-    if (!config.options.model || typeof config.options.model !== 'string') {
-      errors.push('Missing or invalid model specification');
-    }
-
-    // Validate system prompt
-    if (!ValidationUtils.isNonEmptyString(config.options.systemPrompt)) {
-      errors.push('Missing or empty system prompt');
-    }
-
-    // Validate tools array
-    if (!Array.isArray(config.options.allowedTools)) {
-      errors.push('allowedTools must be an array');
-    }
-
-    // Validate MCP servers (now optional, can be object or undefined)
-    if (config.options.mcpServers && 
-        typeof config.options.mcpServers !== 'object') {
-      errors.push('mcpServers must be an object if provided');
-    }
-
-    return errors;
+  static convertLegacyConfig(legacyConfig: AgentConfigLegacy): ParsedAgentConfig {
+    return {
+      name: legacyConfig.name,
+      description: legacyConfig.description || '',
+      systemPrompt: legacyConfig.systemPrompt || '',
+      model: this.mapLegacyModel(legacyConfig.model),
+      permissions: legacyConfig.permissions,
+      context: legacyConfig.context,
+      color: legacyConfig.color
+    };
   }
-
+  
   /**
-   * Check for configuration warnings
+   * Map legacy model names to new format
    */
-  private static checkConfigWarnings(config: AgentConfig): string[] {
-    const warnings: string[] = [];
-
-    if (!config.options) return warnings;
-
-    // Check for empty system prompt
-    if (config.options.systemPrompt && !config.options.systemPrompt.trim()) {
-      warnings.push('System prompt is empty - agent may not behave as expected');
-    }
-
-    // Check for very long system prompt
-    if (config.options.systemPrompt && config.options.systemPrompt.length > 10000) {
-      warnings.push('System prompt is very long - consider breaking it down');
-    }
-
-
-    // Check for no allowed tools
-    if (config.options.allowedTools && config.options.allowedTools.length === 0) {
-      warnings.push('No tools allowed - agent will have limited capabilities');
-    }
-
-    // Check for deprecated model
-    if (config.options.model && config.options.model.includes('claude-2')) {
-      warnings.push('Using deprecated Claude-2 model - consider upgrading to Claude-3');
-    }
-
-    return warnings;
+  private static mapLegacyModel(model: string | undefined): string {
+    const modelMap: Record<string, AgentModel> = {
+      'claude-3-sonnet': 'sonnet',
+      'claude-3-opus': 'opus', 
+      'claude-3-haiku': 'haiku',
+      'sonnet': 'sonnet',
+      'opus': 'opus',
+      'haiku': 'haiku'
+    };
+    
+    return modelMap[model || ''] || 'sonnet';
   }
-
+  
   /**
-   * Convert legacy configuration to new format
+   * Merge multiple configurations with priority
    */
-  static convertLegacyConfig(legacyConfig: AgentConfigLegacy): AgentConfig {
-    return this.normalizeConfig(legacyConfig);
-  }
-
-  /**
-   * Merge configurations (base config + overrides)
-   */
-  static mergeConfigs(baseConfig: AgentConfig, overrides: Partial<AgentConfig>): AgentConfig {
-    const merged: AgentConfig = JSON.parse(JSON.stringify(baseConfig)); // Deep clone
-
-    // Merge top-level properties
-    Object.assign(merged, overrides);
-
-    // Merge options if provided
-    if (overrides.options) {
-      merged.options = {
-        ...merged.options,
+  static mergeConfigs(baseConfig: AgentConfig, overrides: Partial<AgentConfig>): ParsedAgentConfig {
+    const merged = {
+      ...baseConfig,
+      ...overrides,
+      permissions: {
+        ...baseConfig.permissions,
+        ...overrides.permissions,
+        tools: {
+          ...baseConfig.permissions?.tools,
+          ...overrides.permissions?.tools
+        },
+        mcpServers: {
+          ...baseConfig.permissions?.mcpServers,
+          ...overrides.permissions?.mcpServers
+        }
+      },
+      context: {
+        ...baseConfig.context,
+        ...overrides.context
+      },
+      options: {
+        ...baseConfig.options,
         ...overrides.options
-      };
+      }
+    };
+    
+    return this.normalizeConfig(merged);
+  }
+  
+  /**
+   * Validate configuration against schema
+   */
+  static validate(config: AgentConfig): boolean {
+    const result = AgentConfigSchema.safeParse(config);
+    return result.success;
+  }
+  
+  /**
+   * Get validation errors for configuration
+   */
+  static getValidationErrors(config: any): string[] {
+    const result = AgentConfigSchema.safeParse(config);
+    
+    if (result.success) {
+      return [];
     }
-
-    // Ensure consistency
-    if (merged.options) {
-      merged.systemPrompt = merged.options.systemPrompt;
-      merged.model = merged.options.model;
-    }
-
-    return merged;
+    
+    return result.error.issues.map(issue => 
+      `${issue.path.join('.')}: ${issue.message}`
+    );
+  }
+  
+  /**
+   * Create empty configuration template
+   */
+  static createTemplate(): ParsedAgentConfig {
+    return {
+      name: '',
+      description: '',
+      systemPrompt: '',
+      model: 'sonnet',
+      permissions: {
+        mode: 'default',
+        tools: {
+          allowed: [],
+          denied: []
+        },
+        mcpServers: {}
+      },
+      context: {
+        maxTokens: 4096,
+        temperature: 0.7
+      }
+    };
+  }
+  
+  /**
+   * Check if configuration is complete
+   */
+  static isComplete(config: Partial<AgentConfig>): boolean {
+    return !!(
+      config.name &&
+      config.description &&
+      config.systemPrompt
+    );
   }
 }
+
+/**
+ * Static Type Tests
+ * Using the "test dictionary" pattern to ensure TypeScript compiler validates our types
+ */
+
+// Type utilities for testing
+type Expect<T extends true> = T;
+type Equal<X, Y> = (<T>() => T extends X ? 1 : 2) extends (<T>() => T extends Y ? 1 : 2) ? true : false;
+type NotEqual<X, Y> = Equal<X, Y> extends true ? false : true;
+
+// Test input types for config parsing
+type TestRawConfigInput = any; // Reflects actual usage
+type LegacyConfigInput = AgentConfigLegacy;
+type PartialConfigInput = Partial<AgentConfig>;
+
+// Test result types
+type ParseAndValidateResult = ReturnType<typeof AgentConfigParser.parseAndValidate>;
+type NormalizeConfigResult = ReturnType<typeof AgentConfigParser.normalizeConfig>;
+type ConvertLegacyResult = ReturnType<typeof AgentConfigParser.convertLegacyConfig>;
+type MergeConfigsResult = ReturnType<typeof AgentConfigParser.mergeConfigs>;
+
+// Test validation result structure
+type ValidationResult = ConfigValidationResult;
+
+// Test model type constraints
+type ModelType = ParsedAgentConfig['model'];
+type ValidModels = string | undefined; // Matches the actual type
+
+// Test permission structure
+type PermissionStructure = AgentConfig['permissions'];
+
+// Test options structure
+type OptionsStructure = AgentConfig['options'];
+
+// Static type tests
+const staticTypeTests = {
+  // Test parseAndValidate return type
+  parseAndValidateReturnType: (() => {
+    type Result = ParseAndValidateResult;
+    type IsValidationResult = Equal<Result, ValidationResult>;
+    const test1: Expect<IsValidationResult> = true;
+    return test1;
+  })(),
+  
+  // Test normalizeConfig returns ParsedAgentConfig
+  normalizeConfigReturnType: (() => {
+    type Result = NormalizeConfigResult;
+    type IsAgentConfig = Equal<Result, ParsedAgentConfig>;
+    const test1: Expect<IsAgentConfig> = true;
+    return test1;
+  })(),
+  
+  // Test convertLegacyConfig returns ParsedAgentConfig
+  convertLegacyReturnType: (() => {
+    type Result = ConvertLegacyResult;
+    type IsAgentConfig = Equal<Result, ParsedAgentConfig>;
+    const test1: Expect<IsAgentConfig> = true;
+    return test1;
+  })(),
+  
+  // Test mergeConfigs returns ParsedAgentConfig
+  mergeConfigsReturnType: (() => {
+    type Result = MergeConfigsResult;
+    type IsAgentConfig = Equal<Result, ParsedAgentConfig>;
+    const test1: Expect<IsAgentConfig> = true;
+    return test1;
+  })(),
+  
+  // Test model type constraints
+  modelTypeConstraints: (() => {
+    type IsValidModels = Equal<ModelType, ValidModels>;
+    const test1: Expect<IsValidModels> = true;
+    return test1;
+  })(),
+  
+  // Test validate method returns boolean
+  validateReturnType: (() => {
+    type Result = ReturnType<typeof AgentConfigParser.validate>;
+    type IsBoolean = Equal<Result, boolean>;
+    const test1: Expect<IsBoolean> = true;
+    return test1;
+  })(),
+  
+  // Test getValidationErrors returns string array
+  getValidationErrorsReturnType: (() => {
+    type Result = ReturnType<typeof AgentConfigParser.getValidationErrors>;
+    type IsStringArray = Equal<Result, string[]>;
+    const test1: Expect<IsStringArray> = true;
+    return test1;
+  })(),
+  
+  // Test createTemplate returns ParsedAgentConfig
+  createTemplateReturnType: (() => {
+    type Result = ReturnType<typeof AgentConfigParser.createTemplate>;
+    type IsAgentConfig = Equal<Result, ParsedAgentConfig>;
+    const test1: Expect<IsAgentConfig> = true;
+    return test1;
+  })(),
+  
+  // Test isComplete returns boolean
+  isCompleteReturnType: (() => {
+    type Result = ReturnType<typeof AgentConfigParser.isComplete>;
+    type IsBoolean = Equal<Result, boolean>;
+    const test1: Expect<IsBoolean> = true;
+    return test1;
+  })(),
+  
+  // Test input parameter types
+  parameterTypes: (() => {
+    // parseAndValidate accepts any (raw input)
+    type ParseParam = Parameters<typeof AgentConfigParser.parseAndValidate>[0];
+    type ParseAcceptsAny = Equal<ParseParam, any>;
+    const test1: Expect<ParseAcceptsAny> = true;
+    
+    // normalizeConfig accepts any (raw config)
+    type NormalizeParam = Parameters<typeof AgentConfigParser.normalizeConfig>[0];
+    type NormalizeAcceptsAny = Equal<NormalizeParam, any>;
+    const test2: Expect<NormalizeAcceptsAny> = true;
+    
+    // convertLegacyConfig accepts AgentConfigLegacy
+    type ConvertParam = Parameters<typeof AgentConfigParser.convertLegacyConfig>[0];
+    type ConvertAcceptsLegacy = Equal<ConvertParam, AgentConfigLegacy>;
+    const test3: Expect<ConvertAcceptsLegacy> = true;
+    
+    // mergeConfigs accepts AgentConfig and Partial<AgentConfig>
+    type MergeParams = Parameters<typeof AgentConfigParser.mergeConfigs>;
+    type MergeAcceptsCorrect = Equal<MergeParams, [AgentConfig, Partial<AgentConfig>]>;
+    const test4: Expect<MergeAcceptsCorrect> = true;
+    
+    return true as typeof test1 & typeof test2 & typeof test3 & typeof test4;
+  })(),
+  
+  // Test method return type consistency
+  methodReturnConsistency: (() => {
+    // All methods that process config should return proper types
+    type ParseReturnsValidation = ParseAndValidateResult extends ConfigValidationResult ? true : false;
+    type NormalizeReturnsConfig = NormalizeConfigResult extends ParsedAgentConfig ? true : false;
+    type ConvertReturnsConfig = ConvertLegacyResult extends ParsedAgentConfig ? true : false;
+    type MergeReturnsConfig = MergeConfigsResult extends ParsedAgentConfig ? true : false;
+    
+    const test1: Expect<ParseReturnsValidation> = true;
+    const test2: Expect<NormalizeReturnsConfig> = true;
+    const test3: Expect<ConvertReturnsConfig> = true;
+    const test4: Expect<MergeReturnsConfig> = true;
+    
+    return true as typeof test1 & typeof test2 & typeof test3 & typeof test4;
+  })(),
+  
+  // Test ConfigValidationResult structure
+  configValidationResultStructure: (() => {
+    type HasIsValid = ConfigValidationResult extends { isValid: boolean } ? true : false;
+    type HasErrors = ConfigValidationResult extends { errors: string[] } ? true : false;
+    type HasWarnings = ConfigValidationResult extends { warnings: string[] } ? true : false;
+    type HasNormalizedConfig = ConfigValidationResult extends { normalizedConfig?: ParsedAgentConfig } ? true : false;
+    
+    const test1: Expect<HasIsValid> = true;
+    const test2: Expect<HasErrors> = true;
+    const test3: Expect<HasWarnings> = true;
+    const test4: Expect<HasNormalizedConfig> = true;
+    
+    return true as typeof test1 & typeof test2 & typeof test3 & typeof test4;
+  })(),
+  
+  // Test type transformation safety
+  typeTransformationSafety: (() => {
+    // Test that raw input is properly transformed to typed output
+    type RawInput = { name: unknown; model: unknown; [key: string]: unknown };
+    type TransformedOutput = ParsedAgentConfig;
+    
+    // Ensure transformation narrows types appropriately
+    type NameNarrowed = TransformedOutput['name'] extends string ? true : false;
+    type ModelNarrowed = NonNullable<TransformedOutput['model']> extends string ? true : false;
+    
+    const test1: Expect<NameNarrowed> = true;
+    const test2: Expect<ModelNarrowed> = true;
+    
+    return true as typeof test1 & typeof test2;
+  })(),
+  
+  // Test error handling types
+  errorHandlingTypes: (() => {
+    // Validation errors should be string arrays
+    type ErrorsType = ConfigValidationResult['errors'];
+    type WarningsType = ConfigValidationResult['warnings'];
+    
+    type ErrorsAreStrings = ErrorsType extends string[] ? true : false;
+    type WarningsAreStrings = WarningsType extends string[] ? true : false;
+    
+    const test1: Expect<ErrorsAreStrings> = true;
+    const test2: Expect<WarningsAreStrings> = true;
+    
+    return true as typeof test1 & typeof test2;
+  })()
+};
+
+// Type assertion to ensure all tests compile
+const _typeTestVerification: typeof staticTypeTests = staticTypeTests;
+
+/**
+ * Additional type definitions to improve type safety where 'any' was used
+ */
+
+// More specific type for raw configuration input
+export type RawConfigInput = {
+  name?: unknown;
+  description?: unknown;
+  systemPrompt?: unknown;
+  prompt?: unknown;
+  model?: unknown;
+  allowedTools?: unknown;
+  mcpServers?: unknown;
+  options?: unknown;
+  permissions?: unknown;
+  context?: unknown;
+  color?: unknown;
+  [key: string]: unknown;
+};
+
+// Type guard for raw config validation
+export const isValidRawConfig = (config: unknown): config is RawConfigInput => {
+  return typeof config === 'object' && config !== null;
+};
+
+// Export parser for external use
+export default AgentConfigParser;
