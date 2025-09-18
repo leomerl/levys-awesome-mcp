@@ -6,7 +6,7 @@
 export class ToolRegistry {
   private static readonly TOOL_CATEGORIES = {
     'file-system': ['Read', 'Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Glob'],
-    'execution': ['Bash', 'BashOutput', 'KillShell', 'Task'],
+    'execution': ['Bash', 'BashOutput', 'KillBash', 'Task'],
     'search': ['Grep', 'WebSearch', 'WebFetch'],
     'version-control': ['Git', 'GitCommit', 'GitPush', 'GitPull'],
     'development': ['TodoWrite', 'ExitPlanMode'],
