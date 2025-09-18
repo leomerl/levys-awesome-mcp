@@ -4,10 +4,42 @@ All notable changes to Levy's Awesome MCP will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.2] - 2025-09-17
+
+### Added
+- **Unified Agent Interface**: New `BaseAgent` class that supports both MCP invocation and CLI execution
+- **CLI-Executable Agents**: Both `github-issue-creator` and `static-test-detector` agents can now be run directly from CLI
+- **Static Test Detector Agent**: New agent for analyzing TypeScript code and detecting missing static type tests
+- **Dual Invocation Support**: Agents can be invoked via MCP tools or executed directly as CLI commands
+
+### Changed
+- **Agent Architecture**: Refactored agents to extend BaseAgent for consistent behavior
+- **Agent Exports**: Agents now export both instance and config for flexible usage
+
+## [1.0.1] - 2025-09-17
+
 ### Added
 - **NPM Package Distribution**: Include `agents` and `commands` directories in npm package distribution
 - **Automatic Command Installation**: Postinstall script automatically copies command files to `.claude/commands/` in user's project root
 - **Enhanced Package Structure**: Scripts directory included for postinstall automation
+- **GitHub Actions Workflows**:
+  - Static test coverage detector with automated PR comments and issue creation
+  - Nightly test runner with Claude Code integration for issue creation
+  - Build and npm pack artifact upload workflow
+  - Claude PR Assistant for automated PR reviews
+  - Claude Code Review workflow for continuous code quality
+- **GitHub Packages Publishing**: Automated npm publishing to GitHub Packages registry
+- **Configurable Paths**: Backend/frontend paths now configurable via `content-writer.json`
+
+### Fixed
+- **GitHub Actions Authentication**: Added proper npm authentication for GitHub Packages registry access
+- **Workflow YAML Syntax**: Fixed heredoc usage in static-test-detector workflow to avoid YAML parsing issues
+- **Build Workflow**: Removed npm test step from build workflow for cleaner execution
+
+### Improved
+- **Workflow Permissions**: Added `packages:read` permission for accessing GitHub Packages
+- **Static Test Detector**: Enhanced with PR comment summaries and detailed issue creation capabilities
+- **Artifact Management**: Optimized retention policies for workflow artifacts
 
 ## [1.0.0] - 2025-09-14
 
