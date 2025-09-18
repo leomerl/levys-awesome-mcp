@@ -55,6 +55,7 @@ jobs:
           claude_args: |
             --mcp-config '{"mcpServers": {"levys-awesome-mcp": {"command": "node", "args": ["dist/src/index.js"]}}}'
             --allowedTools mcp__levys-awesome-mcp__invoke_agent,mcp__levys-awesome-mcp__list_agents,mcp__levys-awesome-mcp__put_summary,mcp__levys-awesome-mcp__get_summary
+          allowed_bots: claude
           prompt: |
             I need you to analyze the TypeScript codebase for missing static type tests. Please invoke the static-test-absence-detector agent to:
 
@@ -107,6 +108,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: --allowedTools Bash(gh issue create:*),Bash(gh issue list:*),Read,Grep,Glob
+          allowed_bots: claude
           prompt: |
             I need you to create GitHub issues based on the static test analysis report. Please:
 
