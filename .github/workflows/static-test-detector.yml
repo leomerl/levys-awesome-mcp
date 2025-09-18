@@ -85,6 +85,7 @@ jobs:
           echo "Event: $GITHUB_EVENT_NAME"
           echo "PR: ${GITHUB_PR_NUMBER:-none}"
           echo "Create Issues: $CREATE_ISSUES"
+          echo "API Key set: $([ -n "$ANTHROPIC_API_KEY" ] && echo "Yes" || echo "No")"
 
           # Prepare the prompt based on the context
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
@@ -108,7 +109,14 @@ jobs:
           fi
 
           # Run the agent
-          npx tsx agents/static-test-detector.ts "$PROMPT"
+          echo "Executing: npx tsx agents/static-test-detector.ts"
+          echo "Prompt: $PROMPT"
+
+          if ! npx tsx agents/static-test-detector.ts "$PROMPT"; then
+            echo "Error: static-test-detector failed"
+            echo "Exit code: $?"
+            exit 1
+          fi
 
       - name: Upload analysis reports
         if: always()
@@ -169,7 +177,7 @@ jobs:
   claude-create-issues:
     needs: detect-missing-tests
     runs-on: ubuntu-latest
-    if: (github.event_name == 'schedule' || github.event.inputs.create_issues == 'true') && always()
+    if: (github.event_name == 'schedule' || github.event.inputs.create_issues == 'true') && success()
     permissions:
       contents: read
       issues: write

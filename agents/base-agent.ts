@@ -45,6 +45,13 @@ export abstract class BaseAgent {
       process.exit(1);
     }
 
+    // Check for API key
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.error('Error: ANTHROPIC_API_KEY environment variable is not set');
+      console.error('Please set it before running the agent');
+      process.exit(1);
+    }
+
     console.log(`Running ${this.config.description}...`);
     console.log(`Prompt: ${cliPrompt}\n`);
 
@@ -54,8 +61,11 @@ export abstract class BaseAgent {
           console.log(message.text);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Failed to execute ${this.config.name}:`, error);
+      if (error.message?.includes('process exited with code 1')) {
+        console.error('This usually means the ANTHROPIC_API_KEY is invalid or missing');
+      }
       process.exit(1);
     }
   }
@@ -83,7 +93,14 @@ export function createAgent<T extends BaseAgent>(
 
   // If running directly from CLI, execute the agent
   if (BaseAgent.isDirectExecution()) {
-    agent.runCLI().catch(console.error);
+    (async () => {
+      try {
+        await agent.runCLI();
+      } catch (error) {
+        console.error(error);
+        process.exit(1);
+      }
+    })();
   }
 
   return agent;
