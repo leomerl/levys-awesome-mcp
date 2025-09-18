@@ -117,7 +117,7 @@ jobs:
             4. Create GitHub issues for files/functions that need static type tests
             5. Create one issue per gap or group related gaps logically
             6. Use the authenticated gh CLI to create issues with proper titles and descriptions
-            7. In each issue description, include @claude to mention him and tell him to fix it
+            7. In each issue description, include @static-test-creator to mention him and tell him to fix it
 
             Context:
             - Repository: ${{ github.repository }}

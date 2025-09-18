@@ -46,7 +46,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
             --mcp-config '{"mcpServers": {"levys-awesome-mcp": {"command": "node", "args": ["dist/src/index.js"]}}}'
-            --allowedTools mcp__levys-awesome-mcp__invoke_agent,mcp__levys-awesome-mcp__list_agents,mcp__levys-awesome-mcp__backend_write,mcp__levys-awesome-mcp__frontend_write,Read,Glob,Grep
+            --allowedTools mcp__levys-awesome-mcp__invoke_agent,mcp__levys-awesome-mcp__list_agents,mcp__levys-awesome-mcp__backend_write,mcp__levys-awesome-mcp__frontend_write,Read,Glob,Grep,Bash(gh pr create:*),Bash(git:*)
           allowed_bots: claude
           prompt: |
             I need you to create static type tests for TypeScript code. Please invoke the static-test-creator agent with the following instructions:
@@ -65,6 +65,10 @@ jobs:
             3. Generate comprehensive compile-time tests using the test dictionary pattern
             4. Add the tests to the same file(s)
             5. Ensure all tests compile correctly
+            6. Create a new branch for the changes using git commands
+            7. Commit the changes with a descriptive commit message
+            8. Open a pull request using gh pr create with proper title and description
+            9. Comment on the original issue with the PR link
 
             Context:
             - Repository: ${{ github.repository }}
@@ -72,6 +76,6 @@ jobs:
             - Event: ${{ github.event_name }}
             - Workflow Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-            After creating the tests, comment on the issue with a summary of what was added.
+            Use git and gh CLI commands to create the branch, commit changes, and open a PR that references the original issue.
 
 
