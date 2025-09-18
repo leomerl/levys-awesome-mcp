@@ -1,0 +1,77 @@
+name: Static Test Creator
+
+on:
+  issue_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+
+jobs:
+  static-test-creator:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@static-test-creator')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@static-test-creator') || contains(github.event.issue.title, '@static-test-creator')))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Configure gh CLI
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+          gh auth status
+
+      - name: Create Static Tests
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --mcp-config '{"mcpServers": {"levys-awesome-mcp": {"command": "node", "args": ["dist/src/index.js"]}}}'
+            --allowedTools mcp__levys-awesome-mcp__invoke_agent,mcp__levys-awesome-mcp__list_agents,mcp__levys-awesome-mcp__backend_write,mcp__levys-awesome-mcp__frontend_write,Read,Glob,Grep
+          allowed_bots: claude
+          prompt: |
+            I need you to create static type tests for TypeScript code. Please invoke the static-test-creator agent with the following instructions:
+
+            ${{ github.event_name == 'issue_comment' && format('Based on this issue comment: {0}', github.event.comment.body) || format('Based on this GitHub issue: {0}', github.event.issue.body) }}
+
+            Analyze the specific file(s) mentioned in the issue and create comprehensive compile-time type tests for:
+            - Generic functions and types
+            - Conditional types and type transformations
+            - Functions with complex parameter types
+            - Any code that uses 'any' type that should have proper type definitions
+
+            The agent should:
+            1. Read the target file(s) mentioned in the issue
+            2. Identify functions/types that need static tests
+            3. Generate comprehensive compile-time tests using the test dictionary pattern
+            4. Add the tests to the same file(s)
+            5. Ensure all tests compile correctly
+
+            Context:
+            - Repository: ${{ github.repository }}
+            - Issue: #${{ github.event.issue.number }}
+            - Event: ${{ github.event_name }}
+            - Workflow Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            After creating the tests, comment on the issue with a summary of what was added.
+
+
