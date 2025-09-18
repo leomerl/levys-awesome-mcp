@@ -83,14 +83,13 @@ jobs:
             Now complete step 3 - handle git operations and PR creation:
 
             Step 3: Use bash commands to:
+            - Create a new branch for the changes using git commands
+            - Commit the changes with a descriptive commit message
+            - Push the branch to the remote repository
+            - Open a pull request using gh pr create with proper title and description
+            - Comment on the original issue with the PR link
             - Try to build the project with npm run build
-            - If build fails, comment "@static-test-creator The build failed after adding tests. Please fix the compilation errors." and stop
-            - If build succeeds, continue with:
-              - Create a new branch for the changes using git commands
-              - Commit the changes with a descriptive commit message
-              - Push the branch to the remote repository
-              - Open a pull request using gh pr create with proper title and description
-              - Comment on the original issue with the PR link
+            - If build fails, comment "@claude The build failed after adding tests. Please fix the compilation errors in the PR."
 
             Context:
             - Repository: ${{ github.repository }}
