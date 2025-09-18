@@ -227,9 +227,10 @@ async function runAgent() {
 
   // Debug information
   console.log("Environment check:");
-  console.log("- ANTHROPIC_API_KEY:", process.env.ANTHROPIC_API_KEY ? "Set (length: " + process.env.ANTHROPIC_API_KEY.length + ")" : "Not set");
+  console.log("- ANTHROPIC_API_KEY:", process.env.ANTHROPIC_API_KEY ? "Set (length: " + process.env.ANTHROPIC_API_KEY.length + ", starts with: " + process.env.ANTHROPIC_API_KEY.substring(0, 7) + "...)" : "Not set");
   console.log("- Working directory:", process.cwd());
   console.log("- Node version:", process.version);
+  console.log("- GitHub CI:", process.env.GITHUB_CI || "false");
 
   try {
     // Try Claude Code SDK first, fall back to Anthropic SDK
