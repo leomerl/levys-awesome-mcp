@@ -55,7 +55,7 @@ jobs:
 
       - name: Install project dependencies
         run: |
-          npm ci
+          npm ci --legacy-peer-deps
           npm install -g tsx
 
       - name: Build project
@@ -208,7 +208,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm ci
+          npm ci --legacy-peer-deps
           npm install -g tsx
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
