@@ -45,10 +45,10 @@ export abstract class BaseAgent {
       process.exit(1);
     }
 
-    // Check for API key
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.error('Error: ANTHROPIC_API_KEY environment variable is not set');
-      console.error('Please set it before running the agent');
+    // Check for authentication credentials
+    if (!process.env.CLAUDE_CODE_OAUTH_TOKEN && !process.env.ANTHROPIC_API_KEY) {
+      console.error('Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY environment variable is set');
+      console.error('Please set one of them before running the agent');
       process.exit(1);
     }
 
@@ -64,7 +64,7 @@ export abstract class BaseAgent {
     } catch (error: any) {
       console.error(`Failed to execute ${this.config.name}:`, error);
       if (error.message?.includes('process exited with code 1')) {
-        console.error('This usually means the ANTHROPIC_API_KEY is invalid or missing');
+        console.error('This usually means the CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY is invalid or missing');
       }
       process.exit(1);
     }
