@@ -50,34 +50,37 @@ jobs:
             --allowedTools mcp__levys-awesome-mcp__invoke_agent,mcp__levys-awesome-mcp__list_agents,mcp__levys-awesome-mcp__backend_write,mcp__levys-awesome-mcp__frontend_write,Read,Glob,Grep,Bash(gh pr create:*),Bash(git:*)
           allowed_bots: claude
           prompt: |
-            I need you to create static type tests for TypeScript code. Please invoke the static-test-creator agent with the following instructions:
+            I need you to create static type tests for TypeScript code. Here's the plan:
 
+            1. First, react with an emoji to acknowledge the request
+            2. Invoke the static-test-creator agent to analyze the code and create tests
+            3. After the agent completes, use bash commands to handle git operations and PR creation
+
+            Issue details:
             ${{ github.event_name == 'issue_comment' && format('Based on this issue comment: {0}', github.event.comment.body) || format('Based on this GitHub issue: {0}', github.event.issue.body) }}
 
-            Analyze the specific file(s) mentioned in the issue and create comprehensive compile-time type tests for:
+            Step 1: React with an emoji to the comment/issue to acknowledge the request.
+
+            Step 2: Invoke the static-test-creator agent with this prompt:
+            "Analyze the specific file(s) mentioned and create comprehensive compile-time type tests for:
             - Generic functions and types
             - Conditional types and type transformations
             - Functions with complex parameter types
             - Any code that uses 'any' type that should have proper type definitions
 
-            The agent should:
-            0. React with an emoji to the comment or issue he was tagged on
-            1. Read the target file(s) mentioned in the issue
-            2. Identify functions/types that need static tests
-            3. Generate comprehensive compile-time tests using the test dictionary pattern
-            4. Add the tests to the same file(s)
-            5. Ensure all tests compile correctly
-            6. Create a new branch for the changes using git commands
-            7. Commit the changes with a descriptive commit message
-            8. Open a pull request using gh pr create with proper title and description
-            9. Comment on the original issue with the PR link
+            Read the target file(s), identify functions/types that need static tests, generate comprehensive compile-time tests using the test dictionary pattern, and add the tests to the same file(s). Ensure all tests compile correctly."
+
+            Step 3: After the agent completes the test creation, use bash commands to:
+            - Create a new branch for the changes using git commands
+            - Commit the changes with a descriptive commit message
+            - Push the branch to the remote repository
+            - Open a pull request using gh pr create with proper title and description
+            - Comment on the original issue with the PR link
 
             Context:
             - Repository: ${{ github.repository }}
             - Issue: #${{ github.event.issue.number }}
             - Event: ${{ github.event_name }}
             - Workflow Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-            Use git and gh CLI commands to create the branch, commit changes, and open a PR that references the original issue.
 
 
