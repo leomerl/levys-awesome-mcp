@@ -109,11 +109,12 @@ jobs:
           prompt: |
             I need you to create GitHub issues based on the static test analysis report. Please:
 
-            1. Read the analysis report files from ./analysis-reports/ directory
+            1. Read the analysis report files from ./reports/ directory
             2. Examine the JSON reports to understand what static type tests are missing
             3. Create GitHub issues for files/functions that need static type tests
             4. Create one issue per gap or group related gaps logically
             5. Use the authenticated gh CLI to create issues with proper titles and descriptions
+            6. In each issue description, include @claude to mention yourself
 
             Context:
             - Repository: ${{ github.repository }}
