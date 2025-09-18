@@ -71,11 +71,14 @@ jobs:
             Read the target file(s), identify functions/types that need static tests, generate comprehensive compile-time tests using the test dictionary pattern, and add the tests to the same file(s). Ensure all tests compile correctly."
 
             Step 3: After the agent completes the test creation, use bash commands to:
-            - Create a new branch for the changes using git commands
-            - Commit the changes with a descriptive commit message
-            - Push the branch to the remote repository
-            - Open a pull request using gh pr create with proper title and description
-            - Comment on the original issue with the PR link
+            - Try to build the project with npm run build
+            - If build fails, comment "@static-test-creator The build failed after adding tests. Please fix the compilation errors." and stop
+            - If build succeeds, continue with:
+              - Create a new branch for the changes using git commands
+              - Commit the changes with a descriptive commit message
+              - Push the branch to the remote repository
+              - Open a pull request using gh pr create with proper title and description
+              - Comment on the original issue with the PR link
 
             Context:
             - Repository: ${{ github.repository }}
