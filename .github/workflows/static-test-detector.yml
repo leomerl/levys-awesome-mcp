@@ -66,7 +66,7 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
           gh auth status
 
-      - name: Run static test absence detector
+      - name: Run static test detector
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -80,7 +80,7 @@ jobs:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           CREATE_ISSUES: ${{ github.event.inputs.create_issues || 'false' }}
         run: |
-          echo "Running static test absence detector..."
+          echo "Running static test detector..."
           echo "Repository: $GITHUB_REPOSITORY"
           echo "Event: $GITHUB_EVENT_NAME"
           echo "PR: ${GITHUB_PR_NUMBER:-none}"
@@ -88,26 +88,27 @@ jobs:
 
           # Prepare the prompt based on the context
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            PROMPT="Analyze the changed files in PR #${GITHUB_PR_NUMBER} for missing static type tests. \
-                    You are running in GitHub Actions for repository ${GITHUB_REPOSITORY}. \
-                    Comment on the PR with a summary of findings using 'gh pr comment ${GITHUB_PR_NUMBER}'. \
-                    DO NOT create issues for PR analysis. \
-                    The gh CLI is already authenticated with GITHUB_TOKEN."
+            PROMPT="Analyze the TypeScript files in PR #${GITHUB_PR_NUMBER} for missing static type tests. \
+                    Focus on changed files. Generate a detailed JSON report and save it to reports/. \
+                    Then use 'gh pr comment ${GITHUB_PR_NUMBER}' to add a summary comment on the PR. \
+                    Repository: ${GITHUB_REPOSITORY}. \
+                    The gh CLI is already authenticated."
           elif [ "$GITHUB_EVENT_NAME" = "schedule" ] || [ "$CREATE_ISSUES" = "true" ]; then
-            PROMPT="Perform comprehensive analysis of the entire codebase for missing static type tests. \
-                    You are running in GitHub Actions for repository ${GITHUB_REPOSITORY}. \
-                    Create GitHub issues for each file or component that needs tests using 'gh issue create'. \
-                    The gh CLI is already authenticated. \
-                    Use these labels: 'static-tests', 'type-coverage', 'technical-debt'. \
-                    Set milestone to 'Static Test Coverage' if it exists (check with 'gh api repos/${GITHUB_REPOSITORY}/milestones')."
+            PROMPT="Perform comprehensive analysis of all TypeScript files in the src/, lib/, and utilities/ directories. \
+                    Identify functions and types that need static compile-time tests. \
+                    Generate a detailed JSON report and save it to reports/static-test-analysis-$(date +%Y%m%d-%H%M%S).json. \
+                    Also save as reports/latest/static-test-analysis.json. \
+                    Repository: ${GITHUB_REPOSITORY}. \
+                    Focus on complex generic functions, conditional types, and type transformations."
           else
-            PROMPT="Analyze the codebase for missing static type tests and generate a report. \
-                    You are running in GitHub Actions for repository ${GITHUB_REPOSITORY}. \
-                    Save findings to reports/ directory but do not create issues or PRs."
+            PROMPT="Analyze the TypeScript codebase for missing static type tests. \
+                    Generate a comprehensive JSON report with all findings. \
+                    Save to reports/static-test-analysis-$(date +%Y%m%d-%H%M%S).json and reports/latest/static-test-analysis.json. \
+                    Repository: ${GITHUB_REPOSITORY}."
           fi
 
           # Run the agent
-          npx tsx agents/static-test-absence-detector.ts "$PROMPT"
+          npx tsx agents/static-test-detector.ts "$PROMPT"
 
       - name: Upload analysis reports
         if: always()
@@ -221,14 +222,14 @@ jobs:
         run: |
           echo "Processing analysis reports with Claude Code..."
 
-          # Find the summary report
-          SUMMARY_FILE=$(find ./analysis-reports -name "*-summary.json" -type f | head -1)
+          # Find the summary report (look for static-test-analysis.json files)
+          SUMMARY_FILE=$(find ./analysis-reports -name "static-test-analysis*.json" -type f | head -1)
 
           if [ -n "$SUMMARY_FILE" ] && [ -f "$SUMMARY_FILE" ]; then
             echo "Found summary report: $SUMMARY_FILE"
 
-            # Extract key metrics
-            FILES_NEEDING_TESTS=$(jq -r '.metrics.files_needing_tests // 0' "$SUMMARY_FILE")
+            # Extract key metrics (adjust for new JSON structure)
+            FILES_NEEDING_TESTS=$(jq -r '.summary.files_with_missing_tests // 0' "$SUMMARY_FILE")
 
             if [ "$FILES_NEEDING_TESTS" -gt 0 ]; then
               # Use the GitHub issue creator agent to process the report and create issues
