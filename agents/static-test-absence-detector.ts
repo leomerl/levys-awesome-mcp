@@ -204,23 +204,23 @@ async function runAgent() {
     process.exit(1);
   }
 
-  // Check for API key
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('Error: ANTHROPIC_API_KEY environment variable is not set');
-    console.error('Please set it before running the agent');
-    process.exit(1);
-  }
 
   console.log("Running Analyzes TypeScript code to detect missing compile-time type tests for generic functions, conditional types, and type transformations...");
   console.log(`Prompt: ${prompt}\n`);
+
+  // Debug information
+  console.log("Environment check:");
+  console.log("- ANTHROPIC_API_KEY:", process.env.ANTHROPIC_API_KEY ? "Set (length: " + process.env.ANTHROPIC_API_KEY.length + ")" : "Not set");
+  console.log("- Working directory:", process.cwd());
+  console.log("- Node version:", process.version);
 
   try {
     for await (const message of query({
       prompt,
       options: statictestabsencedetectorAgent.options
     })) {
-      if (message.type === "text") {
-        console.log(message.text);
+      if (message.type === "text" && "text" in message) {
+        console.log((message as any).text);
       }
     }
   } catch (error: any) {
