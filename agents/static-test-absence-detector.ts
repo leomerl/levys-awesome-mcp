@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 
-import { query } from "@anthropic-ai/claude-code";
+import Anthropic from '@anthropic-ai/sdk';
 import { AgentConfig } from '../src/types/agent-config.js';
 
 const statictestabsencedetectorAgent: AgentConfig = {
@@ -215,18 +215,34 @@ async function runAgent() {
   console.log("- Node version:", process.version);
 
   try {
-    for await (const message of query({
-      prompt,
-      options: statictestabsencedetectorAgent.options
-    })) {
-      if (message.type === "text" && "text" in message) {
-        console.log((message as any).text);
+    const anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+
+    const stream = await anthropic.messages.create({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 8192,
+      system: statictestabsencedetectorAgent.options?.systemPrompt || "",
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      stream: true
+    });
+
+    for await (const messageStreamEvent of stream) {
+      if (messageStreamEvent.type === 'content_block_delta' &&
+          messageStreamEvent.delta.type === 'text_delta') {
+        process.stdout.write(messageStreamEvent.delta.text);
       }
     }
+    console.log(); // Add newline at the end
   } catch (error: any) {
     console.error("Failed to execute agent:", error);
-    if (error.message?.includes('process exited with code 1')) {
-      console.error('This usually means the ANTHROPIC_API_KEY is invalid or missing');
+    if (error.message?.includes('401') || error.message?.includes('authentication')) {
+      console.error('This usually means the ANTHROPIC_API_KEY is invalid');
     }
     process.exit(1);
   }
