@@ -18,11 +18,10 @@ on:
           - 'false'
 
 jobs:
-  static-test-analysis:
+  analyze-static-tests:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      issues: write
       pull-requests: write
       id-token: write
 
@@ -57,27 +56,20 @@ jobs:
             --mcp-config '{"mcpServers": {"levys-awesome-mcp": {"command": "node", "args": ["dist/src/index.js"]}}}'
             --allowedTools mcp__levys-awesome-mcp__invoke_agent,mcp__levys-awesome-mcp__list_agents,mcp__levys-awesome-mcp__put_summary,mcp__levys-awesome-mcp__get_summary
           prompt: |
-            I need you to analyze the TypeScript codebase for missing static type tests and then create GitHub issues for missing test coverage. Please work step by step:
+            I need you to analyze the TypeScript codebase for missing static type tests. Please invoke the static-test-absence-detector agent to:
 
-            1. First, invoke the static-test-absence-detector agent to analyze the codebase:
-               - For PR context: Focus on changed files in PR #${{ github.event.pull_request.number }}
-               - For scheduled/manual runs: Analyze all TypeScript files in src/, lib/, and utilities/ directories
-               - Generate a detailed JSON report and save it to reports/
-               - Create a summary using the put_summary tool
-
-            2. Then, if issues should be created (CREATE_ISSUES=${{ github.event.inputs.create_issues || 'false' }}):
-               - Read the generated analysis report
-               - Create GitHub issues for files/functions that need static type tests
-               - one issue per gap
+            ${{ github.event_name == 'pull_request' && format('- Focus on changed files in PR #{0}', github.event.pull_request.number) || '- Analyze all TypeScript files in src/, lib/, and utilities/ directories' }}
+            - Generate a detailed JSON report and save it to reports/
+            - Create a summary using the put_summary tool
+            ${{ github.event_name == 'pull_request' && format('- Add a summary comment to PR #{0} using gh CLI', github.event.pull_request.number) || '' }}
 
             Context:
             - Repository: ${{ github.repository }}
             - Event: ${{ github.event_name }}
             - PR Number: ${{ github.event.pull_request.number }}
-            - Create Issues: ${{ github.event.inputs.create_issues || 'false' }}
             - Workflow Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-            The gh CLI is already authenticated with GITHUB_TOKEN for creating issues and PR comments.
+            The gh CLI is already authenticated with GITHUB_TOKEN for PR comments.
 
       - name: Upload analysis reports
         if: always()
@@ -88,3 +80,62 @@ jobs:
             reports/
             output_streams/
           retention-days: 30
+
+  create-issues:
+    needs: analyze-static-tests
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'schedule' || github.event.inputs.create_issues == 'true') && success()
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download analysis reports
+        uses: actions/download-artifact@v4
+        with:
+          name: static-test-analysis-${{ github.run_number }}
+          path: ./analysis-reports
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Configure gh CLI
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+          gh auth status
+
+      - name: Create GitHub Issues
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --mcp-config '{"mcpServers": {"levys-awesome-mcp": {"command": "node", "args": ["dist/src/index.js"]}}}'
+            --allowedTools mcp__levys-awesome-mcp__invoke_agent,mcp__levys-awesome-mcp__list_agents,mcp__levys-awesome-mcp__get_summary
+          prompt: |
+            I need you to create GitHub issues based on the static test analysis report. Please:
+
+            1. Read the analysis report from ./analysis-reports/ directory
+            2. Use the get_summary tool to get the analysis summary
+            3. Create GitHub issues for files/functions that need static type tests
+            4. Create one issue per gap or group related gaps logically
+            5. Use the authenticated gh CLI to create issues
+
+            Context:
+            - Repository: ${{ github.repository }}
+            - Analysis Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            - Event: ${{ github.event_name }}
+
+            The gh CLI is already authenticated with GITHUB_TOKEN for creating issues.
