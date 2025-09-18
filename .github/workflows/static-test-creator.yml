@@ -16,6 +16,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      id-token: write
 
     steps:
       - name: Checkout repository
@@ -60,6 +61,7 @@ jobs:
             - Any code that uses 'any' type that should have proper type definitions
 
             The agent should:
+            0. React with an emoji to the comment or issue he was tagged on
             1. Read the target file(s) mentioned in the issue
             2. Identify functions/types that need static tests
             3. Generate comprehensive compile-time tests using the test dictionary pattern
