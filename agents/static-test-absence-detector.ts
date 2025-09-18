@@ -210,7 +210,7 @@ async function runAgent() {
 
   // Debug information
   console.log("Environment check:");
-  console.log("- ANTHROPIC_API_KEY:", process.env.ANTHROPIC_API_KEY ? "Set (length: " + process.env.ANTHROPIC_API_KEY.length + ", starts with: " + process.env.ANTHROPIC_API_KEY.substring(0, 7) + "...)" : "Not set");
+  console.log("- CLAUDE_CODE_OAUTH_TOKEN:", process.env.CLAUDE_CODE_OAUTH_TOKEN ? "Set (length: " + process.env.CLAUDE_CODE_OAUTH_TOKEN.length + ")" : "Not set");
   console.log("- Working directory:", process.cwd());
   console.log("- Node version:", process.version);
   console.log("- GitHub CI:", process.env.GITHUB_CI || "false");
@@ -228,7 +228,20 @@ async function runAgent() {
   } catch (error: any) {
     console.error("Failed to execute agent:", error);
     if (error.message?.includes('process exited with code 1')) {
-      console.error('The Claude Code process exited with an error. This usually means there is an issue with the ANTHROPIC_API_KEY or Claude Code setup.');
+      console.error('The Claude Code process exited with an error. This usually means there is an issue with the CLAUDE_CODE_OAUTH_TOKEN or Claude Code setup.');
+      console.error('');
+      console.error('🔑 AUTHENTICATION ERROR');
+      console.error('The CLAUDE_CODE_OAUTH_TOKEN appears to be invalid or missing.');
+      console.error('');
+      console.error('In GitHub Actions:');
+      console.error('- Verify the CLAUDE_CODE_OAUTH_TOKEN secret is properly set in repository settings');
+      console.error('- Ensure the OAuth token has not expired');
+      console.error('- Check that the OAuth token has the correct permissions');
+      console.error('');
+      console.error('For local development:');
+      console.error('- Set CLAUDE_CODE_OAUTH_TOKEN environment variable');
+      console.error('- Verify the OAuth token is valid and active');
+      console.error('');
     }
     process.exit(1);
   }
