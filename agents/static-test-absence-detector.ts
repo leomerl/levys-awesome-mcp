@@ -267,7 +267,7 @@ async function runAgent() {
         });
 
         const stream = await anthropic.messages.create({
-          model: "claude-3-5-sonnet-20241022",
+          model: "sonnet",
           max_tokens: 8192,
           system: statictestabsencedetectorAgent.options?.systemPrompt || "",
           messages: [
@@ -302,8 +302,20 @@ async function runAgent() {
     }
   } catch (error: any) {
     console.error("Failed to execute agent:", error);
-    if (error.message?.includes('401') || error.message?.includes('authentication')) {
-      console.error('This usually means the ANTHROPIC_API_KEY is invalid');
+    if (error.status === 401 || error.message?.includes('401') || error.message?.includes('authentication')) {
+      console.error('');
+      console.error('🔑 AUTHENTICATION ERROR');
+      console.error('The ANTHROPIC_API_KEY appears to be invalid or missing.');
+      console.error('');
+      console.error('In GitHub Actions:');
+      console.error('- Verify the ANTHROPIC_API_KEY secret is properly set in repository settings');
+      console.error('- Ensure the API key has not expired');
+      console.error('- Check that the API key has the correct permissions');
+      console.error('');
+      console.error('For local development:');
+      console.error('- Set ANTHROPIC_API_KEY environment variable');
+      console.error('- Verify the API key is valid and active');
+      console.error('');
     }
     process.exit(1);
   }
