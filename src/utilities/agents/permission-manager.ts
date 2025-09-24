@@ -70,7 +70,7 @@ export class PermissionManager {
     console.log(`[DEBUG] Agent '${yamlConfig.name}' explicitly specified tools:`, yamlConfig.tools);
     return {
       allowedTools: yamlConfig.tools,
-      agentRole: yamlConfig.role as any || 'write-restricted'
+      agentRole: yamlConfig.role as AgentPermissionConfig['agentRole'] || 'write-restricted'
     };
   }
 
@@ -489,3 +489,556 @@ export class PermissionManager {
     };
   }
 }
+
+// ============================================================================
+// COMPILE-TIME TYPE TESTS
+// ============================================================================
+
+/**
+ * Type test utilities for static type verification using the test dictionary pattern
+ */
+type Equal<T, U> = T extends U ? U extends T ? true : false : false;
+type Expect<T extends true> = T;
+type ExpectTrue<T extends true> = T;
+type ExpectFalse<T extends false> = T;
+type IsNever<T> = [T] extends [never] ? true : false;
+type IsAny<T> = 0 extends (1 & T) ? true : false;
+
+/**
+ * Helper types for advanced type testing
+ */
+type IsString<T> = T extends string ? true : false;
+type IsStringArray<T> = T extends string[] ? true : false;
+type IsOptional<T, K extends keyof T> = {} extends Pick<T, K> ? true : false;
+type HasProperty<T, K extends PropertyKey> = K extends keyof T ? true : false;
+
+/**
+ * Test dictionary for permission manager type tests
+ */
+const typeTests = {
+  // ========== BASIC INTERFACE TYPE TESTS ==========
+  
+  /**
+   * Test AgentPermissionConfig interface structure and constraints
+   */
+  agentPermissionConfigTests: {
+    // Required fields exist and have correct types
+    allowedToolsIsStringArray: {} as ExpectTrue<Equal<AgentPermissionConfig['allowedTools'], string[]>>,
+    allowedToolsIsRequired: {} as ExpectFalse<IsOptional<AgentPermissionConfig, 'allowedTools'>>,
+    
+    // Optional fields have correct types when present
+    deniedToolsIsOptionalStringArray: {} as ExpectTrue<Equal<AgentPermissionConfig['deniedTools'], string[] | undefined>>,
+    deniedToolsIsOptional: {} as ExpectTrue<IsOptional<AgentPermissionConfig, 'deniedTools'>>,
+    restrictBuiltInToolsIsOptionalBoolean: {} as ExpectTrue<Equal<AgentPermissionConfig['restrictBuiltInTools'], boolean | undefined>>,
+    restrictBuiltInToolsIsOptional: {} as ExpectTrue<IsOptional<AgentPermissionConfig, 'restrictBuiltInTools'>>,
+    useDynamicRestrictionsIsOptionalBoolean: {} as ExpectTrue<Equal<AgentPermissionConfig['useDynamicRestrictions'], boolean | undefined>>,
+    useDynamicRestrictionsIsOptional: {} as ExpectTrue<IsOptional<AgentPermissionConfig, 'useDynamicRestrictions'>>,
+    
+    // Agent role is strictly typed to specific values
+    agentRoleIsConstrainedUnion: {} as ExpectTrue<Equal<
+      AgentPermissionConfig['agentRole'], 
+      'read-only' | 'write-restricted' | 'full-access' | 'security-sensitive' | undefined
+    >>,
+    agentRoleIsOptional: {} as ExpectTrue<IsOptional<AgentPermissionConfig, 'agentRole'>>,
+    
+    // Test that invalid agent roles are rejected
+    invalidAgentRoleNotAllowed: {} as ExpectFalse<Equal<
+      AgentPermissionConfig['agentRole'], 
+      'invalid-role' | undefined
+    >>,
+    
+    // Test interface completeness
+    hasAllExpectedProperties: {} as ExpectTrue<Equal<
+      keyof AgentPermissionConfig,
+      'allowedTools' | 'deniedTools' | 'restrictBuiltInTools' | 'agentRole' | 'useDynamicRestrictions'
+    >>,
+  },
+
+  /**
+   * Test YAMLAgentConfig interface structure
+   */
+  yamlAgentConfigTests: {
+    // Required fields
+    nameIsRequiredString: {} as ExpectTrue<Equal<YAMLAgentConfig['name'], string>>,
+    nameIsRequired: {} as ExpectFalse<IsOptional<YAMLAgentConfig, 'name'>>,
+    descriptionIsRequiredString: {} as ExpectTrue<Equal<YAMLAgentConfig['description'], string>>,
+    descriptionIsRequired: {} as ExpectFalse<IsOptional<YAMLAgentConfig, 'description'>>,
+    
+    // Optional fields
+    toolsIsOptionalStringArray: {} as ExpectTrue<Equal<YAMLAgentConfig['tools'], string[] | undefined>>,
+    toolsIsOptional: {} as ExpectTrue<IsOptional<YAMLAgentConfig, 'tools'>>,
+    roleIsOptionalString: {} as ExpectTrue<Equal<YAMLAgentConfig['role'], string | undefined>>,
+    roleIsOptional: {} as ExpectTrue<IsOptional<YAMLAgentConfig, 'role'>>,
+    
+    // Test interface completeness
+    hasAllExpectedProperties: {} as ExpectTrue<Equal<
+      keyof YAMLAgentConfig,
+      'name' | 'description' | 'tools' | 'role'
+    >>,
+  },
+
+  // ========== SECURITY PROFILES TYPE TESTS ==========
+  
+  /**
+   * Test SECURITY_PROFILES constant type safety
+   */
+  securityProfilesTests: {
+    // Test that security profiles type is readonly and correctly structured
+    securityProfilesIsReadonly: {} as ExpectTrue<Equal<
+      typeof PermissionManager['SECURITY_PROFILES'],
+      {
+        readonly 'read-only': {
+          description: string;
+          allowedBuiltInTools: string[];
+          deniedBuiltInTools: string[];
+        };
+        readonly 'write-restricted': {
+          description: string;
+          allowedBuiltInTools: string[];
+          deniedBuiltInTools: string[];
+        };
+        readonly 'security-sensitive': {
+          description: string;
+          allowedBuiltInTools: string[];
+          deniedBuiltInTools: string[];
+        };
+        readonly 'full-access': {
+          description: string;
+          allowedBuiltInTools: string[];
+          deniedBuiltInTools: string[];
+        };
+      }
+    >>,
+    
+    // Test that profile keys match agent role union type exactly
+    profileKeysMatchAgentRoles: {} as ExpectTrue<Equal<
+      keyof typeof PermissionManager['SECURITY_PROFILES'],
+      'read-only' | 'write-restricted' | 'full-access' | 'security-sensitive'
+    >>,
+    
+    // Test individual profile structure
+    readOnlyProfileStructure: {} as ExpectTrue<Equal<
+      typeof PermissionManager['SECURITY_PROFILES']['read-only'],
+      {
+        description: string;
+        allowedBuiltInTools: string[];
+        deniedBuiltInTools: string[];
+      }
+    >>,
+  },
+
+  // ========== METHOD RETURN TYPE TESTS ==========
+  
+  /**
+   * Test getAgentPermissions return type structure
+   */
+  getAgentPermissionsReturnTypeTests: {
+    // Return type has correct structure
+    returnTypeStructure: {} as ExpectTrue<Equal<
+      ReturnType<typeof PermissionManager.getAgentPermissions>,
+      {
+        allowedTools: string[];
+        disallowedTools: string[];
+      }
+    >>,
+    
+    // Verify it's not returning any
+    notReturningAny: {} as ExpectFalse<IsAny<ReturnType<typeof PermissionManager.getAgentPermissions>>>,
+    
+    // Test specific return type properties
+    allowedToolsIsStringArray: {} as ExpectTrue<IsStringArray<ReturnType<typeof PermissionManager.getAgentPermissions>['allowedTools']>>,
+    disallowedToolsIsStringArray: {} as ExpectTrue<IsStringArray<ReturnType<typeof PermissionManager.getAgentPermissions>['disallowedTools']>>,
+  },
+
+  /**
+   * Test async method return types
+   */
+  asyncMethodReturnTypeTests: {
+    // Dynamic restrictions method return type
+    dynamicRestrictionsReturnType: {} as ExpectTrue<Equal<
+      ReturnType<typeof PermissionManager.getAgentPermissionsWithDynamicRestrictions>,
+      Promise<{
+        allowedTools: string[];
+        disallowedTools: string[];
+      }>
+    >>,
+    
+    // Validation method return type
+    validationReturnType: {} as ExpectTrue<Equal<
+      ReturnType<typeof PermissionManager.validateAgentToolConfiguration>,
+      Promise<{
+        valid: boolean;
+        unknownAllowedTools: string[];
+        unknownDeniedTools: string[];
+        recommendations: string[];
+      }>
+    >>,
+    
+    // Statistics method return type with constrained security level
+    statisticsReturnType: {} as ExpectTrue<Equal<
+      ReturnType<typeof PermissionManager.getAgentToolStatistics>,
+      Promise<{
+        allowedCount: number;
+        disallowedCount: number;
+        totalAvailable: number;
+        coveragePercent: number;
+        securityLevel: 'high' | 'medium' | 'low';
+      }>
+    >>,
+    
+    // Test security level constraint specifically
+    securityLevelIsConstrained: {} as ExpectTrue<Equal<
+      Awaited<ReturnType<typeof PermissionManager.getAgentToolStatistics>>['securityLevel'],
+      'high' | 'medium' | 'low'
+    >>,
+  },
+
+  // ========== PARAMETER TYPE TESTS ==========
+  
+  /**
+   * Test method parameter types and constraints
+   */
+  parameterTypeTests: {
+    // getToolsForRole parameters
+    getToolsForRoleFirstParam: {} as ExpectTrue<Equal<
+      Parameters<typeof PermissionManager.getToolsForRole>[0],
+      AgentPermissionConfig['agentRole']
+    >>,
+    getToolsForRoleSecondParam: {} as ExpectTrue<Equal<
+      Parameters<typeof PermissionManager.getToolsForRole>[1],
+      string[]
+    >>,
+    getToolsForRoleParameterCount: {} as ExpectTrue<Equal<
+      Parameters<typeof PermissionManager.getToolsForRole>['length'],
+      2
+    >>,
+    
+    // fromYAMLConfig parameter
+    fromYAMLConfigParam: {} as ExpectTrue<Equal<
+      Parameters<typeof PermissionManager.fromYAMLConfig>[0],
+      YAMLAgentConfig
+    >>,
+    fromYAMLConfigParameterCount: {} as ExpectTrue<Equal<
+      Parameters<typeof PermissionManager.fromYAMLConfig>['length'],
+      1
+    >>,
+    
+    // ensureSummaryPermission parameter
+    ensureSummaryPermissionParam: {} as ExpectTrue<Equal<
+      Parameters<typeof PermissionManager.ensureSummaryPermission>[0],
+      string[]
+    >>,
+    
+    // parseYAMLFrontmatter parameter and return type
+    parseYAMLFrontmatterParam: {} as ExpectTrue<Equal<
+      Parameters<typeof PermissionManager.parseYAMLFrontmatter>[0],
+      string
+    >>,
+    parseYAMLFrontmatterReturn: {} as ExpectTrue<Equal<
+      ReturnType<typeof PermissionManager.parseYAMLFrontmatter>,
+      YAMLAgentConfig | null
+    >>,
+    
+    // fromMarkdownFile parameters
+    fromMarkdownFileFirstParam: {} as ExpectTrue<Equal<
+      Parameters<typeof PermissionManager.fromMarkdownFile>[0],
+      string
+    >>,
+    fromMarkdownFileSecondParam: {} as ExpectTrue<Equal<
+      Parameters<typeof PermissionManager.fromMarkdownFile>[1],
+      string[]
+    >>,
+  },
+
+  // ========== GENERIC AND CONDITIONAL TYPE TESTS ==========
+  
+  /**
+   * Test type transformations and conditional types
+   */
+  conditionalTypeTests: {
+    // Test that role parameter can be undefined and handled correctly
+    roleUndefinedHandling: {} as ExpectTrue<Equal<
+      Parameters<typeof PermissionManager.getToolsForRole>[0],
+      'read-only' | 'write-restricted' | 'full-access' | 'security-sensitive' | undefined
+    >>,
+    
+    // Test that YAML config tools field is truly optional
+    yamlToolsOptional: {} as ExpectTrue<Equal<
+      YAMLAgentConfig['tools'],
+      string[] | undefined
+    >>,
+    
+    // Test that permission config can be constructed with minimal required fields
+    minimalPermissionConfig: {} as ExpectTrue<Equal<
+      Pick<AgentPermissionConfig, 'allowedTools'>,
+      { allowedTools: string[] }
+    >>,
+    
+    // Test optional fields can be omitted
+    optionalFieldsCanBeOmitted: {} as ExpectTrue<Equal<
+      Omit<AgentPermissionConfig, 'deniedTools' | 'restrictBuiltInTools' | 'agentRole' | 'useDynamicRestrictions'>,
+      { allowedTools: string[] }
+    >>,
+    
+    // Test union type extraction
+    extractValidRoles: {} as ExpectTrue<Equal<
+      Extract<AgentPermissionConfig['agentRole'], string>,
+      'read-only' | 'write-restricted' | 'full-access' | 'security-sensitive'
+    >>,
+  },
+
+  // ========== SECURITY TYPE CONSTRAINT TESTS ==========
+  
+  /**
+   * Test security-related type constraints and enforcement
+   */
+  securityConstraintTests: {
+    // Test that agent roles are strictly constrained
+    agentRoleStrictlyTyped: {} as ExpectFalse<Equal<
+      AgentPermissionConfig['agentRole'],
+      string | undefined
+    >>,
+    
+    // Test that security level is constrained to specific values
+    securityLevelConstrained: {} as ExpectTrue<Equal<
+      'high' | 'medium' | 'low',
+      Extract<Awaited<ReturnType<typeof PermissionManager.getAgentToolStatistics>>['securityLevel'], 'high' | 'medium' | 'low'>
+    >>,
+    
+    // Test that boolean security flags are properly typed
+    restrictBuiltInToolsBoolean: {} as ExpectTrue<Equal<
+      AgentPermissionConfig['restrictBuiltInTools'],
+      boolean | undefined
+    >>,
+    useDynamicRestrictionsBoolean: {} as ExpectTrue<Equal<
+      AgentPermissionConfig['useDynamicRestrictions'],
+      boolean | undefined
+    >>,
+    
+    // Test role type safety - ensure no string assignability
+    roleNotGenericString: {} as ExpectFalse<Equal<
+      NonNullable<AgentPermissionConfig['agentRole']>,
+      string
+    >>,
+    
+    // Test that validation return type is properly constrained
+    validationBooleanConstraint: {} as ExpectTrue<Equal<
+      Awaited<ReturnType<typeof PermissionManager.validateAgentToolConfiguration>>['valid'],
+      boolean
+    >>,
+  },
+
+  // ========== ARRAY AND UTILITY TYPE TESTS ==========
+  
+  /**
+   * Test array transformations and utility type usage
+   */
+  arrayTransformationTests: {
+    // Test that tool arrays maintain string[] type throughout transformations
+    toolArrayConsistency: {} as ExpectTrue<Equal<
+      ReturnType<typeof PermissionManager.ensureSummaryPermission>,
+      string[]
+    >>,
+    
+    // Test that the method preserves input array type while potentially modifying it
+    ensureSummaryPreservesType: {} as ExpectTrue<Equal<
+      Parameters<typeof PermissionManager.ensureSummaryPermission>[0],
+      ReturnType<typeof PermissionManager.ensureSummaryPermission>
+    >>,
+    
+    // Test that security profiles return correct types
+    securityProfilesReturnType: {} as ExpectTrue<Equal<
+      ReturnType<typeof PermissionManager.getSecurityProfiles>,
+      typeof PermissionManager['SECURITY_PROFILES']
+    >>,
+    
+    // Test array element types
+    allowedToolsElementType: {} as ExpectTrue<Equal<
+      AgentPermissionConfig['allowedTools'][number],
+      string
+    >>,
+    
+    // Test array utility types
+    toolArrayIsArray: {} as ExpectTrue<IsStringArray<AgentPermissionConfig['allowedTools']>>,
+    deniedToolsIsStringArrayOrUndefined: {} as ExpectTrue<Equal<
+      AgentPermissionConfig['deniedTools'],
+      string[] | undefined
+    >>,
+  },
+
+  // ========== TYPE SAFETY AND ANY TYPE TESTS ==========
+  
+  /**
+   * Test that no 'any' types leak through the API surface
+   */
+  noAnyTypesTests: {
+    // Verify main interfaces don't contain any
+    agentPermissionConfigNotAny: {} as ExpectFalse<IsAny<AgentPermissionConfig>>,
+    yamlAgentConfigNotAny: {} as ExpectFalse<IsAny<YAMLAgentConfig>>,
+    
+    // Verify method return types are not any
+    getAgentPermissionsNotAny: {} as ExpectFalse<IsAny<ReturnType<typeof PermissionManager.getAgentPermissions>>>,
+    getToolsForRoleNotAny: {} as ExpectFalse<IsAny<ReturnType<typeof PermissionManager.getToolsForRole>>>,
+    fromYAMLConfigNotAny: {} as ExpectFalse<IsAny<ReturnType<typeof PermissionManager.fromYAMLConfig>>>,
+    
+    // Verify async method return types are not any
+    dynamicRestrictionsNotAny: {} as ExpectFalse<IsAny<Awaited<ReturnType<typeof PermissionManager.getAgentPermissionsWithDynamicRestrictions>>>>,
+    validationNotAny: {} as ExpectFalse<IsAny<Awaited<ReturnType<typeof PermissionManager.validateAgentToolConfiguration>>>>,
+    statisticsNotAny: {} as ExpectFalse<IsAny<Awaited<ReturnType<typeof PermissionManager.getAgentToolStatistics>>>>,
+    
+    // Verify individual return type properties are not any
+    allowedToolsNotAny: {} as ExpectFalse<IsAny<ReturnType<typeof PermissionManager.getAgentPermissions>['allowedTools']>>,
+    disallowedToolsNotAny: {} as ExpectFalse<IsAny<ReturnType<typeof PermissionManager.getAgentPermissions>['disallowedTools']>>,
+    
+    // Verify security profiles are not any
+    securityProfilesNotAny: {} as ExpectFalse<IsAny<typeof PermissionManager['SECURITY_PROFILES']>>,
+  },
+
+  // ========== COMPLEX TYPE COMPOSITION TESTS ==========
+  
+  /**
+   * Test complex type compositions and transformations
+   */
+  complexTypeCompositionTests: {
+    // Test that fromMarkdownFile combines multiple type sources correctly
+    fromMarkdownFileReturnType: {} as ExpectTrue<Equal<
+      ReturnType<typeof PermissionManager.fromMarkdownFile>,
+      AgentPermissionConfig
+    >>,
+    
+    // Test that getSummaryPermissions preserves and extends base structure
+    getSummaryPermissionsStructure: {} as ExpectTrue<Equal<
+      ReturnType<typeof PermissionManager.getSummaryPermissions>,
+      {
+        allowedTools: string[];
+        disallowedTools: string[];
+      }
+    >>,
+    
+    // Test that complex async method preserves correct typing
+    generateToolRestrictionPromptReturnType: {} as ExpectTrue<Equal<
+      ReturnType<typeof PermissionManager.generateToolRestrictionPrompt>,
+      Promise<string>
+    >>,
+    
+    // Test complex parameter combinations
+    validateConfigComplexParam: {} as ExpectTrue<Equal<
+      Parameters<typeof PermissionManager.validateAgentToolConfiguration>[0],
+      AgentPermissionConfig
+    >>,
+    
+    // Test nested object type preservation
+    validationRecommendationsType: {} as ExpectTrue<Equal<
+      Awaited<ReturnType<typeof PermissionManager.validateAgentToolConfiguration>>['recommendations'],
+      string[]
+    >>,
+  },
+
+  // ========== PERMISSION CALCULATION TYPE SAFETY TESTS ==========
+  
+  /**
+   * Test permission calculation methods maintain type safety
+   */
+  permissionCalculationTests: {
+    // Test that permission methods accept correct config types
+    getAgentPermissionsConfigParam: {} as ExpectTrue<Equal<
+      Parameters<typeof PermissionManager.getAgentPermissions>[0],
+      AgentPermissionConfig
+    >>,
+    
+    // Test that dynamic permissions accept same config type
+    getDynamicPermissionsConfigParam: {} as ExpectTrue<Equal<
+      Parameters<typeof PermissionManager.getAgentPermissionsWithDynamicRestrictions>[0],
+      AgentPermissionConfig
+    >>,
+    
+    // Test that summary permissions accept same config type
+    getSummaryPermissionsConfigParam: {} as ExpectTrue<Equal<
+      Parameters<typeof PermissionManager.getSummaryPermissions>[0],
+      AgentPermissionConfig
+    >>,
+    
+    // Test that all permission methods return compatible structures
+    permissionStructureCompatibility: {} as ExpectTrue<Equal<
+      ReturnType<typeof PermissionManager.getAgentPermissions>,
+      Pick<Awaited<ReturnType<typeof PermissionManager.getAgentPermissionsWithDynamicRestrictions>>, 'allowedTools' | 'disallowedTools'>
+    >>,
+    
+    // Test permission calculation numeric types
+    statisticsNumericTypes: {} as ExpectTrue<Equal<
+      Pick<Awaited<ReturnType<typeof PermissionManager.getAgentToolStatistics>>, 'allowedCount' | 'disallowedCount' | 'totalAvailable' | 'coveragePercent'>,
+      {
+        allowedCount: number;
+        disallowedCount: number;
+        totalAvailable: number;
+        coveragePercent: number;
+      }
+    >>,
+  },
+
+  // ========== TYPE ASSERTION AND CAST SAFETY TESTS ==========
+  
+  /**
+   * Test type assertions and casts for safety violations
+   */
+  typeAssertionSafetyTests: {
+    // Test that the type assertion in fromYAMLConfig is properly constrained
+    yamlRoleTypeAssertion: {} as ExpectTrue<Equal<
+      AgentPermissionConfig['agentRole'],
+      'read-only' | 'write-restricted' | 'full-access' | 'security-sensitive' | undefined
+    >>,
+    
+    // Verify the assertion target matches expected type structure
+    roleAssertionTarget: {} as ExpectTrue<Equal<
+      YAMLAgentConfig['role'],
+      string | undefined
+    >>,
+    
+    // Test that constraint is properly applied in the method
+    fromYAMLConfigRoleHandling: {} as ExpectTrue<Equal<
+      ReturnType<typeof PermissionManager.fromYAMLConfig>['agentRole'],
+      'read-only' | 'write-restricted' | 'full-access' | 'security-sensitive' | undefined
+    >>,
+  },
+
+  // ========== METHOD OVERLOAD AND SIGNATURE TESTS ==========
+  
+  /**
+   * Test method signatures and parameter optionality
+   */
+  methodSignatureTests: {
+    // Test optional parameter handling
+    getToolsForRoleOptionalSecondParam: {} as ExpectTrue<Equal<
+      Parameters<typeof PermissionManager.getToolsForRole>,
+      [AgentPermissionConfig['agentRole'], string[]?]
+    >>,
+    
+    // Test fromMarkdownFile optional parameter
+    fromMarkdownFileOptionalParam: {} as ExpectTrue<Equal<
+      Parameters<typeof PermissionManager.fromMarkdownFile>,
+      [string, string[]?]
+    >>,
+    
+    // Test static method signatures
+    staticMethodsReturnCorrectTypes: {} as ExpectTrue<Equal<
+      typeof PermissionManager.getSecurityProfiles,
+      () => typeof PermissionManager['SECURITY_PROFILES']
+    >>,
+  },
+
+} as const;
+
+// Verify that the test dictionary itself is properly typed
+type TypeTestsStructure = typeof typeTests;
+type TestDictionaryIsWellTyped = Expect<Equal<
+  TypeTestsStructure,
+  Record<string, Record<string, any>>
+>>;
+
+// Additional compile-time verification of type test structure
+type VerifyTestStructure = {
+  [K in keyof TypeTestsStructure]: TypeTestsStructure[K] extends Record<string, any> ? true : false;
+};
+
+// Export type test dictionary for external validation if needed
+export type { TypeTestsStructure, VerifyTestStructure };
