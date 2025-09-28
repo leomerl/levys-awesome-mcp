@@ -1,110 +1,105 @@
-# Levy's Awesome MCP Toolkit
+# Levy's Awesome MCP
 
-A comprehensive MCP (Model Context Protocol) server toolkit providing agent management, build automation, and secure content writing capabilities. This package transforms multiple standalone MCP servers into a unified, modular npm package with shared utilities and reduced code duplication.
+AI agent orchestration toolkit for Claude. Automates complex development tasks through specialized agents working in parallel.
 
-DONT USE THE BIN FILES IN THE .mcp.json FILE, USE THE NPM PACJAGE ITSELF. there should be only one entry which is the levys-awesome-mcp server, that includes all of the available tools inside it.
-
-levys-awesome-mcp is a unified mcp toolkit server
-
-
-## Repository Structure Overview
-
-### Core Directories
-
-#### `src/` - Main MCP Server Implementations
-- **`agent-generator.ts`** - Converts TypeScript agent configurations to Claude-compatible markdown files
-- **`agent-invoker.ts`** - Complex agent execution system with session management, streaming, and conversation continuity  
-- **`build-executor.ts`** - Automated build system for frontend/backend projects (npm typecheck + build)
-- **`content-writer.ts`** - Secure file writing system with folder-based access controls
-
-#### `utilities/` - Shared Utility Modules
-**`utilities/mcp/`** - MCP Protocol Foundation
-- **`protocol-types.ts`** - Shared MCP interfaces and type definitions (eliminates duplication)
-- **`server-base.ts`** - Abstract MCP server class with common boilerplate (JSON-RPC, error handling)
-
-**`utilities/fs/`** - File System Operations  
-- **`path-validator.ts`** - Centralized path validation, normalization, and security checks
-- **`file-operations.ts`** - Safe file read/write/edit operations with consistent error handling
-
-**`utilities/process/`** - Process Management
-- **`command-executor.ts`** - Command execution wrapper with timeout handling and parallel execution
-
-**`utilities/session/`** - Session Management (planned)
-- Session persistence, conversation history, streaming utilities, report management
-
-**`utilities/agents/`** - Agent System (planned)
-- Dynamic agent loading, configuration parsing, markdown conversion
-
-**`utilities/config/`** - Configuration (planned)
-- Centralized path configuration and input validation
-
-#### `bin/` - CLI Executables
-- **`agent-generator`** - CLI entry point for agent generator
-- **`agent-invoker`** - CLI entry point for agent invoker  
-- **`build-executor`** - CLI entry point for build executor
-- **`content-writer`** - CLI entry point for content writer
-
-#### `tools/` - Original Implementation (Legacy)
-- **`agent_generator.ts`** - Original TypeScript agent → markdown converter (500+ lines)
-- **`agent_invoker.ts`** - Original agent execution system (1400+ lines) 
-- **`build_executor.js`** - Original build automation (218 lines)
-- **`content_writer.js`** - Original file writing system (777 lines)
-
-### Configuration Files
-
-- **`package.json`** - NPM package configuration with CLI binaries and dependencies
-- **`tsconfig.json`** - TypeScript compilation configuration
-- **`README.md`** - This documentation file
-
-## Tool Responsibilities
-
-### Agent Invoker
-Invokes second-thread agents to complete specific tasks with:
-- Real-time output streaming to `output_streams/$session_id/`
-- Session continuity for related tasks
-- Automatic report generation in `reports/$session_id/`
-- Conversation debugging and monitoring
-
-### Content Writer
-Provides secure file operations with:
-- Folder-based access controls (frontend/, backend/, reports/, tests/)
-- Path validation and traversal protection
-- Support for restricted writes to specific directories
-- JSON validation for report files
-
-### Build Executor  
-Automates project builds with:
-- Frontend build automation (`npm run build`)
-- Backend type checking (`npm run typecheck`) 
-- Parallel execution for improved performance
-- Comprehensive error reporting
-
-### Agent Generator
-Converts TypeScript agent configurations to Claude-compatible formats:
-- Dynamic TypeScript module loading
-- YAML frontmatter generation  
-- Markdown conversion with proper formatting
-- Generated file tracking and cleanup
-
-## Benefits of Refactored Architecture
-
-- **75% code reduction** through shared utilities
-- **Consistent error handling** across all tools
-- **TypeScript-first** development with strong typing
-- **Modular design** allowing independent utility usage  
-- **Single npm package** for easy distribution
-- **CLI binaries** for direct command-line usage
-
-## Installation & Usage
+## Installation
 
 ```bash
-npm install levys-awesome-mcp
-
-# Use CLI tools directly
-agent-generator
-agent-invoker  
-build-executor
-content-writer
-
-# Or use as MCP servers in your Claude configuration
+npm install @leomerl/levys-awesome-mcp
 ```
+
+Add to `.claude/claude.json`:
+```json
+{
+  "mcpServers": {
+    "levys-awesome-mcp": {
+      "command": "npx",
+      "args": ["@leomerl/levys-awesome-mcp"]
+    }
+  }
+}
+```
+
+## Usage
+
+### Orchestrate Tasks
+
+```
+/orchestrate build a complete user authentication system with tests
+```
+
+Claude will:
+1. Create a plan in `plan_and_progress/{git-hash}/plan.json`
+2. Assign tasks to specialized agents (backend, frontend, testing, etc.)
+3. Execute tasks in parallel where possible
+4. Track progress in `plan_and_progress/{git-hash}/progress.json`
+
+### Available Agents
+
+- **orchestrator-agent** - Coordinates multi-agent workflows
+- **backend-agent** - API and server development
+- **frontend-agent** - UI and client-side code
+- **testing-agent** - Test creation and execution
+- **builder-agent** - Build and deployment
+- **linter-agent** - Code quality checks
+- **planner-agent** - Project planning
+
+## Debugging AI Performance
+
+### Check Progress
+```bash
+cat plan_and_progress/{git-hash}/progress*.json
+```
+
+Shows:
+- Task states (pending/in_progress/completed)
+- Which agent worked on what
+- Files modified
+- Session IDs for each agent
+
+### View Agent Logs
+```bash
+cat output_streams/{session-id}/stream.log
+```
+
+Real-time agent output for debugging what went wrong.
+
+### Review Plans
+```bash
+cat plan_and_progress/{git-hash}/plan*.json
+```
+
+See task breakdown, dependencies, and agent assignments.
+
+## File Structure
+
+```
+project/
+├── plan_and_progress/     # Plans and progress tracking
+│   └── {git-hash}/
+│       ├── plan.json      # Task breakdown
+│       └── progress.json  # Execution status
+├── output_streams/        # Agent execution logs
+│   └── {session-id}/
+│       └── stream.log    # Real-time output
+└── reports/              # Agent summaries
+    └── {session-id}/
+        └── *-summary.json
+```
+
+## Tips
+
+1. **Use `/orchestrate` for complex tasks** - Let the AI break down and delegate work
+2. **Check progress.json** - See which tasks failed and why
+3. **Review session.log** - Debug agent behavior and errors
+4. **Git commit before orchestrating** - Plans are tied to commit hashes
+
+## Troubleshooting
+
+- **Task stuck in_progress**: Check `output_streams/{session-id}/session.log`
+- **Agent errors**: Look for error messages in session logs
+- **Files not created**: Verify agent has correct write permissions in progress.json
+
+## License
+
+MIT
