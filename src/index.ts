@@ -115,8 +115,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return await handleTestExecutorTool(name, args);
     } 
     // Handle plan-creator tools
-    else if (name.includes('create_plan') || 
-             name.includes('update_progress')) {
+    else if (name.includes('create_plan') ||
+             name.includes('update_progress') ||
+             name.includes('compare_plan_progress')) {
       return await handlePlanCreatorTool(name, args);
     } 
     else {

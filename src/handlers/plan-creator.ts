@@ -137,6 +137,20 @@ export const planCreatorTools = [
       },
       required: ['git_commit_hash', 'task_id', 'state', 'agent_session_id']
     }
+  },
+  {
+    name: 'compare_plan_progress',
+    description: 'Compares the planned files_to_modify with actual files_modified in progress, checks task completion status and overall goal achievement',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        git_commit_hash: {
+          type: 'string',
+          description: 'Git commit hash to locate the plan and progress files'
+        }
+      },
+      required: ['git_commit_hash']
+    }
   }
 ];
 
@@ -498,6 +512,178 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
         }
       }
 
+      case 'compare_plan_progress':
+      case 'mcp__levys-awesome-mcp__compare_plan_progress': {
+        const { git_commit_hash } = args;
+
+        if (!git_commit_hash) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Error: git_commit_hash is required'
+            }],
+            isError: true
+          };
+        }
+
+        try {
+          const reportsDir = path.join(process.cwd(), 'plan_and_progress', git_commit_hash);
+
+          if (!existsSync(reportsDir)) {
+            return {
+              content: [{
+                type: 'text',
+                text: `Error: No plan/progress directory found for git hash: ${git_commit_hash}`
+              }],
+              isError: true
+            };
+          }
+
+          // Find the most recent plan and progress files
+          const fs = await import('fs');
+          const files = fs.readdirSync(reportsDir);
+          const planFiles = files.filter(f => f.startsWith('plan-') && f.endsWith('.json'));
+          const progressFiles = files.filter(f => f.startsWith('progress-') && f.endsWith('.json'));
+
+          if (planFiles.length === 0 || progressFiles.length === 0) {
+            return {
+              content: [{
+                type: 'text',
+                text: `Error: Missing plan or progress files in directory: ${reportsDir}`
+              }],
+              isError: true
+            };
+          }
+
+          // Sort by creation time (newest first)
+          planFiles.sort().reverse();
+          progressFiles.sort().reverse();
+
+          const planFilePath = path.join(reportsDir, planFiles[0]);
+          const progressFilePath = path.join(reportsDir, progressFiles[0]);
+
+          // Read plan and progress files
+          const planContent = await readFile(planFilePath, 'utf8');
+          const progressContent = await readFile(progressFilePath, 'utf8');
+
+          const plan: PlanDocument = JSON.parse(planContent);
+          const progress: ProgressDocument = JSON.parse(progressContent);
+
+          // Perform comparison
+          const comparisonReport = {
+            git_commit_hash,
+            plan_file: planFiles[0],
+            progress_file: progressFiles[0],
+            overall_goal: plan.task_description,
+            synopsis: plan.synopsis,
+            task_comparisons: [] as Array<{
+              task_id: string;
+              description: string;
+              designated_agent: string;
+              state: string;
+              planned_files: string[];
+              actual_files: string[];
+              missing_files: string[];
+              unexpected_files: string[];
+              has_discrepancy: boolean;
+            }>,
+            summary: {
+              total_tasks: plan.tasks.length,
+              completed_tasks: 0,
+              in_progress_tasks: 0,
+              pending_tasks: 0,
+              tasks_with_discrepancies: 0,
+              overall_completion_percentage: 0,
+              root_task_completed: false
+            },
+            discrepancy_analysis: {
+              critical_missing_files: [] as string[],
+              all_missing_files: [] as string[],
+              all_unexpected_files: [] as string[]
+            }
+          };
+
+          // Compare each task
+          for (const planTask of plan.tasks) {
+            const progressTask = progress.tasks.find(t => t.id === planTask.id);
+
+            if (!progressTask) {
+              continue; // Skip if task not found in progress
+            }
+
+            const plannedFiles = planTask.files_to_modify || [];
+            const actualFiles = progressTask.files_modified || [];
+
+            // Find missing and unexpected files
+            const missingFiles = plannedFiles.filter(f => !actualFiles.includes(f));
+            const unexpectedFiles = actualFiles.filter(f => !plannedFiles.includes(f));
+
+            const hasDiscrepancy = missingFiles.length > 0 || unexpectedFiles.length > 0;
+
+            comparisonReport.task_comparisons.push({
+              task_id: planTask.id,
+              description: planTask.description,
+              designated_agent: planTask.designated_agent,
+              state: progressTask.state,
+              planned_files: plannedFiles,
+              actual_files: actualFiles,
+              missing_files: missingFiles,
+              unexpected_files: unexpectedFiles,
+              has_discrepancy: hasDiscrepancy
+            });
+
+            // Update summary counts
+            if (progressTask.state === 'completed') {
+              comparisonReport.summary.completed_tasks++;
+            } else if (progressTask.state === 'in_progress') {
+              comparisonReport.summary.in_progress_tasks++;
+            } else {
+              comparisonReport.summary.pending_tasks++;
+            }
+
+            if (hasDiscrepancy) {
+              comparisonReport.summary.tasks_with_discrepancies++;
+            }
+
+            // Collect all discrepancies
+            comparisonReport.discrepancy_analysis.all_missing_files.push(...missingFiles);
+            comparisonReport.discrepancy_analysis.all_unexpected_files.push(...unexpectedFiles);
+          }
+
+          // Calculate overall completion percentage
+          if (comparisonReport.summary.total_tasks > 0) {
+            comparisonReport.summary.overall_completion_percentage =
+              Math.round((comparisonReport.summary.completed_tasks / comparisonReport.summary.total_tasks) * 100);
+          }
+
+          // Determine if root task was completed (all tasks completed)
+          comparisonReport.summary.root_task_completed =
+            comparisonReport.summary.completed_tasks === comparisonReport.summary.total_tasks;
+
+          // Identify critical missing files (files that were planned but never created/modified)
+          comparisonReport.discrepancy_analysis.critical_missing_files =
+            [...new Set(comparisonReport.discrepancy_analysis.all_missing_files)];
+
+          // Generate human-readable summary
+          const readableSummary = generateComparisonSummary(comparisonReport);
+
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify(comparisonReport, null, 2) + '\n\n' + readableSummary
+            }]
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: 'text',
+              text: `Error comparing plan and progress: ${error instanceof Error ? error.message : String(error)}`
+            }],
+            isError: true
+          };
+        }
+      }
+
       default:
         throw new Error(`Unknown plan creator tool: ${name}`);
     }
@@ -548,6 +734,51 @@ function generatePlanSummary(plan: PlanDocument, progress: ProgressDocument): st
   });
 
   summary.push('📝 Note: Progress file will track task execution state, agent sessions, and file modifications.');
+
+  return summary.join('\n');
+}
+
+function generateComparisonSummary(report: any): string {
+  const summary = [
+    '=== PLAN VS PROGRESS COMPARISON SUMMARY ===',
+    '',
+    `📋 Overall Goal: ${report.overall_goal}`,
+    `📝 Synopsis: ${report.synopsis}`,
+    '',
+    '📊 Task Completion Status:',
+    `  ✅ Completed: ${report.summary.completed_tasks}/${report.summary.total_tasks} (${report.summary.overall_completion_percentage}%)`,
+    `  🔄 In Progress: ${report.summary.in_progress_tasks}`,
+    `  ⏳ Pending: ${report.summary.pending_tasks}`,
+    '',
+    '🔍 Discrepancy Analysis:',
+    `  ⚠️ Tasks with discrepancies: ${report.summary.tasks_with_discrepancies}`,
+    `  📁 Critical missing files: ${report.discrepancy_analysis.critical_missing_files.length}`,
+    `  📄 Unexpected files: ${[...new Set(report.discrepancy_analysis.all_unexpected_files)].length}`,
+    ''
+  ];
+
+  if (report.summary.tasks_with_discrepancies > 0) {
+    summary.push('📋 Tasks with File Discrepancies:');
+    for (const task of report.task_comparisons) {
+      if (task.has_discrepancy) {
+        summary.push(`  ${task.task_id}: ${task.description}`);
+        if (task.missing_files.length > 0) {
+          summary.push(`    ❌ Missing: ${task.missing_files.join(', ')}`);
+        }
+        if (task.unexpected_files.length > 0) {
+          summary.push(`    ➕ Unexpected: ${task.unexpected_files.join(', ')}`);
+        }
+      }
+    }
+    summary.push('');
+  }
+
+  summary.push('🎯 Root Task Achievement:');
+  if (report.summary.root_task_completed) {
+    summary.push('  ✅ Root task COMPLETED - All planned tasks have been executed');
+  } else {
+    summary.push(`  ⚠️ Root task NOT completed - ${report.summary.total_tasks - report.summary.completed_tasks} tasks remaining`);
+  }
 
   return summary.join('\n');
 }
