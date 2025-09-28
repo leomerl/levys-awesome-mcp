@@ -4,6 +4,16 @@
 
 The session management system in levys-awesome-mcp ensures proper context retention and directory organization when invoking agents through Claude Code. This implementation solves the critical issue of session ID mismatch between our internal tracking and Claude Code's actual session management.
 
+### How Session Resumption Works
+
+Session resumption allows agents to maintain memory and context across multiple invocations. The system works as follows:
+
+1. **Session State Storage**: When an agent is invoked, Claude Code maintains the conversation state internally (separate from any log files)
+2. **Session ID**: Each session gets a unique ID from Claude Code that serves as the key to retrieve the stored state
+3. **Resume Mechanism**: When `continueSessionId` is provided, the system passes it to Claude Code's `--resume` parameter, which retrieves the stored conversation state
+4. **Memory Persistence**: The agent retains all previous context, variables, and conversation history from the original session
+5. **Log Files**: While `.log` files are created for debugging/audit purposes, they are NOT required for session resumption - Claude Code handles state persistence independently
+
 ## Key Features
 
 ### 1. Claude Code Session ID Capture

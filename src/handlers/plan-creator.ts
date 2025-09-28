@@ -569,6 +569,49 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
           const plan: PlanDocument = JSON.parse(planContent);
           const progress: ProgressDocument = JSON.parse(progressContent);
 
+          // Helper functions for better file comparison
+          function normalizePath(filePath: string): string {
+            // Remove common project structure prefixes for better comparison
+            return filePath
+              .replace(/^backend\//, '')
+              .replace(/^frontend\//, '')
+              .replace(/^client\//, '')
+              .replace(/^server\//, '');
+          }
+
+          function categorizeFile(filePath: string): 'implementation' | 'infrastructure' | 'test' | 'build' {
+            const file = filePath.toLowerCase();
+
+            // Infrastructure files (test runners, build scripts, etc.)
+            if (file.includes('test-runner') ||
+                file.includes('execute-') ||
+                file.includes('vitest-runner') ||
+                file.includes('run-all-tests') ||
+                file.endsWith('-report.md') ||
+                file.endsWith('.sh') ||
+                file.includes('config') && file.includes('test')) {
+              return 'infrastructure';
+            }
+
+            // Build output files
+            if (file.startsWith('dist/') ||
+                file.endsWith('.js') && file.includes('dist') ||
+                file.endsWith('.d.ts')) {
+              return 'build';
+            }
+
+            // Test files
+            if (file.includes('.test.') ||
+                file.includes('.spec.') ||
+                file.includes('test/') ||
+                file.includes('tests/')) {
+              return 'test';
+            }
+
+            // Implementation files
+            return 'implementation';
+          }
+
           // Perform comparison
           const comparisonReport = {
             git_commit_hash,
@@ -585,7 +628,9 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
               actual_files: string[];
               missing_files: string[];
               unexpected_files: string[];
+              infrastructure_files: string[];
               has_discrepancy: boolean;
+              has_critical_discrepancy: boolean;
             }>,
             summary: {
               total_tasks: plan.tasks.length,
@@ -593,6 +638,7 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
               in_progress_tasks: 0,
               pending_tasks: 0,
               tasks_with_discrepancies: 0,
+              tasks_with_critical_discrepancies: 0,
               overall_completion_percentage: 0,
               root_task_completed: false
             },
@@ -614,11 +660,23 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
             const plannedFiles = planTask.files_to_modify || [];
             const actualFiles = progressTask.files_modified || [];
 
-            // Find missing and unexpected files
-            const missingFiles = plannedFiles.filter(f => !actualFiles.includes(f));
-            const unexpectedFiles = actualFiles.filter(f => !plannedFiles.includes(f));
+            // Normalize paths for better comparison
+            const normalizedPlanned = plannedFiles.map(normalizePath);
+            const normalizedActual = actualFiles.map(normalizePath);
+
+            // Find missing and unexpected files using normalized paths
+            const missingFiles = plannedFiles.filter(f => !normalizedActual.includes(normalizePath(f)));
+            const unexpectedFiles = actualFiles.filter(f => !normalizedPlanned.includes(normalizePath(f)));
+
+            // Categorize unexpected files
+            const infrastructureFiles = unexpectedFiles.filter(f => categorizeFile(f) === 'infrastructure');
+            const criticalUnexpectedFiles = unexpectedFiles.filter(f => {
+              const category = categorizeFile(f);
+              return category === 'implementation' || (category === 'test' && missingFiles.some(m => categorizeFile(m) === 'test'));
+            });
 
             const hasDiscrepancy = missingFiles.length > 0 || unexpectedFiles.length > 0;
+            const hasCriticalDiscrepancy = missingFiles.length > 0 || criticalUnexpectedFiles.length > 0;
 
             comparisonReport.task_comparisons.push({
               task_id: planTask.id,
@@ -629,7 +687,9 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
               actual_files: actualFiles,
               missing_files: missingFiles,
               unexpected_files: unexpectedFiles,
-              has_discrepancy: hasDiscrepancy
+              infrastructure_files: infrastructureFiles,
+              has_discrepancy: hasDiscrepancy,
+              has_critical_discrepancy: hasCriticalDiscrepancy
             });
 
             // Update summary counts
@@ -643,6 +703,10 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
 
             if (hasDiscrepancy) {
               comparisonReport.summary.tasks_with_discrepancies++;
+            }
+
+            if (hasCriticalDiscrepancy) {
+              comparisonReport.summary.tasks_with_critical_discrepancies++;
             }
 
             // Collect all discrepancies
@@ -660,9 +724,13 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
           comparisonReport.summary.root_task_completed =
             comparisonReport.summary.completed_tasks === comparisonReport.summary.total_tasks;
 
-          // Identify critical missing files (files that were planned but never created/modified)
+          // Remove duplicates and identify critical missing files
           comparisonReport.discrepancy_analysis.critical_missing_files =
             [...new Set(comparisonReport.discrepancy_analysis.all_missing_files)];
+          comparisonReport.discrepancy_analysis.all_missing_files =
+            [...new Set(comparisonReport.discrepancy_analysis.all_missing_files)];
+          comparisonReport.discrepancy_analysis.all_unexpected_files =
+            [...new Set(comparisonReport.discrepancy_analysis.all_unexpected_files)];
 
           // Generate human-readable summary
           const readableSummary = generateComparisonSummary(comparisonReport);
@@ -713,7 +781,7 @@ function generatePlanSummary(plan: PlanDocument, progress: ProgressDocument): st
   summary.push(`📊 Tasks Breakdown (${plan.tasks.length} tasks):`);
   summary.push('');
 
-  progress.tasks.forEach((task, index) => {
+  progress.tasks.forEach((task) => {
     const status = task.state === 'pending' ? '⏳' : 
                   task.state === 'in_progress' ? '🔄' : '✅';
     const dependencies = task.dependencies.length > 0 ? ` [depends on: ${task.dependencies.join(', ')}]` : '';
@@ -752,8 +820,9 @@ function generateComparisonSummary(report: any): string {
     '',
     '🔍 Discrepancy Analysis:',
     `  ⚠️ Tasks with discrepancies: ${report.summary.tasks_with_discrepancies}`,
+    `  🚨 Tasks with critical discrepancies: ${report.summary.tasks_with_critical_discrepancies || 0}`,
     `  📁 Critical missing files: ${report.discrepancy_analysis.critical_missing_files.length}`,
-    `  📄 Unexpected files: ${[...new Set(report.discrepancy_analysis.all_unexpected_files)].length}`,
+    `  📄 Unexpected files: ${report.discrepancy_analysis.all_unexpected_files.length}`,
     ''
   ];
 
