@@ -73,6 +73,8 @@ jobs:
           prompt: |
             I need you to fix a failing test. Please complete these steps:
 
+            IMPORTANT: DO NOT create any markdown (.md) files. Only modify test files and source code.
+
             Issue details:
             ${{ github.event_name == 'issue_comment' && format('Based on this issue comment: {0}', github.event.comment.body) || format('Based on this GitHub issue: {0}', github.event.issue.body) }}
 
@@ -80,6 +82,8 @@ jobs:
 
             Step 2: Invoke the testing-agent with this prompt:
             "Analyze the failing test(s) mentioned in the issue and fix them. The issue describes a test failure from the nightly test run.
+
+            IMPORTANT: DO NOT create any markdown (.md) files. Only modify test files and source code.
 
             Your tasks:
             1. Read and understand the test failure from the issue description
@@ -107,6 +111,8 @@ jobs:
           allowed_bots: claude
           prompt: |
             Now complete the git operations and PR creation:
+
+            IMPORTANT: DO NOT create any markdown (.md) files. Only commit test files and source code changes.
 
             Use bash commands to:
             1. Create a new branch for the changes using git commands (name it like "fix/test-issue-${{ github.event.issue.number }}")

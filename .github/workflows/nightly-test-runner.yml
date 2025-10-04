@@ -47,23 +47,19 @@ jobs:
           # Create test results directory
           mkdir -p test-results
 
-          # Run tests with JSON reporter
-          npm test -- --json --outputFile=test-results/results.json 2>&1 | tee test-results/output.log
+          # Run tests with JSON reporter (vitest syntax)
+          npm test -- --reporter=json --outputFile=test-results/results.json 2>&1 | tee test-results/output.log
           TEST_EXIT_CODE=${PIPESTATUS[0]}
-
-          # Also try to generate a more detailed report if jest/vitest supports it
-          if command -v npx jest &> /dev/null; then
-            npx jest --listTests > test-results/test-list.txt 2>/dev/null || true
-          fi
 
           # Save exit code for later
           echo "test_exit_code=${TEST_EXIT_CODE}" >> $GITHUB_OUTPUT
 
           # Parse test results if JSON was generated
           if [ -f test-results/results.json ]; then
-            TOTAL_TESTS=$(jq '.numTotalTests // 0' test-results/results.json)
-            FAILED_TESTS=$(jq '.numFailedTests // 0' test-results/results.json)
-            PASSED_TESTS=$(jq '.numPassedTests // 0' test-results/results.json)
+            # Vitest JSON format: count test results from testResults array
+            TOTAL_TESTS=$(jq '[.testResults[]?.assertionResults[]?] | length' test-results/results.json 2>/dev/null || echo "0")
+            FAILED_TESTS=$(jq '[.testResults[]?.assertionResults[]? | select(.status == "failed")] | length' test-results/results.json 2>/dev/null || echo "0")
+            PASSED_TESTS=$(jq '[.testResults[]?.assertionResults[]? | select(.status == "passed")] | length' test-results/results.json 2>/dev/null || echo "0")
 
             echo "total_tests=${TOTAL_TESTS}" >> $GITHUB_OUTPUT
             echo "failed_tests=${FAILED_TESTS}" >> $GITHUB_OUTPUT
@@ -156,6 +152,8 @@ jobs:
           claude_args: --allowedTools Bash(gh issue create:*),Bash(gh issue list:*),Bash(gh pr list:*),Read,Grep,Glob
           prompt: |
             I have test results from a nightly test run that failed. Please analyze the failures and create GitHub issues for test failures ONLY (not coverage issues).
+
+            IMPORTANT: DO NOT create any markdown (.md) files. Only create GitHub issues using gh commands.
 
             Repository: ${{ github.repository }}
             Workflow Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
