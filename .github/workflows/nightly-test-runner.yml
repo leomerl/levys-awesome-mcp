@@ -217,6 +217,5 @@ jobs:
 
               _Created by Claude Code automation_" \
               --label "test-failure" \
-              --label "nightly-test" \
-              --label "meta"
+              --label "nightly-test"
           fi
