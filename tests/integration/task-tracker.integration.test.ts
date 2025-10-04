@@ -56,6 +56,12 @@ async function waitForFileUpdate(filePath: string, expectedContent: string, maxW
   return false;
 }
 
+// Helper to extract session ID from create_plan response
+function extractSessionId(responseText: string): string | null {
+  const sessionIdMatch = responseText.match(/Session ID: ([a-zA-Z0-9-]+)/);
+  return sessionIdMatch ? sessionIdMatch[1] : null;
+}
+
 describe('TaskTracker Integration Tests', () => {
   let client: MCPClient;
   let currentGitHash: string;
@@ -144,14 +150,21 @@ describe('TaskTracker Integration Tests', () => {
     expect(response.result).toBeDefined();
     expect(response.error).toBeUndefined();
 
+    // Extract session ID from response
+    const responseText = response.result?.content?.[0]?.text || '';
+    const sessionId = extractSessionId(responseText);
+    expect(sessionId).toBeTruthy();
+    console.log('Created plan with session ID:', sessionId);
+
     // Wait for plan file to be created
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Verify plan file was created in the current git hash directory
-    const planDir = path.join('plan_and_progress', currentGitHash);
+    // Verify plan file was created in the session-based directory
+    const planDir = path.join('plan_and_progress', 'sessions', sessionId!);
     const planFile = path.join(planDir, 'plan.json');
 
     expect(fs.existsSync(planDir)).toBe(true);
+    expect(fs.existsSync(planFile)).toBe(true);
 
     if (fs.existsSync(planFile)) {
       const planContent = JSON.parse(fs.readFileSync(planFile, 'utf8'));
@@ -167,11 +180,8 @@ describe('TaskTracker Integration Tests', () => {
   it('should handle concurrent task updates without data corruption', async () => {
     console.log('Testing concurrent task updates...');
 
-    // Use unique directory for this test
-    const concurrentTestHash = 'concurrent-test-' + Date.now();
-
-    // First create a plan
-    await client.call('tools/call', {
+    // Create a plan and capture the session ID
+    const createResponse = await client.call('tools/call', {
       name: 'create_plan',
       arguments: {
         task_description: 'Concurrent update test',
@@ -202,16 +212,20 @@ describe('TaskTracker Integration Tests', () => {
       }
     });
 
+    // Extract session ID from response
+    const responseText = createResponse.result?.content?.[0]?.text || '';
+    const sessionId = extractSessionId(responseText);
+    expect(sessionId).toBeTruthy();
+    console.log('Created plan with session ID:', sessionId);
+
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Use current git hash directory
-
-    // Simulate concurrent updates from multiple agents
+    // Simulate concurrent updates from multiple agents using session_id
     const concurrentUpdates = [
       client.call('tools/call', {
         name: 'update_progress',
         arguments: {
-          git_commit_hash: concurrentTestHash,
+          session_id: sessionId,
           task_id: 'TASK-001',
           state: 'in_progress',
           agent_session_id: 'session-001',
@@ -222,7 +236,7 @@ describe('TaskTracker Integration Tests', () => {
       client.call('tools/call', {
         name: 'update_progress',
         arguments: {
-          git_commit_hash: concurrentTestHash,
+          session_id: sessionId,
           task_id: 'TASK-002',
           state: 'in_progress',
           agent_session_id: 'session-002',
@@ -233,7 +247,7 @@ describe('TaskTracker Integration Tests', () => {
       client.call('tools/call', {
         name: 'update_progress',
         arguments: {
-          git_commit_hash: concurrentTestHash,
+          session_id: sessionId,
           task_id: 'TASK-003',
           state: 'in_progress',
           agent_session_id: 'session-003',
@@ -256,8 +270,9 @@ describe('TaskTracker Integration Tests', () => {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Verify progress file is not corrupted and contains all updates
-    const progressFile = path.join('plan_and_progress', concurrentTestHash, 'progress.json');
+    const progressFile = path.join('plan_and_progress', 'sessions', sessionId!, 'progress.json');
 
+    expect(fs.existsSync(progressFile)).toBe(true);
     if (fs.existsSync(progressFile)) {
       const progressContent = JSON.parse(fs.readFileSync(progressFile, 'utf8'));
       expect(progressContent.tasks).toHaveLength(3);
@@ -273,11 +288,8 @@ describe('TaskTracker Integration Tests', () => {
   it('should enforce task dependencies correctly', async () => {
     console.log('Testing dependency enforcement...');
 
-    // Use unique directory for this test
-    const dependencyTestHash = 'dependency-test-' + Date.now();
-
     // Create plan with dependencies
-    await client.call('tools/call', {
+    const createResponse = await client.call('tools/call', {
       name: 'create_plan',
       arguments: {
         task_description: 'Dependency test',
@@ -301,14 +313,19 @@ describe('TaskTracker Integration Tests', () => {
       }
     });
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Extract session ID from response
+    const responseText = createResponse.result?.content?.[0]?.text || '';
+    const sessionId = extractSessionId(responseText);
+    expect(sessionId).toBeTruthy();
+    console.log('Created plan with session ID:', sessionId);
 
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Try to start TASK-002 before TASK-001 is completed
     await client.call('tools/call', {
       name: 'update_progress',
       arguments: {
-        git_commit_hash: dependencyTestHash,
+        session_id: sessionId,
         task_id: 'TASK-002',
         state: 'in_progress',
         agent_session_id: 'session-002'
@@ -319,7 +336,7 @@ describe('TaskTracker Integration Tests', () => {
     await client.call('tools/call', {
       name: 'update_progress',
       arguments: {
-        git_commit_hash: dependencyTestHash,
+        session_id: sessionId,
         task_id: 'TASK-001',
         state: 'completed',
         agent_session_id: 'session-001',
@@ -331,7 +348,7 @@ describe('TaskTracker Integration Tests', () => {
     await client.call('tools/call', {
       name: 'update_progress',
       arguments: {
-        git_commit_hash: dependencyTestHash,
+        session_id: sessionId,
         task_id: 'TASK-002',
         state: 'completed',
         agent_session_id: 'session-002',
@@ -342,7 +359,8 @@ describe('TaskTracker Integration Tests', () => {
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Verify both tasks are completed
-    const progressFile = path.join('plan_and_progress', dependencyTestHash, 'progress.json');
+    const progressFile = path.join('plan_and_progress', 'sessions', sessionId!, 'progress.json');
+    expect(fs.existsSync(progressFile)).toBe(true);
     if (fs.existsSync(progressFile)) {
       const progressContent = JSON.parse(fs.readFileSync(progressFile, 'utf8'));
       const completedTasks = progressContent.tasks.filter((t: any) => t.state === 'completed');
@@ -354,11 +372,8 @@ describe('TaskTracker Integration Tests', () => {
   it('should persist and recover task state across sessions', async () => {
     console.log('Testing state persistence...');
 
-    // Use unique directory for this test
-    const persistenceTestHash = 'persistence-test-' + Date.now();
-
     // Create and update a plan
-    await client.call('tools/call', {
+    const createResponse = await client.call('tools/call', {
       name: 'create_plan',
       arguments: {
         task_description: 'Persistence test',
@@ -375,14 +390,19 @@ describe('TaskTracker Integration Tests', () => {
       }
     });
 
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Extract session ID from response
+    const responseText = createResponse.result?.content?.[0]?.text || '';
+    const sessionId = extractSessionId(responseText);
+    expect(sessionId).toBeTruthy();
+    console.log('Created plan with session ID:', sessionId);
 
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // Update task state
     await client.call('tools/call', {
       name: 'update_progress',
       arguments: {
-        git_commit_hash: persistenceTestHash,
+        session_id: sessionId,
         task_id: 'TASK-001',
         state: 'in_progress',
         agent_session_id: 'session-001',
@@ -393,34 +413,27 @@ describe('TaskTracker Integration Tests', () => {
     await new Promise(resolve => setTimeout(resolve, 500));
 
     // Check what directories exist for debugging
-    if (fs.existsSync('plan_and_progress')) {
-      const dirs = fs.readdirSync('plan_and_progress');
-      console.log('Available plan directories:', dirs);
+    if (fs.existsSync('plan_and_progress/sessions')) {
+      const dirs = fs.readdirSync('plan_and_progress/sessions');
+      console.log('Available session directories:', dirs);
     }
 
     // Verify the state is persisted in the file
-    const progressFile = path.join('plan_and_progress', persistenceTestHash, 'progress.json');
-    if (!fs.existsSync(progressFile)) {
-      console.log('Progress file not found at:', progressFile);
-      console.log('Current test hash:', persistenceTestHash);
-      return; // Skip assertion if file doesn't exist
+    const progressFile = path.join('plan_and_progress', 'sessions', sessionId!, 'progress.json');
+    expect(fs.existsSync(progressFile)).toBe(true);
+    if (fs.existsSync(progressFile)) {
+      const progressContent = JSON.parse(fs.readFileSync(progressFile, 'utf8'));
+      expect(progressContent.tasks[0].state).toBe('in_progress');
+      expect(progressContent.tasks[0].summary).toBe('Working on persistent task');
+      console.log('✓ Task state persisted correctly');
     }
-
-    const progressContent = JSON.parse(fs.readFileSync(progressFile, 'utf8'));
-    expect(progressContent.tasks[0].state).toBe('in_progress');
-    expect(progressContent.tasks[0].summary).toBe('Working on persistent task');
-
-    console.log('✓ Task state persisted correctly');
   }, 15000);
 
   it('should handle corrupted progress files gracefully', async () => {
     console.log('Testing error handling for corrupted files...');
 
-    // Use a unique hash for this corruption test to avoid affecting other tests
-    const corruptionTestHash = 'corruption-test-' + Date.now();
-
     // Create a plan first
-    await client.call('tools/call', {
+    const createResponse = await client.call('tools/call', {
       name: 'create_plan',
       arguments: {
         task_description: 'Corruption test',
@@ -437,9 +450,15 @@ describe('TaskTracker Integration Tests', () => {
       }
     });
 
+    // Extract session ID from response
+    const responseText = createResponse.result?.content?.[0]?.text || '';
+    const sessionId = extractSessionId(responseText);
+    expect(sessionId).toBeTruthy();
+    console.log('Created plan with session ID:', sessionId);
+
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    const progressFile = path.join('plan_and_progress', corruptionTestHash, 'progress.json');
+    const progressFile = path.join('plan_and_progress', 'sessions', sessionId!, 'progress.json');
 
     // Ensure the directory exists
     fs.mkdirSync(path.dirname(progressFile), { recursive: true });
@@ -451,7 +470,7 @@ describe('TaskTracker Integration Tests', () => {
     const response = await client.call('tools/call', {
       name: 'update_progress',
       arguments: {
-        git_commit_hash: corruptionTestHash,
+        session_id: sessionId,
         task_id: 'TASK-001',
         state: 'in_progress',
         agent_session_id: 'session-001'
@@ -477,12 +496,8 @@ describe('TaskTracker Integration Tests', () => {
   it('should compare plan vs progress accurately', async () => {
     console.log('Testing plan vs progress comparison...');
 
-    // Use a unique hash for this comparison test
-    const comparisonTestHash = 'comparison-test-' + Date.now();
-
-
     // Create plan with specific files to modify
-    await client.call('tools/call', {
+    const createResponse = await client.call('tools/call', {
       name: 'create_plan',
       arguments: {
         task_description: 'Comparison test',
@@ -499,14 +514,19 @@ describe('TaskTracker Integration Tests', () => {
       }
     });
 
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Extract session ID from response
+    const responseText = createResponse.result?.content?.[0]?.text || '';
+    const sessionId = extractSessionId(responseText);
+    expect(sessionId).toBeTruthy();
+    console.log('Created plan with session ID:', sessionId);
 
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // Update with different files modified
     await client.call('tools/call', {
       name: 'update_progress',
       arguments: {
-        git_commit_hash: comparisonTestHash,
+        session_id: sessionId,
         task_id: 'TASK-001',
         state: 'completed',
         agent_session_id: 'session-001',
@@ -521,7 +541,7 @@ describe('TaskTracker Integration Tests', () => {
     const compareResponse = await client.call('tools/call', {
       name: 'compare_plan_progress',
       arguments: {
-        git_commit_hash: comparisonTestHash
+        session_id: sessionId
       }
     });
 
