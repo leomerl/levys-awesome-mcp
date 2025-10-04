@@ -173,26 +173,30 @@ jobs:
           if [ -f test-results/results.json ] || [ -f test-results/output.log ]; then
             # Use Claude Code to analyze failures and create issues
             claude --no-interactive <<'EOF'
-            I have test results from a nightly test run that failed. Please analyze the failures and create GitHub issues for each distinct failure.
+            I have test results from a nightly test run that failed. Please analyze the failures and create GitHub issues for test failures ONLY (not coverage issues).
 
             Repository: ${GITHUB_REPOSITORY}
             Workflow Run: ${GITHUB_RUN_URL}
             Test Results: ./test-results/
 
             Instructions:
-            1. Read the test results in ./test-results/ (check results.json, output.log, and any other files)
-            2. Identify each distinct test failure (group related failures)
-            3. For each failure or group of related failures, create a GitHub issue using 'gh issue create'
-            4. Each issue should include:
+            1. FIRST: Check the number of open PRs with the label "test-failure-fix" using:
+               gh pr list --label "test-failure-fix" --state open --json number --jq length
+            2. If there are already 5 or more open PRs, STOP and comment that the PR cap has been reached
+            3. Read the test results in ./test-results/ (check results.json, output.log, and any other files)
+            4. Identify each distinct TEST FAILURE (not coverage gaps - only failing tests)
+            5. For each failure or group of related failures, create a GitHub issue using 'gh issue create' ONLY if we're under the 5 PR cap
+            6. Each issue should include:
                - Clear title: "Test Failure: [test name or description]"
                - The error message and stack trace
                - The test file and line number if available
                - Steps to reproduce if identifiable
                - Labels: "bug", "test-failure", "nightly-test"
                - Reference to this workflow run: ${GITHUB_RUN_URL}
+               - **IMPORTANT**: Include "@test-fixer" in the issue body to trigger the auto-fix workflow
                - Note that this was detected by Claude Code's nightly test analysis
-            5. If there are many similar failures, group them into one issue
-            6. Prioritize based on:
+            7. If there are many similar failures, group them into one issue
+            8. Prioritize based on:
                - Critical path tests
                - Number of affected tests
                - Type of failure (timeout, assertion, error)
@@ -200,7 +204,7 @@ jobs:
             Before creating issues, check if similar issues already exist using:
             gh issue list --label "test-failure" --state open
 
-            The gh CLI is already authenticated. Start by examining the test results.
+            The gh CLI is already authenticated. Start by checking the PR cap, then examining the test results.
             EOF
           else
             echo "No test results found. Creating diagnostic issue..."

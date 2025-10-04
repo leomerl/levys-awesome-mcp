@@ -1,0 +1,127 @@
+name: Test Fixer
+
+on:
+  issue_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+
+jobs:
+  test-fixer:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@test-fixer')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@test-fixer') || contains(github.event.issue.title, '@test-fixer')))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Configure gh CLI
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+          gh auth status
+
+      - name: Check PR Cap
+        id: check-cap
+        run: |
+          PR_COUNT=$(gh pr list --label "test-failure-fix" --state open --json number --jq length)
+          echo "pr_count=${PR_COUNT}" >> $GITHUB_OUTPUT
+          echo "Found ${PR_COUNT} open PRs with test-failure-fix label"
+
+      - name: Comment if at cap
+        if: steps.check-cap.outputs.pr_count >= 5
+        run: |
+          gh issue comment ${{ github.event.issue.number }} --body "⚠️ **PR Cap Reached**
+
+          There are currently ${{ steps.check-cap.outputs.pr_count }} open PRs with the \`test-failure-fix\` label.
+
+          The maximum allowed is 5 PRs at a time. Please review and merge existing PRs before creating new ones.
+
+          [View open test fix PRs](https://github.com/${{ github.repository }}/pulls?q=is%3Aopen+is%3Apr+label%3Atest-failure-fix)
+
+          _This check helps prevent overwhelming the review queue._"
+
+      - name: Fix Tests with Claude
+        if: steps.check-cap.outputs.pr_count < 5
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --mcp-config '{"mcpServers": {"levys-awesome-mcp": {"command": "node", "args": ["dist/src/index.js"]}}}'
+            --allowedTools mcp__levys-awesome-mcp__invoke_agent,mcp__levys-awesome-mcp__list_agents,Read,Glob,Grep,Bash(npm test:*),Bash(npm run build:*),Bash(gh issue comment:*),Bash(gh api:*)
+          allowed_bots: claude
+          prompt: |
+            I need you to fix a failing test. Please complete these steps:
+
+            Issue details:
+            ${{ github.event_name == 'issue_comment' && format('Based on this issue comment: {0}', github.event.comment.body) || format('Based on this GitHub issue: {0}', github.event.issue.body) }}
+
+            Step 1: React with an emoji to the comment/issue to acknowledge the request.
+
+            Step 2: Invoke the testing-agent with this prompt:
+            "Analyze the failing test(s) mentioned in the issue and fix them. The issue describes a test failure from the nightly test run.
+
+            Your tasks:
+            1. Read and understand the test failure from the issue description
+            2. Locate the failing test file(s)
+            3. Analyze why the test is failing
+            4. Fix the test or the code it's testing (whichever is appropriate)
+            5. Run the specific test to verify it passes
+            6. Run the full test suite to ensure no regressions
+
+            Focus on actual test failures, not coverage improvements."
+
+            Context:
+            - Repository: ${{ github.repository }}
+            - Issue: #${{ github.event.issue.number }}
+            - Event: ${{ github.event_name }}
+            - Workflow Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Handle Git Operations and PR Creation
+        if: steps.check-cap.outputs.pr_count < 5
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --allowedTools Bash(npm run build:*),Bash(npm test:*),Bash(git:*),Bash(gh pr create:*),Bash(gh issue comment:*)
+          allowed_bots: claude
+          prompt: |
+            Now complete the git operations and PR creation:
+
+            Use bash commands to:
+            1. Create a new branch for the changes using git commands (name it like "fix/test-issue-${{ github.event.issue.number }}")
+            2. Commit the changes with a descriptive commit message
+            3. Push the branch to the remote repository
+            4. Open a pull request using gh pr create with:
+               - Proper title like "Fix: Test failure from issue #${{ github.event.issue.number }}"
+               - Description that references the issue
+               - Labels: "test-failure-fix", "automated-fix"
+            5. Comment on the original issue with the PR link
+            6. Run the full test suite with npm test
+            7. If tests fail, comment "@claude The tests still fail after the fix. Please investigate in the PR."
+
+            Context:
+            - Repository: ${{ github.repository }}
+            - Issue: #${{ github.event.issue.number }}
+            - Event: ${{ github.event_name }}
+            - Workflow Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
