@@ -18,6 +18,8 @@ on:
 jobs:
   run-tests:
     runs-on: ubuntu-latest
+    outputs:
+      test_exit_code: ${{ steps.test-runner.outputs.test_exit_code }}
     permissions:
       contents: read
       issues: write
@@ -121,10 +123,11 @@ jobs:
   claude-analyze-failures:
     needs: run-tests
     runs-on: ubuntu-latest
-    if: failure() && (github.event_name == 'schedule' || github.event.inputs.create_issues == 'true')
+    if: needs.run-tests.outputs.test_exit_code != '0' && (github.event_name == 'schedule' || github.event.inputs.create_issues == 'true')
     permissions:
       contents: read
       issues: write
+      id-token: write
 
     steps:
       - name: Checkout repository
