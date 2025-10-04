@@ -31,15 +31,6 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@leomerl'
-
-      - name: Install MCP package from GitHub Packages
-        run: |
-          echo "Installing MCP package from GitHub Packages registry..."
-          npm install @leomerl/levys-awesome-mcp@latest --registry=https://npm.pkg.github.com
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dependencies
         run: npm ci
@@ -144,11 +135,6 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install Claude CLI
-        run: |
-          npm install -g @anthropics/claude-cli
-          claude --version || echo "Claude CLI installed"
-
       - name: Download test results
         uses: actions/download-artifact@v4
         with:
@@ -161,28 +147,21 @@ jobs:
           gh auth status
 
       - name: Analyze failures and create issues with Claude Code
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_RUN_URL: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        run: |
-          echo "Processing test failures with Claude Code..."
-
-          # Check for test results
-          if [ -f test-results/results.json ] || [ -f test-results/output.log ]; then
-            # Use Claude Code to analyze failures and create issues
-            claude --no-interactive <<'EOF'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: --allowedTools Bash(gh issue create:*),Bash(gh issue list:*),Bash(gh pr list:*),Read,Grep,Glob
+          prompt: |
             I have test results from a nightly test run that failed. Please analyze the failures and create GitHub issues for test failures ONLY (not coverage issues).
 
-            Repository: ${GITHUB_REPOSITORY}
-            Workflow Run: ${GITHUB_RUN_URL}
+            Repository: ${{ github.repository }}
+            Workflow Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
             Test Results: ./test-results/
 
             Instructions:
             1. FIRST: Check the number of open PRs with the label "test-failure-fix" using:
                gh pr list --label "test-failure-fix" --state open --json number --jq length
-            2. If there are already 5 or more open PRs, STOP and comment that the PR cap has been reached
+            2. If there are already 5 or more open PRs, STOP - do not create any issues
             3. Read the test results in ./test-results/ (check results.json, output.log, and any other files)
             4. Identify each distinct TEST FAILURE (not coverage gaps - only failing tests)
             5. For each failure or group of related failures, create a GitHub issue using 'gh issue create' ONLY if we're under the 5 PR cap
@@ -192,7 +171,7 @@ jobs:
                - The test file and line number if available
                - Steps to reproduce if identifiable
                - Labels: "bug", "test-failure", "nightly-test"
-               - Reference to this workflow run: ${GITHUB_RUN_URL}
+               - Reference to this workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
                - **IMPORTANT**: Include "@test-fixer" in the issue body to trigger the auto-fix workflow
                - Note that this was detected by Claude Code's nightly test analysis
             7. If there are many similar failures, group them into one issue
@@ -200,35 +179,12 @@ jobs:
                - Critical path tests
                - Number of affected tests
                - Type of failure (timeout, assertion, error)
+            9. Keep track of how many issues you create - stop before you would create a 6th PR (since each issue triggers a PR)
 
             Before creating issues, check if similar issues already exist using:
             gh issue list --label "test-failure" --state open
 
             The gh CLI is already authenticated. Start by checking the PR cap, then examining the test results.
-            EOF
-          else
-            echo "No test results found. Creating diagnostic issue..."
-
-            # Create an issue about missing test results
-            gh issue create \
-              --title "Nightly Tests: Unable to capture test results" \
-              --body "The nightly test run failed but no test results were captured.
-
-              **Workflow Run:** ${GITHUB_RUN_URL}
-              **Date:** $(date -u +"%Y-%m-%d %H:%M UTC")
-
-              This could indicate:
-              - Test framework configuration issue
-              - Build failure before tests could run
-              - Test command not found
-
-              Please check the workflow logs for more details.
-
-              _Created by Claude Code automation_" \
-              --label "bug" \
-              --label "test-failure" \
-              --label "nightly-test"
-          fi
 
       - name: Create summary issue for multiple failures
         if: always()
