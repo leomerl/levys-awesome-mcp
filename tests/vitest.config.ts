@@ -10,6 +10,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./setup.ts'],
     include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    testTimeout: 1800000, // 30 minutes for integration tests (SPARC workflow needs this)
+    hookTimeout: 1800000, // 30 minutes for setup/teardown hooks
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
