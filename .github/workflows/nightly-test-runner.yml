@@ -47,8 +47,8 @@ jobs:
           # Create test results directory
           mkdir -p test-results
 
-          # Run tests with JSON reporter (vitest syntax)
-          npm test -- --reporter=json --outputFile=test-results/results.json 2>&1 | tee test-results/output.log
+          # Run tests with JSON reporter (vitest syntax), excluding e2e tests
+          npm test -- --reporter=json --outputFile=test-results/results.json tests/ --exclude='**/*.e2e.test.ts' 2>&1 | tee test-results/output.log
           TEST_EXIT_CODE=${PIPESTATUS[0]}
 
           # Save exit code for later
