@@ -120,8 +120,26 @@ export class MCPClient extends EventEmitter {
       }
       this.pendingRequests.clear();
 
-      this.process.kill();
-      this.process = null;
+      // Send kill signal and wait for process to exit
+      return new Promise((resolve) => {
+        const proc = this.process!;
+
+        // Set a timeout in case process doesn't exit gracefully
+        const killTimeout = setTimeout(() => {
+          if (proc.exitCode === null) {
+            proc.kill('SIGKILL'); // Force kill if still running
+          }
+        }, 5000);
+
+        proc.once('exit', () => {
+          clearTimeout(killTimeout);
+          this.process = null;
+          resolve();
+        });
+
+        // Try graceful termination first
+        proc.kill('SIGTERM');
+      });
     }
   }
 }

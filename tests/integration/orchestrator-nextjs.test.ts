@@ -63,6 +63,7 @@ IMPORTANT: This requires actual file creation. Please delegate to the appropriat
       console.log(`\n⏱️  Orchestration completed in ${duration.toFixed(2)} seconds`);
 
       // Check if the agent was found and executed
+      let agentNotFound = false;
       if (response.error) {
         console.error(`\n❌ Agent invocation failed: ${response.error.message}`);
 
@@ -70,22 +71,24 @@ IMPORTANT: This requires actual file creation. Please delegate to the appropriat
         if (response.error.message?.includes('not found')) {
           console.log(`\n⚠️  Agent not found - this may be expected in CI/CD environments`);
           console.log(`   The orchestrator-agent needs to be properly configured and accessible`);
+          agentNotFound = true;
 
-          // Clean up and skip the rest of the test
+          // Clean up test directory immediately
           if (fs.existsSync(testDir)) {
             execSync(`rm -rf ${testDir}`, { stdio: 'pipe' });
           }
 
           // Mark test as skipped rather than failed
           expect(response.error.message).toContain('not found');
-          return;
+        } else {
+          // For other errors, fail the test
+          throw new Error(`Agent invocation failed: ${response.error.message}`);
         }
-
-        // For other errors, fail the test
-        throw new Error(`Agent invocation failed: ${response.error.message}`);
       }
 
-      // Get session ID from response
+      // Only run validation checks if agent was found
+      if (!agentNotFound) {
+        // Get session ID from response
       const sessionId = response.result?.sessionId || 'unknown';
       console.log(`\n📋 Session ID: ${sessionId}`);
 
@@ -263,6 +266,7 @@ IMPORTANT: This requires actual file creation. Please delegate to the appropriat
         console.log('\n⚠️  WARNING: Files created but quality is below acceptable threshold');
         console.log('   Consider improving agent prompts and validation');
       }
+      } // End of if (!agentNotFound) block
 
     } finally {
       await client.stop();
