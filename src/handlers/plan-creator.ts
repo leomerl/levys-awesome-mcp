@@ -47,12 +47,20 @@ interface PlanDocument {
 }
 
 interface ProgressTask extends Task {
-  state: 'pending' | 'completed' | 'in_progress';
+  state: 'pending' | 'completed' | 'in_progress' | 'failed';
   agent_session_id?: string;
   files_modified?: string[];
   summary?: string;
   started_at?: string;
   completed_at?: string;
+  failed_at?: string;
+  self_heal_attempts?: number;
+  self_heal_history?: Array<{
+    attempt: number;
+    action: string;
+    timestamp: string;
+    result?: string;
+  }>;
 }
 
 interface ProgressDocument {
@@ -95,7 +103,7 @@ export const planCreatorTools = [
         },
         session_id: {
           type: 'string',
-          description: 'Optional session ID for tracking (will be generated if not provided)',
+          description: 'Session ID for tracking and directory organization (will be generated if not provided)',
           default: ''
         }
       },
@@ -108,9 +116,13 @@ export const planCreatorTools = [
     inputSchema: {
       type: 'object' as const,
       properties: {
+        session_id: {
+          type: 'string',
+          description: 'Session ID to locate the progress file (preferred)'
+        },
         git_commit_hash: {
           type: 'string',
-          description: 'Git commit hash to locate the progress file'
+          description: 'Git commit hash to locate the progress file (legacy, use session_id when possible)'
         },
         task_id: {
           type: 'string',
@@ -118,7 +130,7 @@ export const planCreatorTools = [
         },
         state: {
           type: 'string',
-          enum: ['pending', 'in_progress', 'completed'],
+          enum: ['pending', 'in_progress', 'completed', 'failed'],
           description: 'New state for the task'
         },
         agent_session_id: {
@@ -135,7 +147,7 @@ export const planCreatorTools = [
           description: 'Summary of work completed (optional)'
         }
       },
-      required: ['git_commit_hash', 'task_id', 'state', 'agent_session_id']
+      required: ['task_id', 'state', 'agent_session_id']
     }
   },
   {
@@ -144,12 +156,30 @@ export const planCreatorTools = [
     inputSchema: {
       type: 'object' as const,
       properties: {
+        session_id: {
+          type: 'string',
+          description: 'Session ID to locate the plan and progress files (preferred)'
+        },
         git_commit_hash: {
           type: 'string',
-          description: 'Git commit hash to locate the plan and progress files'
+          description: 'Git commit hash to locate the plan and progress files (legacy)'
         }
       },
-      required: ['git_commit_hash']
+      required: []
+    }
+  },
+  {
+    name: 'get_failed_tasks',
+    description: 'Returns all tasks with failed state from the progress file for self-healing workflows',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        session_id: {
+          type: 'string',
+          description: 'Session ID to locate the progress file'
+        }
+      },
+      required: ['session_id']
     }
   }
 ];
@@ -174,9 +204,75 @@ function generateSessionId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }
-  
+
   // Fallback method
   return `session-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+}
+
+interface DirectoryInfo {
+  type: 'session' | 'git';
+  path: string;
+  useTimestamps: boolean;
+}
+
+async function resolveDirectoryPath(params: { session_id?: string; git_commit_hash?: string }): Promise<DirectoryInfo> {
+  // Try session-based directory first (new approach)
+  if (params.session_id) {
+    const sessionDir = path.join(process.cwd(), 'plan_and_progress', 'sessions', params.session_id);
+    return {
+      type: 'session',
+      path: sessionDir,
+      useTimestamps: false // Session-based uses simple filenames
+    };
+  }
+
+  // Fallback to git-hash based directory (legacy)
+  if (params.git_commit_hash) {
+    const gitDir = path.join(process.cwd(), 'plan_and_progress', params.git_commit_hash);
+    return {
+      type: 'git',
+      path: gitDir,
+      useTimestamps: true // Git-based uses timestamped filenames
+    };
+  }
+
+  throw new Error('Either session_id or git_commit_hash is required');
+}
+
+async function findPlanProgressFiles(dirInfo: DirectoryInfo): Promise<{ planFile: string; progressFile: string } | null> {
+  if (!existsSync(dirInfo.path)) {
+    return null;
+  }
+
+  const fs = await import('fs');
+  const files = fs.readdirSync(dirInfo.path);
+
+  if (dirInfo.type === 'session') {
+    // Session-based: simple filenames
+    const planFile = path.join(dirInfo.path, 'plan.json');
+    const progressFile = path.join(dirInfo.path, 'progress.json');
+
+    if (existsSync(planFile) && existsSync(progressFile)) {
+      return { planFile, progressFile };
+    }
+  } else {
+    // Git-based: timestamped filenames
+    const planFiles = files.filter(f => f.startsWith('plan-') && f.endsWith('.json'));
+    const progressFiles = files.filter(f => f.startsWith('progress-') && f.endsWith('.json'));
+
+    if (planFiles.length > 0 && progressFiles.length > 0) {
+      // Sort by timestamp (newest first)
+      planFiles.sort().reverse();
+      progressFiles.sort().reverse();
+
+      return {
+        planFile: path.join(dirInfo.path, planFiles[0]),
+        progressFile: path.join(dirInfo.path, progressFiles[0])
+      };
+    }
+  }
+
+  return null;
 }
 
 async function createPlanFromAIData(
@@ -293,101 +389,68 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
 
         // Create the plan and progress from AI-provided data
         const { plan, progress, sessionId: finalSessionId } = await createPlanFromAIData(task_description, synopsis, tasks, session_id);
-        
-        // Create the plan_and_progress directory structure
-        const gitHash = plan.git_commit_hash || 'no-commit';
-        const reportsDir = path.join(process.cwd(), 'plan_and_progress', gitHash);
+
+        // Use session-based directory structure (new approach)
+        const dirInfo: DirectoryInfo = {
+          type: 'session',
+          path: path.join(process.cwd(), 'plan_and_progress', 'sessions', finalSessionId),
+          useTimestamps: false
+        };
+        const reportsDir = dirInfo.path;
         
         if (!existsSync(reportsDir)) {
           await mkdir(reportsDir, { recursive: true });
         }
 
         // Use locking to prevent race conditions in concurrent file creation
-        const { planFilePath, progressFilePath } = await withLock(`plan-creation-${gitHash}`, async () => {
-          // Check if plan/progress files already exist (within the lock)
-          let planFilePath: string;
-          let progressFilePath: string;
-        
-          if (existsSync(reportsDir)) {
-            const fs = await import('fs');
-            const existingFiles = fs.readdirSync(reportsDir);
-            const existingPlanFiles = existingFiles.filter(f => f.startsWith('plan-') && f.endsWith('.json'));
-            const existingProgressFiles = existingFiles.filter(f => f.startsWith('progress-') && f.endsWith('.json'));
-            
-            if (existingPlanFiles.length > 0 && existingProgressFiles.length > 0) {
-              // Use existing files (most recent ones)
-              existingPlanFiles.sort().reverse();
-              existingProgressFiles.sort().reverse();
-              
-              planFilePath = path.join(reportsDir, existingPlanFiles[0]);
-              progressFilePath = path.join(reportsDir, existingProgressFiles[0]);
-              
-              // Update existing files instead of creating new ones
-              await writeFile(planFilePath, JSON.stringify(plan, null, 2), 'utf8');
-              
-              // For progress file, preserve existing task states but update the structure
-              try {
-                const existingProgressContent = await readFile(progressFilePath, 'utf8');
-                const existingProgress: ProgressDocument = JSON.parse(existingProgressContent);
-                
-                // Merge existing task states with new plan
-                const mergedTasks = progress.tasks.map(newTask => {
-                  const existingTask = existingProgress.tasks.find(t => t.id === newTask.id);
-                  if (existingTask) {
-                    // Preserve existing state and metadata, but update structure from new plan
-                    return {
-                      ...newTask,
-                      state: existingTask.state,
-                      agent_session_id: existingTask.agent_session_id,
-                      files_modified: existingTask.files_modified,
-                      summary: existingTask.summary,
-                      started_at: existingTask.started_at,
-                      completed_at: existingTask.completed_at
-                    };
-                  }
-                  return newTask;
-                });
-                
-                // Update progress document
-                progress.tasks = mergedTasks;
-                progress.last_updated = new Date().toISOString();
-                progress.plan_file = planFilePath;
-                
-              } catch (error) {
-                // If we can't read existing progress file, use new one
-                progress.plan_file = planFilePath;
-              }
-              
-              await writeFile(progressFilePath, JSON.stringify(progress, null, 2), 'utf8');
-              
-            } else {
-              // Create new files with timestamp
-              const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-              const planFileName = `plan-${timestamp}.json`;
-              const progressFileName = `progress-${timestamp}.json`;
-              
-              planFilePath = path.join(reportsDir, planFileName);
-              progressFilePath = path.join(reportsDir, progressFileName);
-              
-              await writeFile(planFilePath, JSON.stringify(plan, null, 2), 'utf8');
-              
-              progress.plan_file = planFilePath;
-              await writeFile(progressFilePath, JSON.stringify(progress, null, 2), 'utf8');
+        const { planFilePath, progressFilePath } = await withLock(`plan-creation-${finalSessionId}`, async () => {
+          // Session-based: use simple filenames
+          const planFilePath = path.join(reportsDir, 'plan.json');
+          const progressFilePath = path.join(reportsDir, 'progress.json');
+
+          // Check if files already exist
+          if (existsSync(planFilePath) && existsSync(progressFilePath)) {
+            // Update existing files, preserving progress state
+            await writeFile(planFilePath, JSON.stringify(plan, null, 2), 'utf8');
+
+            try {
+              const existingProgressContent = await readFile(progressFilePath, 'utf8');
+              const existingProgress: ProgressDocument = JSON.parse(existingProgressContent);
+
+              // Merge existing task states with new plan
+              const mergedTasks = progress.tasks.map(newTask => {
+                const existingTask = existingProgress.tasks.find(t => t.id === newTask.id);
+                if (existingTask) {
+                  // Preserve existing state and metadata, but update structure from new plan
+                  return {
+                    ...newTask,
+                    state: existingTask.state,
+                    agent_session_id: existingTask.agent_session_id,
+                    files_modified: existingTask.files_modified,
+                    summary: existingTask.summary,
+                    started_at: existingTask.started_at,
+                    completed_at: existingTask.completed_at
+                  };
+                }
+                return newTask;
+              });
+
+              // Update progress document
+              progress.tasks = mergedTasks;
+              progress.last_updated = new Date().toISOString();
+              progress.plan_file = 'plan.json'; // Relative path within session directory
+
+            } catch (error) {
+              // If we can't read existing progress file, use new one
+              progress.plan_file = 'plan.json';
             }
           } else {
-            // Directory doesn't exist, create new files
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const planFileName = `plan-${timestamp}.json`;
-            const progressFileName = `progress-${timestamp}.json`;
-            
-            planFilePath = path.join(reportsDir, planFileName);
-            progressFilePath = path.join(reportsDir, progressFileName);
-            
+            // Create new files
             await writeFile(planFilePath, JSON.stringify(plan, null, 2), 'utf8');
-            
-            progress.plan_file = planFilePath;
-            await writeFile(progressFilePath, JSON.stringify(progress, null, 2), 'utf8');
+            progress.plan_file = 'plan.json';
           }
+
+          await writeFile(progressFilePath, JSON.stringify(progress, null, 2), 'utf8');
 
           // Return file paths from the locked operation
           return { planFilePath, progressFilePath };
@@ -406,50 +469,35 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
 
       case 'update_progress':
       case 'mcp__levys-awesome-mcp__mcp__plan-creator__update_progress': {
-        const { git_commit_hash, task_id, state, agent_session_id, files_modified = [], summary = '' } = args;
-        
+        const { session_id, git_commit_hash, task_id, state, agent_session_id, files_modified = [], summary = '' } = args;
+
         // Validate required parameters
-        if (!git_commit_hash || !task_id || !state || !agent_session_id) {
+        if ((!session_id && !git_commit_hash) || !task_id || !state || !agent_session_id) {
           return {
             content: [{
               type: 'text',
-              text: 'Error: git_commit_hash, task_id, state, and agent_session_id are required'
+              text: 'Error: either session_id or git_commit_hash is required, along with task_id, state, and agent_session_id'
             }],
             isError: true
           };
         }
 
         try {
-          // Find the latest progress file for this git hash
-          const reportsDir = path.join(process.cwd(), 'plan_and_progress', git_commit_hash);
-          
-          if (!existsSync(reportsDir)) {
+          // Resolve directory using new logic
+          const dirInfo = await resolveDirectoryPath({ session_id, git_commit_hash });
+          const filesInfo = await findPlanProgressFiles(dirInfo);
+
+          if (!filesInfo) {
             return {
               content: [{
                 type: 'text',
-                text: `Error: No progress directory found for git hash: ${git_commit_hash}`
+                text: `Error: No progress directory found for ${session_id ? 'session: ' + session_id : 'git hash: ' + git_commit_hash}`
               }],
               isError: true
             };
           }
 
-          // Find the most recent progress file
-          const fs = await import('fs');
-          const files = fs.readdirSync(reportsDir).filter(f => f.startsWith('progress-') && f.endsWith('.json'));
-          
-          if (files.length === 0) {
-            return {
-              content: [{
-                type: 'text',
-                text: `Error: No progress files found in directory: ${reportsDir}`
-              }],
-              isError: true
-            };
-          }
-
-          // Sort by creation time (newest first) - using filename timestamp
-          files.sort().reverse();
-          const progressFilePath = path.join(reportsDir, files[0]);
+          const progressFilePath = filesInfo.progressFile;
 
           // Read current progress
           const progressContent = await readFile(progressFilePath, 'utf8');
@@ -471,13 +519,13 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
           const task = progress.tasks[taskIndex];
 
           // Update task with new information
-          task.state = state as 'pending' | 'completed' | 'in_progress';
+          task.state = state as 'pending' | 'completed' | 'in_progress' | 'failed';
           task.agent_session_id = agent_session_id;
-          
+
           if (files_modified.length > 0) {
             task.files_modified = files_modified;
           }
-          
+
           if (summary) {
             task.summary = summary;
           }
@@ -487,6 +535,8 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
             task.started_at = now;
           } else if (state === 'completed') {
             task.completed_at = now;
+          } else if (state === 'failed') {
+            task.failed_at = now;
           }
 
           // Update the last_updated timestamp
@@ -514,53 +564,35 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
 
       case 'compare_plan_progress':
       case 'mcp__levys-awesome-mcp__compare_plan_progress': {
-        const { git_commit_hash } = args;
+        const { session_id, git_commit_hash } = args;
 
-        if (!git_commit_hash) {
+        if (!session_id && !git_commit_hash) {
           return {
             content: [{
               type: 'text',
-              text: 'Error: git_commit_hash is required'
+              text: 'Error: either session_id or git_commit_hash is required'
             }],
             isError: true
           };
         }
 
         try {
-          const reportsDir = path.join(process.cwd(), 'plan_and_progress', git_commit_hash);
+          // Resolve directory using new logic
+          const dirInfo = await resolveDirectoryPath({ session_id, git_commit_hash });
+          const filesInfo = await findPlanProgressFiles(dirInfo);
 
-          if (!existsSync(reportsDir)) {
+          if (!filesInfo) {
             return {
               content: [{
                 type: 'text',
-                text: `Error: No plan/progress directory found for git hash: ${git_commit_hash}`
+                text: `Error: No plan/progress directory found for ${session_id ? 'session: ' + session_id : 'git hash: ' + git_commit_hash}`
               }],
               isError: true
             };
           }
 
-          // Find the most recent plan and progress files
-          const fs = await import('fs');
-          const files = fs.readdirSync(reportsDir);
-          const planFiles = files.filter(f => f.startsWith('plan-') && f.endsWith('.json'));
-          const progressFiles = files.filter(f => f.startsWith('progress-') && f.endsWith('.json'));
-
-          if (planFiles.length === 0 || progressFiles.length === 0) {
-            return {
-              content: [{
-                type: 'text',
-                text: `Error: Missing plan or progress files in directory: ${reportsDir}`
-              }],
-              isError: true
-            };
-          }
-
-          // Sort by creation time (newest first)
-          planFiles.sort().reverse();
-          progressFiles.sort().reverse();
-
-          const planFilePath = path.join(reportsDir, planFiles[0]);
-          const progressFilePath = path.join(reportsDir, progressFiles[0]);
+          const planFilePath = filesInfo.planFile;
+          const progressFilePath = filesInfo.progressFile;
 
           // Read plan and progress files
           const planContent = await readFile(planFilePath, 'utf8');
@@ -614,9 +646,9 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
 
           // Perform comparison
           const comparisonReport = {
-            git_commit_hash,
-            plan_file: planFiles[0],
-            progress_file: progressFiles[0],
+            ...(session_id ? { session_id } : { git_commit_hash }),
+            plan_file: path.basename(planFilePath),
+            progress_file: path.basename(progressFilePath),
             overall_goal: plan.task_description,
             synopsis: plan.synopsis,
             task_comparisons: [] as Array<{
@@ -746,6 +778,76 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
             content: [{
               type: 'text',
               text: `Error comparing plan and progress: ${error instanceof Error ? error.message : String(error)}`
+            }],
+            isError: true
+          };
+        }
+      }
+
+      case 'get_failed_tasks':
+      case 'mcp__levys-awesome-mcp__get_failed_tasks': {
+        const { session_id } = args;
+
+        if (!session_id) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Error: session_id is required'
+            }],
+            isError: true
+          };
+        }
+
+        try {
+          const progressFilePath = path.join(process.cwd(), 'plan_and_progress', 'sessions', session_id, 'progress.json');
+
+          if (!existsSync(progressFilePath)) {
+            return {
+              content: [{
+                type: 'text',
+                text: `No progress file found for session: ${session_id}`
+              }]
+            };
+          }
+
+          const progressContent = await readFile(progressFilePath, 'utf8');
+          const progress: ProgressDocument = JSON.parse(progressContent);
+
+          // Filter for failed tasks
+          const failedTasks = progress.tasks.filter(t => t.state === 'failed');
+
+          if (failedTasks.length === 0) {
+            return {
+              content: [{
+                type: 'text',
+                text: `No failed tasks found in session: ${session_id}`
+              }]
+            };
+          }
+
+          // Format failed tasks for self-healing
+          const failedTasksReport = failedTasks.map(task => ({
+            task_id: task.id,
+            designated_agent: task.designated_agent,
+            description: task.description,
+            files_to_modify: task.files_to_modify,
+            failure_reason: task.summary || 'No failure reason provided',
+            failed_at: task.failed_at,
+            agent_session_id: task.agent_session_id,
+            self_heal_attempts: (task as any).self_heal_attempts || 0
+          }));
+
+          return {
+            content: [{
+              type: 'text',
+              text: `Found ${failedTasks.length} failed task(s):\n\n${JSON.stringify(failedTasksReport, null, 2)}`
+            }]
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: 'text',
+              text: `Error reading failed tasks: ${error instanceof Error ? error.message : String(error)}`
             }],
             isError: true
           };

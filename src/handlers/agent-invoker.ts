@@ -8,7 +8,13 @@ import { SessionStore } from '../utilities/session/session-store.js';
 import { StreamingManager } from '../utilities/session/streaming-utils.js';
 import { AgentLoader } from '../utilities/agents/agent-loader.js';
 import { PermissionManager } from '../utilities/agents/permission-manager.js';
-import { updateTaskToInProgress, getInProgressTask, getCurrentGitHash } from '../utilities/progress/task-tracker.js';
+import {
+  updateTaskToInProgress,
+  getInProgressTaskBySession,
+  updateTaskToCompleted
+} from '../utilities/progress/task-tracker.js';
+import { handlePlanCreatorTool } from './plan-creator.js';
+import { resolveMcpConfig } from '../utilities/mcp/third-party-mcp-registry.js';
 import * as path from 'path';
 import * as fs from 'fs';
 import { randomUUID } from 'crypto';
@@ -42,11 +48,15 @@ export const agentInvokerTools = [
         },
         taskNumber: {
           type: 'number',
-          description: 'Task number to update progress for (e.g., 1 for TASK-001) (optional)'
+          description: 'Task number to update progress for (e.g., 1 for TASK-001) (optional, used by orchestrator)'
         },
-        updateProgress: {
-          type: 'boolean',
-          description: 'Whether to update task progress automatically (optional, default: false)'
+        sessionId: {
+          type: 'string',
+          description: 'Session ID for progress tracking (optional, used by orchestrator)'
+        },
+        invokerAgent: {
+          type: 'string',
+          description: 'Name of the invoking agent (optional, used to detect orchestrator)'
         }
       },
       required: ['agentName', 'prompt'],
@@ -73,8 +83,15 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
     switch (normalizedName) {
       case 'invoke_agent': {
         console.log(`[AgentInvoker] Raw args received:`, JSON.stringify(args));
-        const { agentName, prompt, continueSessionId, taskNumber, updateProgress = false } = args;
-        
+        const {
+          agentName,
+          prompt,
+          continueSessionId,
+          taskNumber,
+          sessionId: orchestratorSessionId,
+          invokerAgent
+        } = args;
+
         if (!agentName || !prompt) {
           return {
             content: [{
@@ -97,13 +114,32 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
           };
         }
 
-        // Update task to in_progress if requested
-        if (updateProgress && taskNumber) {
-          const updateSuccess = await updateTaskToInProgress(taskNumber);
+        // PROGRAMMATICALLY detect if this is an orchestrator invocation
+        // If sessionId points to a valid plan_and_progress directory AND taskNumber is provided,
+        // then this is orchestration with automatic progress tracking
+        let isOrchestratorInvoking = invokerAgent === 'orchestrator-agent' || invokerAgent === 'orchestrator';
+
+        if (!isOrchestratorInvoking && orchestratorSessionId && taskNumber) {
+          // Check if the sessionId points to a valid progress file
+          const progressPath = path.join(process.cwd(), 'plan_and_progress', 'sessions', orchestratorSessionId, 'progress.json');
+          if (fs.existsSync(progressPath)) {
+            isOrchestratorInvoking = true;
+            console.log(`[AgentInvoker] Programmatically detected orchestration: sessionId=${orchestratorSessionId}, taskNumber=${taskNumber}`);
+          }
+        }
+
+        // Enhanced progress tracking for orchestrator
+        console.log(`[AgentInvoker] Progress tracking check: isOrchestratorInvoking=${isOrchestratorInvoking}, orchestratorSessionId=${orchestratorSessionId}, taskNumber=${taskNumber}`);
+
+        if (isOrchestratorInvoking && orchestratorSessionId && taskNumber) {
+          console.log(`[AgentInvoker] Orchestrator detected - implementing enhanced progress tracking for session ${orchestratorSessionId}`);
+
+          // Step 1: Update task to in_progress before agent starts
+          const updateSuccess = await updateTaskToInProgress(taskNumber, orchestratorSessionId);
           if (updateSuccess) {
-            console.log(`[AgentInvoker] Updated task ${taskNumber} to in_progress`);
+            console.log(`[AgentInvoker] Successfully marked task ${taskNumber} as in_progress in session ${orchestratorSessionId}`);
           } else {
-            console.log(`[AgentInvoker] Failed to update task ${taskNumber} to in_progress`);
+            console.log(`[AgentInvoker] Failed to update task ${taskNumber} to in_progress in session ${orchestratorSessionId}`);
           }
         }
 
@@ -235,6 +271,34 @@ OUTPUT_DIR: output_streams/${sessionId}/
           console.log(`[AgentInvoker] Is agents_write in allowed?`, permissions.allowedTools.includes('mcp__levys-awesome-mcp__agents_write'));
           console.log(`[AgentInvoker] Is agents_write in final disallowed?`, finalDisallowedTools.includes('mcp__levys-awesome-mcp__agents_write'));
 
+          // Resolve third-party MCP configurations
+          const resolvedMcpServers: Record<string, any> = {};
+          const configuredMcpServers = agentConfig.options?.mcpServers || {
+            "levys-awesome-mcp": {
+              command: "node",
+              args: ["dist/src/index.js"]
+            }
+          };
+
+          // Process each MCP server
+          for (const [mcpId, mcpConfig] of Object.entries(configuredMcpServers)) {
+            // Skip levys-awesome-mcp - it's not a third-party MCP
+            if (mcpId === 'levys-awesome-mcp') {
+              resolvedMcpServers[mcpId] = mcpConfig;
+              continue;
+            }
+
+            // Try to resolve as third-party MCP
+            const resolved = resolveMcpConfig(mcpId);
+            if (resolved.isValid) {
+              resolvedMcpServers[mcpId] = resolved.mcpServer;
+              console.log(`[AgentInvoker] Resolved third-party MCP '${mcpId}' for agent '${agentName}'`);
+            } else {
+              console.warn(`[AgentInvoker] Failed to resolve MCP '${mcpId}': ${resolved.errors.join(', ')}`);
+              console.warn(`[AgentInvoker] Skipping MCP '${mcpId}' - tools will not be available`);
+            }
+          }
+
           // Build query options with conditional resume parameter
           const queryOptions: any = {
             model: agentConfig.options?.model || 'sonnet',
@@ -242,12 +306,8 @@ OUTPUT_DIR: output_streams/${sessionId}/
             disallowedTools: finalDisallowedTools, // Use filtered disallowed tools
             permissionMode: 'acceptEdits',
             pathToClaudeCodeExecutable: path.resolve(process.cwd(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
-            mcpServers: {
-              "levys-awesome-mcp": {
-                command: "node",
-                args: ["dist/src/index.js"]
-              }
-            },
+            // Use resolved MCP servers
+            mcpServers: resolvedMcpServers,
             // Pass the complete prompt (systemPrompt + task + session + restrictions) as customSystemPrompt
             customSystemPrompt: finalPrompt
           };
@@ -356,80 +416,130 @@ OUTPUT_DIR: output_streams/${sessionId}/
             fs.appendFileSync(streamLogFile, completionLog, 'utf8');
           }
 
-          // Check if we need to handle progress update
-          if (updateProgress && agentCompleted) {
-            // Check for in-progress task
-            const inProgressTask = await getInProgressTask();
+          // Check if we need to handle progress update (step 3 & 4: check for in-progress tasks after completion)
+          if (isOrchestratorInvoking && orchestratorSessionId && agentCompleted) {
+            // Check for in-progress task in the session
+            const inProgressTask = await getInProgressTaskBySession(orchestratorSessionId);
             if (inProgressTask) {
-              console.log(`[AgentInvoker] Found in-progress task: ${inProgressTask.id}, reinvoking agent for progress update`);
-              
-              // Get git hash for progress update
-              const gitHash = await getCurrentGitHash();
-              if (!gitHash) {
-                console.error('[AgentInvoker] Could not get git hash for progress update');
-              } else {
-                // Reinvoke the agent with progress update directive
-                const progressUpdatePrompt = `You have ${inProgressTask.id} currently marked as in_progress.
+              console.log(`[AgentInvoker] Found in-progress task ${inProgressTask.id} for session ${orchestratorSessionId}, reinvoking agent for completion`);
+
+              // Reinvoke the agent with explicit instruction to complete or close the task
+              const progressUpdatePrompt = `You have ${inProgressTask.id} currently marked as in_progress.
+
+## CRITICAL: Task Completion Required
 
 Please check if you have fully completed this task:
-- If YES: Use mcp__levys-awesome-mcp__update_progress to mark it as completed with:
-  - git_commit_hash: "${gitHash}"
-  - task_id: "${inProgressTask.id}"
-  - state: "completed"
-  - agent_session_id: "${sessionId}"
-  - files_modified: [list of files you modified]
-  - summary: "Brief summary of what was accomplished"
-  
-- If NO: Complete the remaining work for this task first, then update the progress file as above.
+"${inProgressTask.description}"
 
-Task details: ${inProgressTask.description}
-Files to modify: ${inProgressTask.files_to_modify.join(', ')}`;
+Expected files to modify: ${inProgressTask.files_to_modify.join(', ')}
 
-                console.log(`[AgentInvoker] Reinvoking ${agentName} for progress update`);
-                
-                // Reinvoke the agent for progress update
-                try {
-                  const progressMessages: any[] = [];
-                  
-                  for await (const message of query({
-                    prompt: progressUpdatePrompt,
-                    options: {
-                      model: agentConfig.options?.model || 'sonnet',
-                      allowedTools: [...(permissions.allowedTools || []), 'mcp__levys-awesome-mcp__update_progress'],
-                      disallowedTools: finalDisallowedTools.filter(tool => tool !== 'mcp__levys-awesome-mcp__update_progress'),
-                      permissionMode: 'acceptEdits',
-                      pathToClaudeCodeExecutable: path.resolve(process.cwd(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
-                      mcpServers: {
-                        "levys-awesome-mcp": {
-                          command: "node",
-                          args: ["dist/src/index.js"]
-                        }
-                      },
-                      resume: String(claudeCodeSessionId || sessionId),
-                      customSystemPrompt: agentConfig.options?.systemPrompt || ''
-                    }
-                  })) {
-                    progressMessages.push(message);
-                    
-                    // Log progress update messages to session.log
-                    if (streamingUtils) {
-                      await streamingUtils.logConversationMessage(message);
-                    }
-                    
-                    if (message.type === "result") {
-                      if (!message.is_error) {
-                        console.log(`[AgentInvoker] Progress update completed for ${inProgressTask.id}`);
-                      } else {
-                        console.error(`[AgentInvoker] Progress update failed for ${inProgressTask.id}`);
+### If YES (task is complete):
+Use mcp__levys-awesome-mcp__update_progress to mark it as completed:
+- session_id: "${orchestratorSessionId}"
+- task_id: "${inProgressTask.id}"
+- state: "completed"
+- agent_session_id: "${sessionId}"
+- files_modified: [list the actual files you created/modified]
+- summary: "Brief summary of what was accomplished"
+
+### If NO (task is incomplete):
+1. Complete the remaining work for this task first
+2. Then update the progress as shown above
+
+This is a required step - you MUST either complete the task or mark it as completed if already done.`;
+
+              console.log(`[AgentInvoker] Resuming ${agentName} by session ID ${sessionId} to complete task ${inProgressTask.id}`);
+
+              // Reinvoke the agent for task completion
+              try {
+                const progressMessages: any[] = [];
+
+                for await (const message of query({
+                  prompt: progressUpdatePrompt,
+                  options: {
+                    model: agentConfig.options?.model || 'sonnet',
+                    allowedTools: [...(permissions.allowedTools || []), 'mcp__levys-awesome-mcp__update_progress'],
+                    disallowedTools: finalDisallowedTools.filter(tool => tool !== 'mcp__levys-awesome-mcp__update_progress'),
+                    permissionMode: 'acceptEdits',
+                    pathToClaudeCodeExecutable: path.resolve(process.cwd(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
+                    mcpServers: {
+                      "levys-awesome-mcp": {
+                        command: "node",
+                        args: ["dist/src/index.js"]
                       }
+                    },
+                    resume: String(claudeCodeSessionId || sessionId),
+                    customSystemPrompt: agentConfig.options?.systemPrompt || ''
+                  }
+                })) {
+                  progressMessages.push(message);
+
+                  // Log progress update messages to session.log
+                  if (streamingUtils) {
+                    await streamingUtils.logConversationMessage(message);
+                  }
+
+                  if (message.type === "result") {
+                    if (!message.is_error) {
+                      console.log(`[AgentInvoker] Task completion/update completed for ${inProgressTask.id}`);
+                    } else {
+                      console.error(`[AgentInvoker] Task completion/update failed for ${inProgressTask.id}`);
                     }
                   }
-                  
-                  // Save the extended conversation history
-                  await SessionStore.saveConversationHistory(sessionId, agentName, [...messages, ...progressMessages]);
-                  
+                }
+
+                // Save the extended conversation history
+                await SessionStore.saveConversationHistory(sessionId, agentName, [...messages, ...progressMessages]);
+
+              } catch (error) {
+                console.error(`[AgentInvoker] Error during task completion reinvocation:`, error);
+              }
+
+              // SOLUTION #3: Check if task is still in_progress after reinvocation - indicates failure
+              const taskAfterReinvocation = await getInProgressTaskBySession(orchestratorSessionId);
+              if (taskAfterReinvocation && taskAfterReinvocation.id === inProgressTask.id) {
+                console.log(`[AgentInvoker] Task ${inProgressTask.id} still in_progress after reinvocation - marking as failed`);
+                // Automatically mark as failed since agent couldn't complete it
+                try {
+                  await handlePlanCreatorTool('update_progress', {
+                    session_id: orchestratorSessionId,
+                    task_id: inProgressTask.id,
+                    state: 'failed',
+                    agent_session_id: sessionId,
+                    files_modified: [],
+                    summary: `Task automatically marked as failed: Agent could not complete the task after reinvocation. Original summary: ${taskAfterReinvocation.summary || 'No summary provided'}`
+                  });
+                  console.log(`[AgentInvoker] Successfully marked task ${inProgressTask.id} as failed`);
                 } catch (error) {
-                  console.error(`[AgentInvoker] Error during progress update reinvocation:`, error);
+                  console.error(`[AgentInvoker] Failed to mark task as failed:`, error);
+                }
+              }
+            } else {
+              console.log(`[AgentInvoker] No in-progress tasks found for session ${orchestratorSessionId}`);
+            }
+
+            // SOLUTION #3: Check if current task has summary but is still pending - indicates implicit failure
+            if (taskNumber) {
+              const progressFilePath = path.join(process.cwd(), 'plan_and_progress', 'sessions', orchestratorSessionId, 'progress.json');
+              if (fs.existsSync(progressFilePath)) {
+                const progressContent = fs.readFileSync(progressFilePath, 'utf8');
+                const progress = JSON.parse(progressContent);
+                const taskId = `TASK-${String(taskNumber).padStart(3, '0')}`;
+                const currentTask = progress.tasks.find((t: any) => t.id === taskId);
+
+                if (currentTask && currentTask.state === 'pending' && currentTask.summary && currentTask.agent_session_id) {
+                  console.log(`[AgentInvoker] Task ${taskId} has summary but state is pending - automatically marking as failed`);
+
+                  // Update task to failed state
+                  currentTask.state = 'failed';
+                  currentTask.failed_at = new Date().toISOString();
+                  if (!currentTask.summary.includes('automatically marked as failed')) {
+                    currentTask.summary = `Task automatically marked as failed: ${currentTask.summary}`;
+                  }
+                  progress.last_updated = new Date().toISOString();
+
+                  fs.writeFileSync(progressFilePath, JSON.stringify(progress, null, 2), 'utf8');
+                  console.log(`[AgentInvoker] Successfully marked task ${taskId} as failed`);
                 }
               }
             }

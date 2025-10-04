@@ -12,31 +12,56 @@ import { PermissionManager } from './permission-manager.js';
 
 export class AgentLoader {
   /**
+   * Recursively find all agent files in a directory
+   */
+  private static findAgentFiles(dir: string, fileExtension: string): string[] {
+    const files: string[] = [];
+
+    if (!fs.existsSync(dir)) {
+      return files;
+    }
+
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+
+      if (entry.isDirectory()) {
+        // Recursively scan subdirectories
+        files.push(...this.findAgentFiles(fullPath, fileExtension));
+      } else if (entry.isFile() && entry.name.endsWith(fileExtension) &&
+                 !entry.name.endsWith('.d.ts') && !entry.name.endsWith('.map')) {
+        files.push(fullPath);
+      }
+    }
+
+    return files;
+  }
+
+  /**
    * Load agent configuration by name
    */
   static async loadAgentConfig(agentName: string): Promise<AgentConfig | null> {
     const agentsDir = PathConfig.getAgentsDirectory();
     console.log(`[AgentLoader] Looking for agent '${agentName}' in directory: ${agentsDir}`);
-    
+
     if (!fs.existsSync(agentsDir)) {
       console.log(`[AgentLoader] Agents directory does not exist: ${agentsDir}`);
       return null;
     }
-    
+
     // Check if we're looking at compiled agents (dist/agents) or source agents
     const isCompiledDir = agentsDir.includes('dist/agents');
     const fileExtension = isCompiledDir ? '.js' : '.ts';
 
-    const files = fs.readdirSync(agentsDir).filter(file =>
-      file.endsWith(fileExtension) && !file.endsWith('.d.ts') && !file.endsWith('.map')
-    );
-    
-    console.log(`[AgentLoader] Found ${files.length} .ts files in agents directory`);
-    
-    for (const file of files) {
+    const files = this.findAgentFiles(agentsDir, fileExtension);
+
+    console.log(`[AgentLoader] Found ${files.length} agent files (including subdirectories)`);
+
+    for (const fullPath of files) {
       try {
-        const fullPath = path.resolve(agentsDir, file);
         const content = fs.readFileSync(fullPath, 'utf8');
+        const file = path.basename(fullPath);
         
         // Check if this file contains the agent we're looking for
         const nameMatch = content.match(/name:\s*['"`]([^'"`]+)['"`]/);
@@ -105,10 +130,10 @@ export class AgentLoader {
           
           return this.validateAndNormalizeConfig(agentConfig);
         } catch (parseError) {
-          console.error(`Error parsing agent config from ${file}:`, parseError);
+          console.error(`Error parsing agent config from ${fullPath}:`, parseError);
         }
       } catch (error) {
-        console.error(`Error loading agent from ${file}:`, error);
+        console.error(`Error loading agent from ${fullPath}:`, error);
       }
     }
     
@@ -136,17 +161,15 @@ export class AgentLoader {
 
     console.log(`[AgentLoader.listAvailableAgents] Is compiled dir: ${isCompiledDir}, extension: ${fileExtension}`);
 
-    const files = fs.readdirSync(agentsDir).filter(file =>
-      file.endsWith(fileExtension) && !file.endsWith('.d.ts') && !file.endsWith('.map')
-    );
+    const files = this.findAgentFiles(agentsDir, fileExtension);
 
-    console.log(`[AgentLoader.listAvailableAgents] Found ${files.length} ${fileExtension} files: ${files.join(', ')}`);
+    console.log(`[AgentLoader.listAvailableAgents] Found ${files.length} ${fileExtension} files (including subdirectories)`);
 
 
-    for (const file of files) {
+    for (const fullPath of files) {
       try {
-        const fullPath = path.resolve(agentsDir, file);
         const content = fs.readFileSync(fullPath, 'utf8');
+        const file = path.basename(fullPath);
 
         // Extract agent name from file content
         // Works for both TypeScript and compiled JavaScript
@@ -156,13 +179,13 @@ export class AgentLoader {
           if (ValidationUtils.validateAgentName(nameMatch[1])) {
             agents.push(nameMatch[1]);
           } else {
-            console.log(`[AgentLoader] Agent name '${nameMatch[1]}' from ${file} failed validation`);
+            console.log(`[AgentLoader] Agent name '${nameMatch[1]}' from ${fullPath} failed validation`);
           }
         } else {
-          console.log(`[AgentLoader] No agent name found in ${file}`);
+          console.log(`[AgentLoader] No agent name found in ${fullPath}`);
         }
       } catch (error) {
-        console.log(`[AgentLoader] Error reading ${file}:`, error);
+        console.log(`[AgentLoader] Error reading ${fullPath}:`, error);
         // Skip files that can't be read
       }
     }
@@ -176,22 +199,19 @@ export class AgentLoader {
   static listAvailableAgentConfigs(): AgentConfig[] {
     const agentsDir = PathConfig.getAgentsDirectory();
     const agents: AgentConfig[] = [];
-    
+
     if (!fs.existsSync(agentsDir)) {
       return agents;
     }
-    
+
     // Check if we're looking at compiled agents (dist/agents) or source agents
     const isCompiledDir = agentsDir.includes('dist/agents');
     const fileExtension = isCompiledDir ? '.js' : '.ts';
 
-    const files = fs.readdirSync(agentsDir).filter(file =>
-      file.endsWith(fileExtension) && !file.endsWith('.d.ts') && !file.endsWith('.map')
-    );
-    
-    for (const file of files) {
+    const files = this.findAgentFiles(agentsDir, fileExtension);
+
+    for (const fullPath of files) {
       try {
-        const fullPath = path.resolve(agentsDir, file);
         const content = fs.readFileSync(fullPath, 'utf8');
         
         // Simple regex to extract agent config (basic implementation)

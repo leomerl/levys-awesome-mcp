@@ -70,35 +70,50 @@ async function getGitCommitHash(): Promise<string | null> {
 /**
  * Updates a task from pending to in_progress state
  * @param taskNumber The task number (e.g., 1 for TASK-001, 2 for TASK-002)
+ * @param sessionId Optional session ID for session-based progress tracking
  * @returns true if successful, false otherwise
  */
-export async function updateTaskToInProgress(taskNumber: number): Promise<boolean> {
+export async function updateTaskToInProgress(taskNumber: number, sessionId?: string): Promise<boolean> {
   try {
-    // Get the current git commit hash
-    const gitHash = await getGitCommitHash();
-    if (!gitHash) {
-      return false;
-    }
+    let reportsDir: string;
+    let progressFilePath: string;
 
-    // Find the progress file
-    const reportsDir = path.join(process.cwd(), 'plan_and_progress', gitHash);
-    if (!existsSync(reportsDir)) {
-      return false;
-    }
+    if (sessionId) {
+      // Use session-based directory
+      reportsDir = path.join(process.cwd(), 'plan_and_progress', 'sessions', sessionId);
+      progressFilePath = path.join(reportsDir, 'progress.json');
 
-    const fs = await import('fs');
-    const files = fs.readdirSync(reportsDir).filter(f => f.startsWith('progress-') && f.endsWith('.json'));
-    
-    if (files.length === 0) {
-      return false;
-    }
+      if (!existsSync(progressFilePath)) {
+        console.log(`[TaskTracker] Session-based progress file not found: ${progressFilePath}`);
+        return false;
+      }
+    } else {
+      // Fallback to git-based directory
+      const gitHash = await getGitCommitHash();
+      if (!gitHash) {
+        return false;
+      }
 
-    // Get the most recent progress file
-    files.sort().reverse();
-    const progressFilePath = path.join(reportsDir, files[0]);
+      reportsDir = path.join(process.cwd(), 'plan_and_progress', gitHash);
+      if (!existsSync(reportsDir)) {
+        return false;
+      }
+
+      const fs = await import('fs');
+      const files = fs.readdirSync(reportsDir).filter(f => f.startsWith('progress-') && f.endsWith('.json'));
+
+      if (files.length === 0) {
+        return false;
+      }
+
+      // Get the most recent progress file
+      files.sort().reverse();
+      progressFilePath = path.join(reportsDir, files[0]);
+    }
 
     // Use locking to prevent race conditions
-    return await withLock(`task-update-${gitHash}-${taskNumber}`, async () => {
+    const lockKey = sessionId ? `task-update-${sessionId}-${taskNumber}` : `task-update-${taskNumber}`;
+    return await withLock(lockKey, async () => {
       // Read current progress
       const progressContent = await readFile(progressFilePath, 'utf8');
       const progress: ProgressDocument = JSON.parse(progressContent);
@@ -277,4 +292,92 @@ export async function getTaskByNumber(taskNumber: number): Promise<ProgressTask 
  */
 export async function getCurrentGitHash(): Promise<string | null> {
   return await getGitCommitHash();
+}
+
+/**
+ * Gets the in-progress task for a specific session
+ * @param sessionId Session ID to check
+ * @returns The in-progress task or null if none found
+ */
+export async function getInProgressTaskBySession(sessionId: string): Promise<ProgressTask | null> {
+  try {
+    const progressFilePath = path.join(process.cwd(), 'plan_and_progress', 'sessions', sessionId, 'progress.json');
+
+    if (!existsSync(progressFilePath)) {
+      return null;
+    }
+
+    // Read current progress
+    const progressContent = await readFile(progressFilePath, 'utf8');
+    const progress: ProgressDocument = JSON.parse(progressContent);
+
+    // Find the first in_progress task
+    const inProgressTask = progress.tasks.find(t => t.state === 'in_progress');
+
+    return inProgressTask || null;
+  } catch (error) {
+    console.error('Error getting in_progress task by session:', error);
+    return null;
+  }
+}
+
+/**
+ * Updates a task to completed state
+ * @param taskNumber The task number
+ * @param sessionId Session ID for session-based progress tracking
+ * @param agentSessionId Agent session ID
+ * @param filesModified Files that were modified
+ * @param summary Summary of work done
+ * @returns true if successful
+ */
+export async function updateTaskToCompleted(
+  taskNumber: number,
+  sessionId: string,
+  agentSessionId: string,
+  filesModified: string[] = [],
+  summary: string = ''
+): Promise<boolean> {
+  try {
+    const progressFilePath = path.join(process.cwd(), 'plan_and_progress', 'sessions', sessionId, 'progress.json');
+
+    if (!existsSync(progressFilePath)) {
+      console.log(`[TaskTracker] Session-based progress file not found: ${progressFilePath}`);
+      return false;
+    }
+
+    const lockKey = `task-update-${sessionId}-${taskNumber}`;
+    return await withLock(lockKey, async () => {
+      // Read current progress
+      const progressContent = await readFile(progressFilePath, 'utf8');
+      const progress: ProgressDocument = JSON.parse(progressContent);
+
+      // Find the task by number
+      const taskId = `TASK-${String(taskNumber).padStart(3, '0')}`;
+      const taskIndex = progress.tasks.findIndex(t => t.id === taskId);
+
+      if (taskIndex === -1) {
+        return false;
+      }
+
+      const task = progress.tasks[taskIndex];
+
+      // Update task state
+      const now = new Date().toISOString();
+      task.state = 'completed';
+      task.agent_session_id = agentSessionId;
+      task.files_modified = filesModified;
+      task.summary = summary;
+      task.completed_at = now;
+      progress.last_updated = now;
+
+      // Save updated progress
+      await writeFile(progressFilePath, JSON.stringify(progress, null, 2), 'utf8');
+
+      console.log(`[TaskTracker] Successfully marked task ${taskId} as completed`);
+      return true;
+    });
+  } catch (error) {
+    console.error('Error updating task to completed:', error);
+    return false;
+  }
 }

@@ -76,6 +76,7 @@ coverage/
 # Test directories created during MCP testing
 frontend/
 backend/
+test-projects/
 
 # Legacy code
 
