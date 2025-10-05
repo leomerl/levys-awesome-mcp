@@ -4,6 +4,20 @@ All notable changes to Levy's Awesome MCP will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.5] - 2025-10-05
+
+### Added
+- **Consolidated CI/CD Workflow**: Merged installation verification into Build and Release workflow
+- **Installation Verification**: Added automated verification that `.claude/commands/` and `.claude/agents/` directories are created during package installation
+- **Workflow Optimization**: Streamlined CI/CD pipeline by combining separate workflows
+
+### Changed
+- **Workflow Structure**: Consolidated `verify-npm-install.yml` into `build-and-release.yml`
+- **Build Process**: Installation verification now runs as part of the main build workflow
+
+### Fixed
+- **CI/CD Efficiency**: Reduced duplicate workflow runs by consolidating verification steps
+
 ## [1.0.4] - 2025-10-05
 
 ### Added
