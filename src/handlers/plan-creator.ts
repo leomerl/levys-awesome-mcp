@@ -2,6 +2,7 @@ import { writeFile, mkdir, readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import * as path from 'path';
 import { executeCommand } from '../shared/utils.js';
+import { getMonitor } from '../monitoring/monitor.js';
 
 // Simple file-based locking mechanism to prevent race conditions
 const activeLocks = new Map<string, Promise<void>>();
@@ -474,10 +475,23 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
         // Generate a human-readable summary
         const summary = generatePlanSummary(plan, progress);
 
+        // Start monitoring orchestration
+        const monitor = getMonitor();
+        const orchestrationId = monitor.startOrchestration({
+          sessionId: finalSessionId,
+          taskDescription: task_description,
+          totalTasks: tasks.length,
+          gitCommitHash: plan.git_commit_hash || undefined,
+          planFilePath: planFilePath,
+          progressFilePath: progressFilePath
+        });
+
+        console.log(`[PlanCreator] Started monitoring orchestration ${orchestrationId} for session ${finalSessionId}`);
+
         return {
           content: [{
             type: 'text',
-            text: `Plan and progress files created successfully!\n\nPlan file: ${planFilePath}\nProgress file: ${progressFilePath}\nSession ID: ${finalSessionId}\n\n${summary}`
+            text: `Plan and progress files created successfully!\n\nPlan file: ${planFilePath}\nProgress file: ${progressFilePath}\nSession ID: ${finalSessionId}\nOrchestration ID: ${orchestrationId}\n\n${summary}`
           }]
         };
       }
@@ -840,6 +854,32 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
 
           // Generate human-readable summary
           const readableSummary = generateComparisonSummary(comparisonReport);
+
+          // Update orchestration monitoring
+          const monitor = getMonitor();
+          if (session_id) {
+            const orchestration = monitor.getOrchestration(session_id);
+            if (orchestration) {
+              // Determine final status
+              let finalStatus: 'completed' | 'failed' | 'partial';
+              if (comparisonReport.summary.root_task_completed) {
+                finalStatus = 'completed';
+              } else if (comparisonReport.summary.completed_tasks > 0) {
+                finalStatus = 'partial';
+              } else {
+                finalStatus = 'failed';
+              }
+
+              monitor.completeOrchestration({
+                sessionId: session_id,
+                status: finalStatus,
+                completedTasks: comparisonReport.summary.completed_tasks,
+                failedTasks: progress.tasks.filter(t => t.state === 'failed').length
+              });
+
+              console.log(`[PlanCreator] Completed monitoring orchestration ${orchestration.id} with status: ${finalStatus}`);
+            }
+          }
 
           return {
             content: [{

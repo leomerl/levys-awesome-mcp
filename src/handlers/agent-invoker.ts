@@ -15,6 +15,7 @@ import {
 } from '../utilities/progress/task-tracker.js';
 import { handlePlanCreatorTool } from './plan-creator.js';
 import { resolveMcpConfig } from '../utilities/mcp/third-party-mcp-registry.js';
+import { getMonitor } from '../monitoring/monitor.js';
 import * as path from 'path';
 import * as fs from 'fs';
 import { randomUUID } from 'crypto';
@@ -182,6 +183,28 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
         let claudeCodeSessionId: string | undefined; // To capture Claude Code's actual session ID
         let isFirstMessage = true;
         let agentCompleted = false; // Track if agent completed successfully
+
+        // Initialize monitoring
+        const monitor = getMonitor();
+        const executionStartTime = Date.now();
+
+        // Get orchestration ID if this is an orchestrator invocation
+        let monitoringOrchestrationId: string | undefined;
+        if (isOrchestratorInvoking && orchestratorSessionId) {
+          const orchestration = monitor.getOrchestration(orchestratorSessionId);
+          monitoringOrchestrationId = orchestration?.id;
+        }
+
+        const executionId = monitor.startAgentExecution({
+          agentSessionId: sessionId,
+          agentName,
+          orchestrationId: monitoringOrchestrationId,
+          taskId: taskNumber ? `TASK-${String(taskNumber).padStart(3, '0')}` : undefined,
+          taskNumber,
+          sessionLogPath: `output_streams/${sessionId}/session.log`
+        });
+
+        console.log(`[AgentInvoker] Started monitoring execution ${executionId} for agent ${agentName}`);
 
         try {
           // Step 1: Create specialized prompt (systemPrompt + task)
@@ -410,7 +433,7 @@ OUTPUT_DIR: output_streams/${sessionId}/
             if (streamingUtils) {
               await streamingUtils.logConversationMessage(message);
             }
-            
+
             // Save conversation history in real-time
             await SessionStore.saveConversationHistory(sessionId, agentName, messages);
 
@@ -444,6 +467,13 @@ OUTPUT_DIR: output_streams/${sessionId}/
             const completionLog = `[${timestamp}] SESSION COMPLETED:\nStatus: success\nTotal Messages: ${messages.length}\nSession Log: output_streams/${sessionId}/session.log\n\n=== End of Session ===\n`;
             fs.appendFileSync(streamLogFile, completionLog, 'utf8');
           }
+
+          // Complete monitoring tracking
+          monitor.completeAgentExecution({
+            agentSessionId: sessionId,
+            status: agentCompleted ? 'completed' : 'failed',
+            summaryReportPath: orchestratorSessionId ? `reports/${orchestratorSessionId}/${agentName}-summary.json` : undefined
+          });
 
           // Check if we need to handle progress update (step 3 & 4: check for in-progress tasks after completion)
           if (isOrchestratorInvoking && orchestratorSessionId && agentCompleted) {
@@ -626,6 +656,13 @@ This is a required step - you MUST either complete the task or mark it as comple
 
           // Save conversation history even on error
           await SessionStore.saveConversationHistory(sessionId, agentName, messages);
+
+          // Update monitoring with error
+          monitor.completeAgentExecution({
+            agentSessionId: sessionId,
+            status: 'failed',
+            errorMessage: error instanceof Error ? error.message : String(error)
+          });
 
           return {
             content: [{

@@ -1,0 +1,151 @@
+name: Test Monitoring System
+
+on:
+  push:
+    branches: [ main, monitoring ]
+    paths:
+      - 'src/monitoring/**'
+      - 'src/handlers/agent-invoker.ts'
+      - 'src/handlers/plan-creator.ts'
+      - 'tests/integration/monitoring-workflow.integration.test.ts'
+      - '.github/workflows/test-monitoring.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/monitoring/**'
+      - 'src/handlers/agent-invoker.ts'
+      - 'src/handlers/plan-creator.ts'
+      - 'tests/integration/monitoring-workflow.integration.test.ts'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  test-monitoring:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Copy schema to dist
+        run: cp src/monitoring/schema.sql dist/src/monitoring/
+
+      - name: Run monitoring integration test
+        run: npm test -- tests/integration/monitoring-workflow.integration.test.ts --no-coverage
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CI: true
+
+      - name: Test monitoring CLI commands
+        if: success()
+        run: |
+          echo "Testing monitoring CLI commands..."
+
+          # List all orchestrations
+          echo "✅ Testing: npm run monitor list"
+          npm run monitor list
+
+          # Get system health
+          echo "✅ Testing: npm run monitor health"
+          npm run monitor health
+
+          # Get performance report
+          echo "✅ Testing: npm run monitor performance"
+          npm run monitor performance
+
+          # Get failures
+          echo "✅ Testing: npm run monitor failures"
+          npm run monitor failures
+
+          # Export to JSON
+          echo "✅ Testing: npm run monitor export"
+          npm run monitor export > /tmp/monitoring-export.json
+
+          # Verify export file is valid JSON
+          cat /tmp/monitoring-export.json | jq . > /dev/null
+          echo "✅ Export is valid JSON"
+
+          echo "All monitoring CLI commands passed!"
+
+      - name: Verify monitoring database
+        if: success()
+        run: |
+          echo "Verifying monitoring database..."
+
+          # Check that monitoring.db exists
+          if [ -f "monitoring.db" ]; then
+            echo "✅ Monitoring database exists"
+
+            # Show database size
+            ls -lh monitoring.db
+
+            # Count orchestrations (using a simple Node.js script)
+            node -e "
+            const Database = require('better-sqlite3');
+            const db = new Database('monitoring.db', { readonly: true });
+            const count = db.prepare('SELECT COUNT(*) as count FROM orchestrations').get();
+            console.log('✅ Orchestrations in database:', count.count);
+            const execCount = db.prepare('SELECT COUNT(*) as count FROM agent_executions').get();
+            console.log('✅ Agent executions in database:', execCount.count);
+            db.close();
+            "
+          else
+            echo "❌ Monitoring database not found!"
+            exit 1
+          fi
+
+      - name: Upload monitoring database as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitoring-database
+          path: |
+            monitoring.db
+            monitoring.db-wal
+            monitoring.db-shm
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload monitoring export
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitoring-export
+          path: /tmp/monitoring-export.json
+          retention-days: 7
+
+      - name: Cleanup test data
+        if: always()
+        run: |
+          # Clean up test orchestration data
+          rm -rf plan_and_progress/sessions/monitoring-workflow-test
+          rm -rf reports/monitoring-workflow-test
+          rm -f backend/monitoring-test.txt
+          rm -f monitoring.db monitoring.db-wal monitoring.db-shm
+          echo "✅ Test data cleaned up"
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "## Monitoring System Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All monitoring features tested:" >> $GITHUB_STEP_SUMMARY
+          echo "- Orchestration tracking" >> $GITHUB_STEP_SUMMARY
+          echo "- Agent execution tracking" >> $GITHUB_STEP_SUMMARY
+          echo "- System health check" >> $GITHUB_STEP_SUMMARY
+          echo "- Performance report" >> $GITHUB_STEP_SUMMARY
+          echo "- Failure analysis" >> $GITHUB_STEP_SUMMARY
+          echo "- JSON export" >> $GITHUB_STEP_SUMMARY
+          echo "- CLI commands" >> $GITHUB_STEP_SUMMARY
