@@ -29,12 +29,12 @@ describe('ToolRegistry - Core MCP Tool Discovery', () => {
       const toolsByCategory = await ToolRegistry.getToolsByCategory();
 
       // Check expected categories exist (matching actual implementation)
+      // NOTE: 'mcp' category was removed - third-party MCP tools are NOT in the built-in registry
       expect(toolsByCategory).toHaveProperty('file-system');
       expect(toolsByCategory).toHaveProperty('execution');
       expect(toolsByCategory).toHaveProperty('search');
       expect(toolsByCategory).toHaveProperty('version-control');
       expect(toolsByCategory).toHaveProperty('development');
-      expect(toolsByCategory).toHaveProperty('mcp');
       expect(toolsByCategory).toHaveProperty('testing');
       expect(toolsByCategory).toHaveProperty('documentation');
       expect(toolsByCategory).toHaveProperty('deployment');
@@ -86,9 +86,9 @@ describe('ToolRegistry - Core MCP Tool Discovery', () => {
       const stats = await ToolRegistry.getToolStatistics();
 
       expect(stats.totalTools).toBeGreaterThan(0);
-      expect(stats.categoriesCount).toBe(13); // Based on actual categories
+      expect(stats.categoriesCount).toBe(12); // 12 categories (mcp removed)
       expect(stats.categories).toBeInstanceOf(Array);
-      expect(stats.categories.length).toBe(13);
+      expect(stats.categories.length).toBe(12);
 
       // Each category should have a name and count
       for (const category of stats.categories) {
@@ -171,12 +171,17 @@ describe('ToolRegistry - Core MCP Tool Discovery', () => {
       expect(validation.invalidTools).toHaveLength(0);
     });
 
-    it('should validate MCP tools correctly', async () => {
+    it('should treat third-party MCP tools as unknown (not in built-in registry)', async () => {
+      // MCP tools are third-party tools added dynamically by agents, NOT in the built-in registry
       const mcpTools = ['mcp__ide__getDiagnostics', 'mcp__ide__executeCode'];
       const validation = await ToolRegistry.validateToolList(mcpTools);
 
-      expect(validation.valid).toBe(true);
-      expect(validation.invalidTools).toHaveLength(0);
+      // These should be considered invalid/unknown by the built-in registry
+      // but agents can still use them (they're third-party tools)
+      expect(validation.valid).toBe(false);
+      expect(validation.invalidTools).toHaveLength(2);
+      expect(validation.invalidTools).toContain('mcp__ide__getDiagnostics');
+      expect(validation.invalidTools).toContain('mcp__ide__executeCode');
     });
   });
 
@@ -223,15 +228,16 @@ describe('ToolRegistry - Core MCP Tool Discovery', () => {
   });
 
   describe('Tool Existence Check', () => {
-    it('should correctly identify valid tools', () => {
+    it('should correctly identify valid built-in tools', () => {
       expect(ToolRegistry.isValidTool('Read')).toBe(true);
       expect(ToolRegistry.isValidTool('Write')).toBe(true);
       expect(ToolRegistry.isValidTool('Bash')).toBe(true);
-      expect(ToolRegistry.isValidTool('mcp__ide__getDiagnostics')).toBe(true);
     });
 
-    it('should correctly identify invalid tools', () => {
+    it('should correctly identify invalid tools and third-party MCP tools', () => {
       expect(ToolRegistry.isValidTool('InvalidTool')).toBe(false);
+      // MCP tools are NOT in the built-in registry (they're third-party tools)
+      expect(ToolRegistry.isValidTool('mcp__ide__getDiagnostics')).toBe(false);
       expect(ToolRegistry.isValidTool('')).toBe(false);
       expect(ToolRegistry.isValidTool('NotARealTool')).toBe(false);
     });
