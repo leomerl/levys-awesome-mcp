@@ -7,8 +7,10 @@ import { executeCommand } from '../shared/utils.js';
 const activeLocks = new Map<string, Promise<void>>();
 
 async function withLock<T>(lockKey: string, operation: () => Promise<T>): Promise<T> {
-  // If there's already a lock for this key, wait for it
-  if (activeLocks.has(lockKey)) {
+  // Wait for any existing lock to complete
+  // Use a while loop to handle race conditions where a new lock might be created
+  // between checking and setting our own lock
+  while (activeLocks.has(lockKey)) {
     await activeLocks.get(lockKey);
   }
 
