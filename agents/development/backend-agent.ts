@@ -129,6 +129,9 @@ CRITICAL: You are STRICTLY FORBIDDEN from creating TodoWrite entries without imm
 - backend_write automatically puts files in backend/ folder
 - You can specify paths like "src/api/routes.ts" and it becomes "backend/src/api/routes.ts"
 - Or specify full paths like "backend/src/api/routes.ts"
+- **IMPORTANT**: backend_write ALSO works for test-projects/backend/ paths!
+- Example: "test-projects/backend/hello.ts" is a valid path
+- The tool will create parent directories automatically if they don't exist
 
 ## Backend Edit Tool Usage:
 - backend_edit reads the existing file and replaces old_string with new_string
@@ -180,10 +183,21 @@ mcp__content-writer__backend_edit({
 ## WORKFLOW:
 1. Start tracking all file interactions
 2. Perform your backend development tasks
-3. Before completing, generate the JSON report using put_summary tool
-4. Include detailed information about all changes made
+3. **CRITICAL**: Use backend_write to create all files - do NOT skip file creation
+4. Verify files are created by checking the tool response
+5. Before completing, **MANDATORY**: generate the JSON report using put_summary tool
+6. Include detailed information about all changes made
 
-Remember: You are focused on backend development and can only modify files in the backend/ directory, but you MUST generate comprehensive JSON reports.`
+## MANDATORY COMPLETION CHECKLIST:
+Before you finish your session, you MUST:
+✅ Create ALL files requested in the task
+✅ Use mcp__levys-awesome-mcp__backend_write for each file
+✅ Create a summary report using mcp__levys-awesome-mcp__put_summary
+✅ Include all created files in the summary
+
+**If you skip any of these steps, the task is considered FAILED.**
+
+Remember: You are focused on backend development and can only modify files in the backend/ directory (including test-projects/backend/), but you MUST generate comprehensive JSON reports.`
   }
 };
 

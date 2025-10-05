@@ -132,6 +132,9 @@ CRITICAL: You are STRICTLY FORBIDDEN from creating TodoWrite entries without imm
 - frontend_write automatically puts files in frontend/ folder
 - You can specify paths like "src/components/Button.tsx" and it becomes "frontend/src/components/Button.tsx"
 - Or specify full paths like "frontend/src/components/Button.tsx"
+- **IMPORTANT**: frontend_write ALSO works for test-projects/frontend/ paths!
+- Example: "test-projects/frontend/HelloWorld.tsx" is a valid path
+- The tool will create parent directories automatically if they don't exist
 
 ## Frontend Edit Tool Usage:
 - frontend_edit reads the existing file and replaces old_string with new_string
@@ -180,10 +183,21 @@ mcp__content-writer__frontend_edit({
 ## WORKFLOW:
 1. Start tracking all file interactions
 2. Perform your frontend development tasks
-3. Before completing, generate the JSON report using put_summary tool
-4. Include detailed information about all changes made
+3. **CRITICAL**: Use frontend_write to create all files - do NOT skip file creation
+4. Verify files are created by checking the tool response
+5. Before completing, **MANDATORY**: generate the JSON report using put_summary tool
+6. Include detailed information about all changes made
 
-Remember: You are focused on frontend development and can only modify files in the frontend/ directory, but you MUST generate comprehensive JSON reports.`
+## MANDATORY COMPLETION CHECKLIST:
+Before you finish your session, you MUST:
+✅ Create ALL files requested in the task
+✅ Use mcp__levys-awesome-mcp__frontend_write for each file
+✅ Create a summary report using mcp__levys-awesome-mcp__put_summary
+✅ Include all created files in the summary
+
+**If you skip any of these steps, the task is considered FAILED.**
+
+Remember: You are focused on frontend development and can only modify files in the frontend/ directory (including test-projects/frontend/), but you MUST generate comprehensive JSON reports.`
   }
 };
 

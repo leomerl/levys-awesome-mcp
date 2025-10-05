@@ -146,11 +146,25 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
           console.log(`[AgentInvoker] Orchestrator detected - implementing enhanced progress tracking for session ${orchestratorSessionId}`);
 
           // Step 1: Update task to in_progress before agent starts
+          const progressFilePath = path.join(process.cwd(), 'plan_and_progress', 'sessions', orchestratorSessionId, 'progress.json');
+          console.log(`[AgentInvoker] DEBUG: Progress file path: ${progressFilePath}`);
+          console.log(`[AgentInvoker] DEBUG: Progress file exists: ${fs.existsSync(progressFilePath)}`);
+
           const updateSuccess = await updateTaskToInProgress(taskNumber, orchestratorSessionId);
           if (updateSuccess) {
-            console.log(`[AgentInvoker] Successfully marked task ${taskNumber} as in_progress in session ${orchestratorSessionId}`);
+            console.log(`[AgentInvoker] ✅ Successfully marked task ${taskNumber} as in_progress in session ${orchestratorSessionId}`);
+
+            // Verify the update actually happened
+            if (fs.existsSync(progressFilePath)) {
+              const progressContent = fs.readFileSync(progressFilePath, 'utf8');
+              const progress = JSON.parse(progressContent);
+              const taskId = `TASK-${String(taskNumber).padStart(3, '0')}`;
+              const task = progress.tasks.find((t: any) => t.id === taskId);
+              console.log(`[AgentInvoker] DEBUG: Task ${taskId} current state: ${task?.state}`);
+              console.log(`[AgentInvoker] DEBUG: Progress file last_updated: ${progress.last_updated}`);
+            }
           } else {
-            console.log(`[AgentInvoker] Failed to update task ${taskNumber} to in_progress in session ${orchestratorSessionId}`);
+            console.error(`[AgentInvoker] ❌ Failed to update task ${taskNumber} to in_progress in session ${orchestratorSessionId}`);
           }
         }
 
@@ -560,9 +574,41 @@ This is a required step - you MUST either complete the task or mark it as comple
             }
           }
 
+          // SUMMARY ENFORCEMENT: Verify agent created summary report
+          if (orchestratorSessionId && agentCompleted) {
+            const summaryPath = path.join(process.cwd(), 'reports', orchestratorSessionId, `${agentName}-summary.json`);
+            if (!fs.existsSync(summaryPath)) {
+              console.warn(`[AgentInvoker] WARNING: Agent '${agentName}' completed but no summary report found at ${summaryPath}`);
+              console.warn(`[AgentInvoker] Creating placeholder summary to maintain workflow integrity`);
+
+              // Create placeholder summary
+              try {
+                const reportsDir = path.join(process.cwd(), 'reports', orchestratorSessionId);
+                fs.mkdirSync(reportsDir, { recursive: true });
+
+                const placeholderSummary = {
+                  session_id: orchestratorSessionId,
+                  agent: agentName,
+                  agentName: agentName,
+                  status: 'completed_without_summary',
+                  timestamp: new Date().toISOString(),
+                  warning: 'Agent completed execution but did not create summary report',
+                  agent_session_id: sessionId
+                };
+
+                fs.writeFileSync(summaryPath, JSON.stringify(placeholderSummary, null, 2), 'utf8');
+                console.log(`[AgentInvoker] Created placeholder summary at ${summaryPath}`);
+              } catch (error) {
+                console.error(`[AgentInvoker] Failed to create placeholder summary:`, error);
+              }
+            } else {
+              console.log(`[AgentInvoker] Verified: Summary report exists at ${summaryPath}`);
+            }
+          }
+
           // Use Claude Code's actual session ID for returning to user
           const returnSessionId = claudeCodeSessionId || sessionId;
-          
+
           return {
             content: [{
               type: 'text',
