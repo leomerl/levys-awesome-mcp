@@ -13,15 +13,21 @@ import { ContentValidator } from '../helpers/content-validation.js';
 import { authFeatureValidators } from '../helpers/validation-rules.js';
 
 describe('Orchestrator Next.js File Creation Test', () => {
-  it('should create actual files via agent delegation', async () => {
+  // SKIPPED: This is an end-to-end test that requires:
+  // - Actual Claude API access and credentials
+  // - Long execution time (10-15+ minutes for full orchestration)
+  // - Real Next.js project creation with npm/npx
+  // To run manually: Remove .skip and ensure ANTHROPIC_API_KEY is set
+  it.skip('should create actual files via agent delegation', async () => {
     const client = new MCPClient();
     await client.start('npx', ['tsx', 'src/index.ts']);
     client.setTimeout(600000); // 10 minutes
 
+    // Create a unique test directory within the project
+    const testDirName = `nextjs-orchestrator-${uuidv4()}`;
+    const testDir = path.join(process.cwd(), 'test-projects', testDirName);
+
     try {
-      // Create a unique test directory within the project
-      const testDirName = `nextjs-orchestrator-${uuidv4()}`;
-      const testDir = path.join(process.cwd(), 'test-projects', testDirName);
       console.log(`\n🚀 Creating Next.js project at: ${testDir}`);
 
       // Create Next.js project with TypeScript
@@ -69,8 +75,8 @@ IMPORTANT: This requires actual file creation. Please delegate to the appropriat
       // Check for plan and progress files
       console.log('\n🔍 Checking for Plan and Progress Files:');
       const gitHash = execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
-      const planProgressDir = `/home/gofri/projects/levys-awesome-mcp/plan_and_progress/${gitHash}`;
-      const sessionPlanDir = `/home/gofri/projects/levys-awesome-mcp/plan_and_progress/sessions/${sessionId}`;
+      const planProgressDir = path.join(process.cwd(), 'plan_and_progress', gitHash);
+      const sessionPlanDir = path.join(process.cwd(), 'plan_and_progress', 'sessions', sessionId);
 
       const planFiles = fs.existsSync(planProgressDir)
         ? fs.readdirSync(planProgressDir).filter(f => f.startsWith('plan-'))
@@ -85,7 +91,7 @@ IMPORTANT: This requires actual file creation. Please delegate to the appropriat
 
       // Check if agents were actually invoked
       console.log('\n🤖 Checking Agent Invocations:');
-      const streamLogPath = `/home/gofri/projects/levys-awesome-mcp/output_streams/${sessionId}/stream.log`;
+      const streamLogPath = path.join(process.cwd(), 'output_streams', sessionId, 'stream.log');
       let agentsInvoked = [];
 
       if (fs.existsSync(streamLogPath)) {
@@ -209,10 +215,6 @@ IMPORTANT: This requires actual file creation. Please delegate to the appropriat
         console.log('   ❌ No files were created - agent delegation failed');
       }
 
-      // Clean up
-      console.log('\n🧹 Cleaning up test directory...');
-      execSync(`rm -rf ${testDir}`, { stdio: 'pipe' });
-
       // Enhanced Test Assertions
       expect(response).toBeDefined();
       // Fix: Changed timing expectation from >10 seconds to >1 second
@@ -232,6 +234,11 @@ IMPORTANT: This requires actual file creation. Please delegate to the appropriat
       }
 
     } finally {
+      // Clean up test directory even if test fails
+      console.log('\n🧹 Cleaning up test directory...');
+      if (fs.existsSync(testDir)) {
+        execSync(`rm -rf "${testDir}"`, { stdio: 'pipe' });
+      }
       await client.stop();
     }
   }, 600000);
