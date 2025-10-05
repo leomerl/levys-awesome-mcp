@@ -1,105 +1,195 @@
-/**
- * Authentication utilities for user validation and session management
- * Updated to match task requirements for the NextJS test project
- */
+import { randomBytes, createHash } from 'crypto';
 
-export interface User {
+/**
+ * Interface for user validation result
+ */
+export interface UserValidationResult {
+  isValid: boolean;
+  message: string;
+  user?: {
+    email: string;
+    id: string;
+  };
+}
+
+/**
+ * Interface for session creation result
+ */
+export interface SessionResult {
+  success: boolean;
+  sessionToken?: string;
+  expiresAt?: Date;
+  message: string;
+}
+
+/**
+ * User credentials interface
+ */
+export interface UserCredentials {
   email: string;
   password: string;
 }
 
-export interface Session {
-  id: string;
+/**
+ * Session data interface
+ */
+export interface SessionData {
+  userId: string;
   email: string;
   createdAt: Date;
   expiresAt: Date;
 }
 
-// Mock user database for demonstration
-// In a real application, this would be replaced with database calls
-const MOCK_USERS: User[] = [
-  { email: 'user@example.com', password: 'password123' },
-  { email: 'admin@example.com', password: 'admin123' },
-  { email: 'test@test.com', password: 'test123' }
-];
+/**
+ * Validates user credentials with basic email and password validation
+ * @param email - User's email address
+ * @param password - User's password
+ * @returns Promise<UserValidationResult> - Validation result with user data if valid
+ */
+export async function validateUser(email: string, password: string): Promise<UserValidationResult> {
+  // Basic email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return {
+      isValid: false,
+      message: 'Invalid email format'
+    };
+  }
 
-// Mock session storage
-const sessions = new Map<string, Session>();
+  // Basic password validation
+  if (!password || password.length < 8) {
+    return {
+      isValid: false,
+      message: 'Password must be at least 8 characters long'
+    };
+  }
+
+  // Check password complexity
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumbers = /\d/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+  if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
+    return {
+      isValid: false,
+      message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+    };
+  }
+
+  // In a real application, you would check against a database
+  // For this example, we'll simulate a successful validation
+  if (email === 'test@example.com' && password === 'TestPassword123') {
+    return {
+      isValid: true,
+      message: 'User validation successful',
+      user: {
+        email: email,
+        id: createHash('sha256').update(email).digest('hex').substring(0, 16)
+      }
+    };
+  }
+
+  // Simulate checking against user database (always fail for demo)
+  return {
+    isValid: false,
+    message: 'Invalid email or password'
+  };
+}
 
 /**
- * Validates user credentials against the user database
- * @param email - User email
- * @param password - User password
- * @returns Promise<boolean> - True if credentials are valid
+ * Creates a secure session token for authenticated users
+ * @param userId - Unique identifier for the user
+ * @param email - User's email address
+ * @param expirationHours - Number of hours until session expires (default: 24)
+ * @returns SessionResult - Session creation result with token and expiration
  */
-export async function validateUser(email: string, password: string): Promise<boolean> {
+export function createSession(userId: string, email: string, expirationHours: number = 24): SessionResult {
   try {
-    // Simulate async database call
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Validate inputs
+    if (!userId || !email) {
+      return {
+        success: false,
+        message: 'User ID and email are required for session creation'
+      };
+    }
+
+    if (expirationHours <= 0 || expirationHours > 168) { // Max 7 days
+      return {
+        success: false,
+        message: 'Expiration hours must be between 1 and 168 hours (7 days)'
+      };
+    }
+
+    // Generate secure random token
+    const tokenBytes = randomBytes(32);
+    const timestamp = Date.now().toString();
+    const userInfo = `${userId}:${email}`;
     
-    const user = MOCK_USERS.find(u => u.email === email && u.password === password);
-    return !!user;
+    // Create token with timestamp and user info for uniqueness
+    const tokenData = `${tokenBytes.toString('hex')}:${timestamp}:${createHash('sha256').update(userInfo).digest('hex').substring(0, 16)}`;
+    
+    // Create session token by hashing the token data
+    const sessionToken = createHash('sha256').update(tokenData).digest('hex');
+
+    // Calculate expiration date
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + expirationHours);
+
+    return {
+      success: true,
+      sessionToken: sessionToken,
+      expiresAt: expiresAt,
+      message: 'Session created successfully'
+    };
   } catch (error) {
-    console.error('Error validating user:', error);
+    return {
+      success: false,
+      message: `Failed to create session: ${error instanceof Error ? error.message : 'Unknown error'}`
+    };
+  }
+}
+
+/**
+ * Validates a session token and extracts session data
+ * @param sessionToken - The session token to validate
+ * @returns boolean - Whether the session token is valid format
+ */
+export function validateSessionToken(sessionToken: string): boolean {
+  // Basic token format validation
+  if (!sessionToken || typeof sessionToken !== 'string') {
     return false;
   }
+
+  // Check if token is a valid hex string of expected length (64 characters for SHA-256)
+  const hexRegex = /^[a-f0-9]{64}$/i;
+  return hexRegex.test(sessionToken);
 }
 
 /**
- * Creates a new session for the authenticated user
- * @param email - User email
- * @returns Promise<Session> - Created session object
+ * Generates a secure password hash using SHA-256
+ * @param password - Plain text password
+ * @param salt - Optional salt (will generate if not provided)
+ * @returns Object with hash and salt
  */
-export async function createSession(email: string): Promise<Session> {
-  const sessionId = generateSessionId();
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
+export function hashPassword(password: string, salt?: string): { hash: string; salt: string } {
+  const actualSalt = salt || randomBytes(16).toString('hex');
+  const hash = createHash('sha256').update(password + actualSalt).digest('hex');
   
-  const session: Session = {
-    id: sessionId,
-    email,
-    createdAt: now,
-    expiresAt
+  return {
+    hash: hash,
+    salt: actualSalt
   };
-  
-  sessions.set(sessionId, session);
-  return session;
 }
 
 /**
- * Generates a unique session ID
- * @returns string - Unique session identifier
+ * Verifies a password against a hash
+ * @param password - Plain text password to verify
+ * @param hash - Stored password hash
+ * @param salt - Salt used for the hash
+ * @returns boolean - Whether password matches the hash
  */
-function generateSessionId(): string {
-  return Math.random().toString(36).substring(2) + Date.now().toString(36);
-}
-
-/**
- * Validates a session by ID
- * @param sessionId - Session identifier
- * @returns Session | null - Session object if valid, null otherwise
- */
-export function validateSession(sessionId: string): Session | null {
-  const session = sessions.get(sessionId);
-  
-  if (!session) {
-    return null;
-  }
-  
-  // Check if session has expired
-  if (new Date() > session.expiresAt) {
-    sessions.delete(sessionId);
-    return null;
-  }
-  
-  return session;
-}
-
-/**
- * Destroys a session
- * @param sessionId - Session identifier to destroy
- * @returns boolean - True if session was destroyed
- */
-export function destroySession(sessionId: string): boolean {
-  return sessions.delete(sessionId);
+export function verifyPassword(password: string, hash: string, salt: string): boolean {
+  const { hash: computedHash } = hashPassword(password, salt);
+  return computedHash === hash;
 }

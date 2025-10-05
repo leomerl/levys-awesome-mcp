@@ -60,6 +60,11 @@ output_streams/
 reports/
 plan_and_progress/
 
+# Monitoring database
+monitoring.db
+monitoring.db-shm
+monitoring.db-wal
+
 
 # Generated agent files
 .claude/agents/*.md

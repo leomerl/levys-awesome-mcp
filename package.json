@@ -1,6 +1,6 @@
 {
   "name": "@leomerl/levys-awesome-mcp",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "A comprehensive MCP (Model Context Protocol) server toolkit with agent management, build automation, and content writing capabilities",
   "type": "module",
   "main": "dist/src/index.js",
@@ -38,7 +38,9 @@
     "orchestrator-agent": "npx tsx agents/orchestrator-agent.ts --",
     "linter-agent": "npx tsx agents/linter-agent.ts --",
     "builder-agent": "npx tsx agents/builder.ts --",
-    "planner-agent": "npx tsx agents/planner-agent.ts --"
+    "planner-agent": "npx tsx agents/planner-agent.ts --",
+    "metrics": "npx tsx src/monitoring/cli.ts",
+    "monitor": "npx tsx src/monitoring/cli.ts"
   },
   "keywords": [
     "mcp",
@@ -76,10 +78,12 @@
     "@anthropic-ai/claude-code": "^1.0.98",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/nodemailer": "^7.0.1",
     "bcryptjs": "^3.0.2",
+    "better-sqlite3": "^12.4.1",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",

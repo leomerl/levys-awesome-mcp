@@ -4,6 +4,61 @@ All notable changes to Levy's Awesome MCP will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.6] - 2025-10-05
+
+### Added
+- **Agent Monitoring System**: Complete monitoring infrastructure for orchestrations and agent executions
+  - SQLite database with orchestrations and agent_executions tables
+  - Automatic tracking of all orchestrations via plan-creator
+  - Automatic tracking of all agent executions via agent-invoker
+  - Orchestration metrics: status, duration, task completion, success/failure tracking
+  - Agent execution metrics: duration, files created/modified, self-healing flags, retry counts
+  - Database schema with proper indexes and foreign key constraints
+  - WAL mode for better concurrency
+- **Monitoring CLI**: Comprehensive command-line interface for querying metrics
+  - `npm run monitor list` - List all orchestrations
+  - `npm run monitor show <session-id>` - Show detailed orchestration metrics
+  - `npm run monitor agent <agent-name>` - Show agent statistics
+  - `npm run monitor executions <session-id>` - Show all executions for orchestration
+  - `npm run monitor health [hours]` - System health check (default: 24 hours)
+  - `npm run monitor performance` - Performance report for all agents
+  - `npm run monitor failures [limit]` - List failed orchestrations
+  - `npm run monitor export [session-id]` - Export data as JSON for CI/CD
+  - `npm run monitor cleanup <days>` - Delete old orchestrations
+- **Production Features**:
+  - System health dashboard with success rates and average durations
+  - Performance analysis across all agents (min/max/avg durations, success rates)
+  - Failure analysis to identify patterns and problematic workflows
+  - JSON export for external dashboards, analytics tools, and CI/CD integration
+  - Data cleanup/retention to prevent database bloat
+- **Monitoring Integration Tests**: `tests/integration/monitoring-workflow.integration.test.ts`
+  - Full workflow test: plan → agent → completion → all CLI commands
+  - 10 monitoring features tested with real agent execution
+  - Validates all database operations and CLI commands work correctly
+- **Monitoring Unit Tests**: `tests/unit/monitoring.test.ts`
+  - Database CRUD operations for orchestrations and executions
+  - Aggregation queries and statistics
+  - 5 comprehensive unit tests
+- **GitHub Actions Workflow**: `.github/workflows/test-monitoring.yml`
+  - Automated testing of monitoring system on every commit
+  - Tests all CLI commands in CI environment
+  - Validates database integrity
+  - Uploads monitoring data and JSON exports as artifacts (7-day retention)
+  - Triggered on push to main/monitoring branches or manual dispatch
+- **Monitoring Documentation**: `docs/MONITORING.md`
+  - Complete feature documentation with examples
+  - CLI command reference
+  - Database schema details
+  - Programmatic usage guide
+  - CI/CD integration instructions
+  - Troubleshooting tips and best practices
+
+### Changed
+- `plan-creator.ts`: Integrated orchestration tracking (start/complete)
+- `agent-invoker.ts`: Integrated agent execution tracking
+- `.gitignore`: Added monitoring database files (monitoring.db, monitoring.db-wal, monitoring.db-shm)
+- `package.json`: Added monitoring CLI script and better-sqlite3 dependency
+
 ## [1.0.5] - 2025-10-05
 
 ### Added
