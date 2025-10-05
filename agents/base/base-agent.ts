@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 
 import { query } from "@anthropic-ai/claude-code";
-import { AgentConfig } from '../src/types/agent-config.js';
+import { AgentConfig } from '../src/types/agent-config';
 
 /**
  * Base class for agents that can be invoked both via MCP and CLI

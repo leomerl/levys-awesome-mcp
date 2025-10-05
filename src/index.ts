@@ -5,6 +5,19 @@
  * Combines all toolkit functionality into a single MCP server
  */
 
+// Load environment variables from .env file
+import { config } from 'dotenv';
+config();
+
+// Register tsx loader for TypeScript support in dynamic imports (async)
+try {
+  const tsx = await import('tsx/esm/api' as any);
+  tsx.register();
+  console.error('[MCP] TypeScript loader registered successfully');
+} catch (error) {
+  console.error('[MCP] Warning: Could not register TypeScript loader:', error instanceof Error ? error.message : String(error));
+}
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {

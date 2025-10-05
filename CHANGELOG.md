@@ -4,6 +4,36 @@ All notable changes to Levy's Awesome MCP will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.3] - 2025-10-05
+
+### Added
+- **Language Server MCP Integration**: ✅ Fully working TypeScript/JavaScript code intelligence
+  - Symbol definition navigation (`mcp__languageServer__definition`)
+  - Find all references (`mcp__languageServer__references`)
+  - Real-time diagnostics (`mcp__languageServer__diagnostics`)
+  - Code hover information (`mcp__languageServer__hover`)
+  - Symbol renaming (`mcp__languageServer__rename`)
+  - LSP-powered code edits (`mcp__languageServer__edit`)
+- **Environment Variable Support**: Added dotenv loading for `.env` file configuration
+- **TypeScript Loader**: Registered tsx loader in MCP server for dynamic TypeScript imports
+- **TypeScript Path Aliases**: Added `@/` path alias support in tsconfig.json
+- **GitHub Installation**: Added direct GitHub repository installation support
+
+### Changed
+- **Language Server Tool Names**: Fixed to match actual MCP tool names (removed `get` prefixes)
+- **Agent Imports**: Updated all agent files to use relative paths for runtime compatibility
+- **README**: Enhanced with GitHub installation instructions and Language Server MCP documentation
+- **Environment Configuration**: Documented required `.env` variables (WORKSPACE_PATH, etc.)
+
+### Fixed
+- **Agent Dynamic Loading**: Fixed tsx module resolution for agents with MCP enablers
+- **Language Server Path**: Use full path to `mcp-language-server` binary for reliability
+- **TypeScript Language Server**: Added missing `--stdio` flag for proper LSP communication
+
+### Enabled
+- **backend-agent**: Language Server MCP with 6 code intelligence tools
+- **frontend-agent**: Language Server MCP with 6 code intelligence tools
+
 ## [1.0.2] - 2025-09-17
 
 ### Added

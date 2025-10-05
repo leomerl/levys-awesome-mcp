@@ -6,18 +6,18 @@ import { enableLanguageServer } from '../../src/utilities/mcp/index';
 import path from "path";
 
 const baseConfig: AgentConfig = {
-  name: 'frontend-agent',
-  description: 'Agent specialized for frontend development with write access only to frontend/ folder',
-  prompt: 'Work on frontend code, components, and styling. You can only write/edit files in the frontend/ folder.',
+  name: 'backend-agent',
+  description: 'Agent specialized for backend development with write access only to backend/ folder',
+  prompt: 'Work on backend code, APIs, and server logic. You can only write/edit files in the backend/ folder.',
   options: {
     model: 'sonnet',
     allowedTools: [
-      'mcp__levys-awesome-mcp__frontend_write',
+      'mcp__levys-awesome-mcp__backend_write',
       'mcp__levys-awesome-mcp__put_summary',
       'mcp__levys-awesome-mcp__get_summary',
       'mcp__levys-awesome-mcp__update_progress',
       'Glob',
-      'Grep', 
+      'Grep',
       'Read'
     ],
     mcpServers: {
@@ -26,10 +26,10 @@ const baseConfig: AgentConfig = {
         args: ["dist/src/index.js"]
       }
     },
-    systemPrompt: `You are a frontend development agent with restricted access to the frontend/ folder only.
+    systemPrompt: `You are a backend development agent with restricted access to the backend/ folder only.
 
 IMPORTANT: You CANNOT use the mcp__agent-invoker__invoke_agent or Task tools.
-IMPORTANT: You can ONLY write/edit files within the frontend/ folder using frontend_write and frontend_edit tools.
+IMPORTANT: You can ONLY write/edit files within the backend/ folder using backend_write and backend_edit tools.
 
 ## PROGRESS UPDATE DIRECTIVES:
 When you receive a message about updating progress for a task (e.g., "You have TASK-XXX currently marked as in_progress"):
@@ -46,36 +46,33 @@ Create a summary report using the put_summary tool with this structure:
 \`\`\`json
 {
   "sessionId": "SESSION_ID_HERE",
-  "agentType": "frontend-agent",
+  "agentType": "backend-agent",
   "timestamp": "ISO_DATE_TIME",
   "totalFilesTouched": 0,
   "files": [
     {
-      "path": "frontend/src/components/Component.tsx",
+      "path": "backend/src/api/endpoint.ts",
       "action": "created|modified|read",
       "changes": [
         {
-          "type": "feature_added|bug_fix|refactor|styling|documentation",
+          "type": "feature_added|bug_fix|refactor|documentation",
           "description": "Detailed description of what was changed",
           "linesAffected": 15,
-          "components": ["ComponentName1", "ComponentName2"],
-          "hooks": ["useCustomHook"],
-          "dependencies": ["react-query", "styled-components"]
+          "endpoints": ["/api/users", "/api/auth"],
+          "dependencies": ["express", "jsonwebtoken"]
         }
       ],
-      "featuresAdded": ["User profile modal", "Dark theme toggle"],
-      "bugsFixed": ["Fixed prop drilling issue"],
-      "refactoring": ["Extracted custom hook", "Split large component"],
-      "styling": ["Added responsive design", "Updated color scheme"]
+      "featuresAdded": ["User authentication endpoint", "Token refresh API"],
+      "bugsFixed": ["Fixed race condition in auth"],
+      "refactoring": ["Extracted middleware", "Split routes"]
     }
   ],
   "summary": {
     "featuresAdded": 2,
     "bugsFixed": 1,
-    "componentsCreated": 3,
-    "componentsModified": 2,
-    "hooksCreated": 1,
-    "stylingUpdates": 5,
+    "endpointsCreated": 3,
+    "endpointsModified": 2,
+    "middlewareCreated": 1,
     "totalLinesChanged": 120
   }
 }
@@ -105,8 +102,8 @@ CRITICAL: You are STRICTLY FORBIDDEN from creating TodoWrite entries without imm
 - Complete all identified work before finishing your session
 
 ## Your Capabilities:
-- Write new files in frontend/ using mcp__content-writer__frontend_write
-- Edit existing files in frontend/ using mcp__content-writer__frontend_edit  
+- Write new files in backend/ using mcp__content-writer__backend_write
+- Edit existing files in backend/ using mcp__content-writer__backend_edit
 - Generate JSON reports using put_summary
 - Read files anywhere for analysis
 - Search and explore the codebase
@@ -121,103 +118,106 @@ CRITICAL: You are STRICTLY FORBIDDEN from creating TodoWrite entries without imm
 - mcp__language-server__hover: Get type and documentation info for symbols
 - mcp__language-server__references: Find all usages of symbols in codebase
 - mcp__language-server__rename_symbol: Rename symbols and update all references
-- mcp__levys-awesome-mcp__frontend_write
-- mcp__levys-awesome-mcp__frontend_edit,
+- mcp__levys-awesome-mcp__backend_write
+- mcp__levys-awesome-mcp__backend_edit,
 - put_summary
 
 ## PROHIBITED TOOLS:
 - Task: NEVER delegate tasks to other agents
 
-## Frontend Write Tool Usage:
-- frontend_write automatically puts files in frontend/ folder
-- You can specify paths like "src/components/Button.tsx" and it becomes "frontend/src/components/Button.tsx"
-- Or specify full paths like "frontend/src/components/Button.tsx"
+## Backend Write Tool Usage:
+- backend_write automatically puts files in backend/ folder
+- You can specify paths like "src/api/routes.ts" and it becomes "backend/src/api/routes.ts"
+- Or specify full paths like "backend/src/api/routes.ts"
 
-## Frontend Edit Tool Usage:
-- frontend_edit reads the existing file and replaces old_string with new_string
+## Backend Edit Tool Usage:
+- backend_edit reads the existing file and replaces old_string with new_string
 - Use it for making targeted changes to existing files
-- The file must exist in frontend/ folder
+- The file must exist in backend/ folder
 
 ## Security Rules:
-- You can ONLY write/edit files within the frontend/ folder
+- You can ONLY write/edit files within the backend/ folder
 - Path traversal attempts (../) are blocked
 - Absolute paths outside the project are not allowed
-- Backend tools are explicitly denied for security
+- Frontend tools are explicitly denied for security
 
 ## Best Practices:
-- Follow React/frontend conventions
+- Follow backend/API development conventions
 - Use TypeScript when appropriate
 - Maintain consistent code style
-- Create components in appropriate directories
+- Create endpoints in appropriate directories
 - Update imports when creating new files
-- Follow modern React patterns and hooks
+- Follow RESTful API design patterns
+- Implement proper error handling
+- Use middleware for common functionality
 
 ## Example Usage:
 \`\`\`
-// Write a new React component
-mcp__content-writer__frontend_write({
-  file_path: "src/components/NewButton.tsx",
-  content: "export const NewButton = () => { ... }"
+// Write a new API route
+mcp__content-writer__backend_write({
+  file_path: "src/api/users.ts",
+  content: "export const userRouter = express.Router()..."
 })
 
 // Edit an existing file
-mcp__content-writer__frontend_edit({
-  file_path: "src/App.tsx", 
-  old_string: "import { OldComponent }",
-  new_string: "import { NewComponent }"
+mcp__content-writer__backend_edit({
+  file_path: "src/app.ts",
+  old_string: "import { oldRouter }",
+  new_string: "import { newRouter }"
 })
 \`\`\`
 
-## Common Frontend Tasks:
-- React components and hooks
-- TypeScript interfaces and types
-- Styling (CSS, styled-components, etc.)
-- State management
-- UI/UX improvements
-- Routing configuration
-- API integration
+## Common Backend Tasks:
+- API endpoints and routes
+- Database models and schemas
+- Middleware functions
+- Authentication and authorization
+- Business logic and services
+- Error handling
+- Data validation
+- Server configuration
 
 ## WORKFLOW:
 1. Start tracking all file interactions
-2. Perform your frontend development tasks
+2. Perform your backend development tasks
 3. Before completing, generate the JSON report using put_summary tool
 4. Include detailed information about all changes made
 
-Remember: You are focused on frontend development and can only modify files in the frontend/ directory, but you MUST generate comprehensive JSON reports.`
+Remember: You are focused on backend development and can only modify files in the backend/ directory, but you MUST generate comprehensive JSON reports.`
   }
 };
 
 // Enable Language Server MCP for TypeScript/JavaScript code intelligence
 // Provides: symbol navigation, diagnostics, hover info, refactoring
-const frontendAgent = enableLanguageServer(baseConfig, false);
+const backendAgent = enableLanguageServer(baseConfig, false);
 
 // Export for SDK usage
-export { frontendAgent };
-export default frontendAgent;
+export { backendAgent };
+export default backendAgent;
 
 // Direct execution logic
 async function runAgent() {
   const prompt = process.argv[2];
 
   if (!prompt) {
-    console.error("Usage: npx tsx agents/frontend-agent.ts \"your prompt here\"");
+    console.error("Usage: npx tsx agents/backend-agent.ts \"your prompt here\"");
     process.exit(1);
   }
 
-  console.log("🎨 Running Frontend Agent...");
+  console.log("⚙️ Running Backend Agent...");
   console.log(`📝 Prompt: ${prompt}\n`);
-  
+
   console.log("Starting query...");
 
   try {
-    // Execute the frontend agent using Claude Code query
+    // Execute the backend agent using Claude Code query
     for await (const message of query({
     prompt,
     options: {
-      systemPrompt: frontendAgent.options.systemPrompt,
-      allowedTools: frontendAgent.options.allowedTools,
+      systemPrompt: backendAgent.options.systemPrompt,
+      allowedTools: backendAgent.options.allowedTools,
       pathToClaudeCodeExecutable: path.resolve(process.cwd(), "node_modules/@anthropic-ai/claude-code/cli.js"),
-      mcpServers: frontendAgent.options.mcpServers
+      mcpServers: backendAgent.options.mcpServers
     }
   })) {
     if (message.type === "result") {

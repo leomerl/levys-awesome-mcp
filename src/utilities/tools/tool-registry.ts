@@ -10,7 +10,8 @@ export class ToolRegistry {
     'search': ['Grep', 'WebSearch', 'WebFetch'],
     'version-control': ['Git', 'GitCommit', 'GitPush', 'GitPull'],
     'development': ['TodoWrite', 'ExitPlanMode'],
-    'mcp': ['mcp__ide__getDiagnostics', 'mcp__ide__executeCode', 'mcp__context7__resolve-library-id', 'mcp__context7__get-library-docs'],
+    // NOTE: Third-party MCP tools are NOT included here - they are dynamically added by agents
+    // and should never be blocked by the registry. Only Claude Code built-in tools are tracked.
     'testing': ['RunTests', 'TestCoverage'],
     'documentation': ['GenerateDocs', 'UpdateReadme'],
     'deployment': ['Deploy', 'BuildDocker', 'PushDocker'],

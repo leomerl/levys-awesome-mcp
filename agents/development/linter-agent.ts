@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
 import { query } from "@anthropic-ai/claude-code";
-import { AgentConfig } from '../src/types/agent-config.js';
+import { AgentConfig } from '../../src/types/agent-config';
 
 // Linter Agent - Follows Claude Code TypeScript SDK Schema
 // Reference: https://github.com/instantlyeasy/claude-code-sdk-ts

@@ -89,6 +89,26 @@ export const THIRD_PARTY_MCP_REGISTRY: ThirdPartyMcpRegistry = {
       'mcp__playwright__evaluate'
     ],
     enabled: true
+  },
+
+  languageServer: {
+    id: 'languageServer',
+    name: 'Language Server MCP',
+    type: 'command',
+    description: 'TypeScript/JavaScript language server for code intelligence and symbol navigation',
+    // Use full path since go/bin may not be in PATH
+    command: process.env.HOME ? `${process.env.HOME}/go/bin/mcp-language-server` : 'mcp-language-server',
+    args: ['--workspace', '${WORKSPACE_PATH}', '--lsp', 'typescript-language-server', '--', '--stdio'],
+    requiredEnvVars: ['WORKSPACE_PATH'],
+    tools: [
+      'mcp__languageServer__definition',
+      'mcp__languageServer__references',
+      'mcp__languageServer__diagnostics',
+      'mcp__languageServer__hover',
+      'mcp__languageServer__rename',
+      'mcp__languageServer__edit'
+    ],
+    enabled: true
   }
 };
 

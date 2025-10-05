@@ -170,6 +170,47 @@ const agent = enablePlaywright(baseConfig, true);
 
 **Recommended For**: `testing-agent`, `e2e-test agents` (use sparingly, heavy resource usage)
 
+---
+
+### Language Server MCP
+
+**Description**: TypeScript/JavaScript language server for code intelligence, symbol navigation, and diagnostics
+
+**Setup**:
+```bash
+# 1. Install Go
+# Download from: https://golang.org/
+
+# 2. Install mcp-language-server
+go install github.com/isaacphi/mcp-language-server@latest
+
+# 3. Install TypeScript language server
+npm install -g typescript-language-server typescript
+
+# 4. Add to .env
+WORKSPACE_PATH=/absolute/path/to/your/project
+```
+
+**Tools**:
+- `mcp__languageServer__getDefinition` - Get symbol definitions
+- `mcp__languageServer__getReferences` - Find all symbol references
+- `mcp__languageServer__getDiagnostics` - Get code diagnostics/errors
+- `mcp__languageServer__getHover` - Get hover information
+- `mcp__languageServer__renameSymbol` - Rename symbols across project
+- `mcp__languageServer__editFile` - Edit files with precise line-number edits
+
+**Usage**:
+```typescript
+import { enableLanguageServer } from '../src/utilities/mcp/index.js';
+const agent = enableLanguageServer(baseConfig, true);
+```
+
+**Recommended For**: `backend-agent`, `frontend-agent`, SPARC development agents
+
+**Installation Guide**: See detailed steps in `.env.example`
+
+**GitHub**: https://github.com/isaacphi/mcp-language-server
+
 ## Adding New Third-Party MCPs
 
 ### 1. Add MCP to registry

@@ -6,7 +6,7 @@ import { StreamingManager } from '../src/utilities/session/streaming-utils.js';
 import { v4 as uuidv4 } from 'uuid';
 import path from "path";
 
-import { AgentConfig } from '../src/types/agent-config.js';
+import { AgentConfig } from '../../src/types/agent-config';
 
 const builderAgent: AgentConfig = {
   name: 'builder-agent',

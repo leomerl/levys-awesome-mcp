@@ -101,8 +101,8 @@ type ExpectedToolCategoriesStructure = {
 // Test: TOOL_CATEGORIES has correct structure (readonly object with string arrays)
 type TestToolCategoriesStructure = Expect<Equal<
   keyof ToolCategoriesType,
-  'file-system' | 'execution' | 'search' | 'version-control' | 'development' | 
-  'mcp' | 'testing' | 'documentation' | 'deployment' | 'monitoring' | 'database' | 
+  'file-system' | 'execution' | 'search' | 'version-control' | 'development' |
+  'testing' | 'documentation' | 'deployment' | 'monitoring' | 'database' |
   'cloud' | 'communication'
 >>;
 
@@ -155,13 +155,12 @@ type TestGetAllToolsSignature = Expect<Equal<
 >>;
 
 // Test: Inferred tool union type from categories
-type InferredToolsFromCategories = 
+type InferredToolsFromCategories =
   ToolCategoriesType['file-system'][number] |
   ToolCategoriesType['execution'][number] |
   ToolCategoriesType['search'][number] |
   ToolCategoriesType['version-control'][number] |
   ToolCategoriesType['development'][number] |
-  ToolCategoriesType['mcp'][number] |
   ToolCategoriesType['testing'][number] |
   ToolCategoriesType['documentation'][number] |
   ToolCategoriesType['deployment'][number] |
@@ -406,8 +405,8 @@ type TestGetToolCategoryReturn = Expect<Equal<
 type ToolCategoryKeys = keyof ToolCategoriesType;
 type TestToolCategoryKeys = Expect<Equal<
   ToolCategoryKeys,
-  'file-system' | 'execution' | 'search' | 'version-control' | 'development' | 
-  'mcp' | 'testing' | 'documentation' | 'deployment' | 'monitoring' | 'database' | 
+  'file-system' | 'execution' | 'search' | 'version-control' | 'development' |
+  'testing' | 'documentation' | 'deployment' | 'monitoring' | 'database' |
   'cloud' | 'communication'
 >>;
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env tsx
 
 import { query } from "@anthropic-ai/claude-code";
-import { AgentConfig } from '../src/types/agent-config.ts';
+import { AgentConfig } from '../../src/types/agent-config';
+import { enableMemory } from '../../src/utilities/mcp/index';
 
-const sparcorchestratorAgent: AgentConfig = {
+const baseConfig: AgentConfig = {
   name: "sparc-orchestrator",
   description: "Orchestrates the complete SPARC workflow by invoking specialized phase agents in sequence",
   prompt: "Default prompt for sparc-orchestrator",
@@ -88,6 +89,9 @@ const sparcorchestratorAgent: AgentConfig = {
     }
   }
 };
+
+// Enable Memory MCP for persistent workflow state tracking
+const sparcorchestratorAgent = enableMemory(baseConfig, false);
 
 export { sparcorchestratorAgent };
 export default sparcorchestratorAgent;

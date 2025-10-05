@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
 import { query } from "@anthropic-ai/claude-code";
-import { AgentConfig } from '../src/types/agent-config.js';
+import { AgentConfig } from '../src/types/agent-config';
 import path from "path";
 
 const testingAgent: AgentConfig = {

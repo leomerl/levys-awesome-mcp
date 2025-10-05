@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 
 import BaseAgent, { createAgent } from './base-agent.js';
-import { AgentConfig } from '../src/types/agent-config.js';
+import { AgentConfig } from '../src/types/agent-config';
 
 class GithubIssueCreatorAgent extends BaseAgent {
   constructor(config: AgentConfig) {

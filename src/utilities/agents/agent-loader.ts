@@ -69,8 +69,27 @@ export class AgentLoader {
         if (!nameMatch || nameMatch[1] !== agentName) {
           continue;
         }
-        
-        // Extract the agent configuration object
+
+        // Try dynamic import first (for agents with MCP enablers)
+        try {
+          console.log(`[AgentLoader] Attempting dynamic import of ${fullPath}`);
+          const modulePath = path.resolve(fullPath);
+          const agentModule = await import(`file://${modulePath}`);
+
+          // Look for exported agent config (default export or named export)
+          const agentConfig = agentModule.default || agentModule[`${agentName}Agent`] || agentModule[`${agentName.replace(/-/g, '')}Agent`];
+
+          if (agentConfig && agentConfig.name === agentName) {
+            console.log(`[AgentLoader] Successfully loaded agent '${agentName}' via dynamic import`);
+            console.log(`[AgentLoader] Agent has ${agentConfig.options?.allowedTools?.length || 0} allowed tools`);
+            console.log(`[AgentLoader] Agent has ${Object.keys(agentConfig.options?.mcpServers || {}).length} MCP servers configured`);
+            return this.validateAndNormalizeConfig(agentConfig);
+          }
+        } catch (importError) {
+          console.log(`[AgentLoader] Dynamic import failed for ${fullPath}, falling back to text parsing:`, importError instanceof Error ? importError.message : String(importError));
+        }
+
+        // Fallback: Extract the agent configuration object from text
         // Look for patterns like: const xxxAgent: AgentConfig = { ... }
         // Also handle cases without "Agent" suffix and different casing
         const configPattern = /const\s+\w+(?:Agent)?(?::\s*AgentConfig)?\s*=\s*({[\s\S]*?^});/m;

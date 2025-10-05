@@ -4,9 +4,28 @@ AI agent orchestration toolkit for Claude Code. Automates complex development ta
 
 ## Installation
 
+### Option 1: From GitHub (Recommended)
+
+```bash
+npm install git+https://github.com/leomerl/levys-awesome-mcp.git
+```
+
+Or add to your `package.json`:
+```json
+{
+  "dependencies": {
+    "@leomerl/levys-awesome-mcp": "github:leomerl/levys-awesome-mcp"
+  }
+}
+```
+
+### Option 2: From npm (when published)
+
 ```bash
 npm install @leomerl/levys-awesome-mcp
 ```
+
+### Configure Claude Code
 
 Add to `.claude/claude.json`:
 ```json
@@ -18,6 +37,20 @@ Add to `.claude/claude.json`:
     }
   }
 }
+```
+
+### Environment Configuration
+
+Create a `.env` file in your project root:
+```bash
+# Required for Language Server MCP
+WORKSPACE_PATH=/path/to/your/project
+
+# Optional: Context7 MCP for documentation
+CONTEXT7_API_KEY=your_api_key_here
+
+# Optional: GitHub MCP for repository automation
+GITHUB_PERSONAL_ACCESS_TOKEN=your_github_token
 ```
 
 ## Quick Start
@@ -37,14 +70,15 @@ The orchestrator will:
 
 ### Available Agents
 
-- **orchestrator-agent** - Coordinates multi-agent workflows with self-healing
+- **orchestrator-agent** - Coordinates multi-agent workflows with self-healing (Memory MCP enabled)
 - **planner-agent** - Creates detailed execution plans
-- **backend-agent** - API and server development (restricted to backend folders)
-- **frontend-agent** - UI and client-side code (restricted to frontend folders)
+- **backend-agent** - API and server development (Language Server MCP enabled)
+- **frontend-agent** - UI and client-side code (Language Server MCP enabled)
 - **reviewer-agent** - Validates plan vs progress and goal achievement
 - **builder-agent** - Build and compilation verification
 - **linter-agent** - Code quality checks
 - **testing-agent** - Test creation and execution
+- **research-agent** - Technology research and documentation (Context7 MCP enabled)
 
 ## Key Features
 
@@ -55,6 +89,29 @@ The orchestrator will:
 - ✅ **Dynamic Tool Restrictions**: Automatic security enforcement across all agents
 - ✅ **Progress Tracking**: Automatic task state management and file modification tracking
 - ✅ **Folder Isolation**: Backend/frontend agents restricted to their respective directories
+
+## Optional Third-Party MCPs
+
+### Language Server MCP - TypeScript/JavaScript Code Intelligence (✅ Enabled)
+```bash
+# Install dependencies
+brew install go  # or: sudo apt-get install golang-go
+go install github.com/isaacphi/mcp-language-server@latest
+npm install -g typescript-language-server typescript
+
+# Add to .env
+WORKSPACE_PATH=/path/to/your/project
+```
+
+**Enabled for**: backend-agent, frontend-agent | **Tools**: diagnostics, definition, references, hover, rename, edit
+
+### Other MCPs
+- **Context7** - Library docs (research-agent) | Requires: `CONTEXT7_API_KEY`
+- **Memory** - Workflow state (orchestrators) | Auto-enabled
+- **GitHub** - Repository ops | Requires: `GITHUB_PERSONAL_ACCESS_TOKEN`
+- **Playwright** - Browser automation | Auto-available
+
+See [THIRD_PARTY_MCP_INTEGRATION.md](docs/THIRD_PARTY_MCP_INTEGRATION.md) for details.
 
 ## Documentation
 

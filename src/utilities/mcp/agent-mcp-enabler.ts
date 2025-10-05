@@ -99,6 +99,7 @@ export const enableContext7 = createMcpEnabler('context7');
 export const enableMemory = createMcpEnabler('memory');
 export const enableGitHub = createMcpEnabler('github');
 export const enablePlaywright = createMcpEnabler('playwright');
+export const enableLanguageServer = createMcpEnabler('languageServer');
 
 /**
  * Check if an agent config has a specific MCP enabled

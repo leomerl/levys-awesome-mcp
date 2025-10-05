@@ -114,6 +114,17 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
           };
         }
 
+        // Debug: Log loaded configuration
+        console.error(`[DEBUG invoke_agent] Loaded agent '${agentName}':`);
+        console.error(`[DEBUG invoke_agent] - allowedTools count: ${agentConfig.options?.allowedTools?.length || 0}`);
+        console.error(`[DEBUG invoke_agent] - mcpServers: ${Object.keys(agentConfig.options?.mcpServers || {}).join(', ') || 'none'}`);
+        console.error(`[DEBUG invoke_agent] - Sample tools: ${(agentConfig.options?.allowedTools || []).slice(0, 5).join(', ')}`);
+        if (agentConfig.options?.allowedTools?.some(t => t.includes('context7'))) {
+          console.error(`[DEBUG invoke_agent] - HAS CONTEXT7 TOOLS!`);
+        } else {
+          console.error(`[DEBUG invoke_agent] - NO CONTEXT7 TOOLS`);
+        }
+
         // PROGRAMMATICALLY detect if this is an orchestrator invocation
         // If sessionId points to a valid plan_and_progress directory AND taskNumber is provided,
         // then this is orchestration with automatic progress tracking
@@ -292,14 +303,18 @@ OUTPUT_DIR: output_streams/${sessionId}/
             const resolved = resolveMcpConfig(mcpId);
             if (resolved.isValid) {
               resolvedMcpServers[mcpId] = resolved.mcpServer;
-              console.log(`[AgentInvoker] Resolved third-party MCP '${mcpId}' for agent '${agentName}'`);
+              console.error(`[AgentInvoker] Resolved third-party MCP '${mcpId}' for agent '${agentName}'`);
+              console.error(`[AgentInvoker] MCP '${mcpId}' config:`, JSON.stringify(resolved.mcpServer, null, 2));
             } else {
-              console.warn(`[AgentInvoker] Failed to resolve MCP '${mcpId}': ${resolved.errors.join(', ')}`);
-              console.warn(`[AgentInvoker] Skipping MCP '${mcpId}' - tools will not be available`);
+              console.error(`[AgentInvoker] Failed to resolve MCP '${mcpId}': ${resolved.errors.join(', ')}`);
+              console.error(`[AgentInvoker] Skipping MCP '${mcpId}' - tools will not be available`);
             }
           }
 
           // Build query options with conditional resume parameter
+          console.error(`[AgentInvoker] Final resolved MCP servers for '${agentName}':`, Object.keys(resolvedMcpServers));
+          console.error(`[AgentInvoker] MCP servers details:`, JSON.stringify(resolvedMcpServers, null, 2));
+
           const queryOptions: any = {
             model: agentConfig.options?.model || 'sonnet',
             allowedTools: permissions.allowedTools, // Use managed permissions

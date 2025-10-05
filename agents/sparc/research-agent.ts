@@ -1,8 +1,8 @@
 #!/usr/bin/env tsx
 
 import { query } from "@anthropic-ai/claude-code";
-import { AgentConfig } from '../src/types/agent-config.ts';
-import { enableContext7 } from '../src/utilities/mcp/index.js';
+import { AgentConfig } from '../src/types/agent-config';
+import { enableContext7 } from '../src/utilities/mcp/index';
 
 const baseConfig: AgentConfig = {
   name: "research-agent",

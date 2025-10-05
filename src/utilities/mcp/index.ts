@@ -33,6 +33,7 @@ export {
   enableMemory,
   enableGitHub,
   enablePlaywright,
+  enableLanguageServer,
   hasThirdPartyMcp,
   getEnabledMcpIds,
   getThirdPartyMcpTools

@@ -1,10 +1,11 @@
 #!/usr/bin/env tsx
 
 import { query } from "@anthropic-ai/claude-code";
-import { AgentConfig } from '../src/types/agent-config.js';
+import { AgentConfig } from '../../src/types/agent-config';
+import { enableMemory } from '../../src/utilities/mcp/index';
 import path from "path";
 
-const orchestratorAgent: AgentConfig = {
+const baseConfig: AgentConfig = {
   name: 'orchestrator-agent',
   description: 'Use this agent when you need to coordinate development workflows including backend/frontend development, building, and linting. This agent intelligently routes tasks to appropriate specialized agents (backend-agent, frontend-agent, builder-agent, linter-agent) and manages the execution flow.',
   prompt: 'Coordinate development workflows by routing tasks to appropriate specialized agents.',
@@ -471,6 +472,9 @@ You must maintain strict sequential execution and never attempt to parallelize o
 **REMEMBER**: The user expects a complete, working, validated solution - not partial results or stopping mid-workflow. Use self-healing to maximize success, continue past failures, and always provide full validation and status reporting.`
   }
 };
+
+// Enable Memory MCP for persistent state tracking across sessions
+const orchestratorAgent = enableMemory(baseConfig, false);
 
 export { orchestratorAgent };
 export default orchestratorAgent;
