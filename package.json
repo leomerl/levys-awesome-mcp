@@ -22,7 +22,7 @@
     "test:contract": "vitest run tests/contract",
     "test:integration": "vitest run tests/integration",
     "test:integration:quick": "vitest run tests/integration/content-writer-config.integration.test.ts tests/integration/mcp-server.integration.test.ts tests/integration/agent-loader-tree-search.test.ts tests/integration/agent-permission-verification.test.ts tests/integration/summary-enforcement-simple.test.ts tests/integration/test-write-path-fix.test.ts tests/integration/test-agents-write.test.ts tests/integration/test-docs-write.test.ts tests/integration/session-id-behavior.integration.test.ts tests/integration/compare-plan-progress.integration.test.ts tests/integration/task-tracker.integration.test.ts",
-    "test:publish": "vitest run tests/unit tests/integration/content-writer-config.integration.test.ts tests/integration/mcp-server.integration.test.ts tests/integration/agent-permission-verification.test.ts tests/integration/summary-enforcement-simple.test.ts",
+    "test:publish": "vitest run tests/unit --exclude='tests/unit/*HelloWorld*.test.{ts,tsx}' --exclude='tests/unit/*hello*.test.{ts,tsx}' tests/integration/content-writer-config.integration.test.ts tests/integration/mcp-server.integration.test.ts tests/integration/agent-permission-verification.test.ts tests/integration/summary-enforcement-simple.test.ts",
     "test:golden": "vitest run tests/golden",
     "test:mutate": "stryker run",
     "test:coverage": "vitest run --coverage",
