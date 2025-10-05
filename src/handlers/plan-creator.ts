@@ -7,8 +7,10 @@ import { executeCommand } from '../shared/utils.js';
 const activeLocks = new Map<string, Promise<void>>();
 
 async function withLock<T>(lockKey: string, operation: () => Promise<T>): Promise<T> {
-  // If there's already a lock for this key, wait for it
-  if (activeLocks.has(lockKey)) {
+  // Wait for any existing lock to complete
+  // Use a while loop to handle race conditions where a new lock might be created
+  // between checking and setting our own lock
+  while (activeLocks.has(lockKey)) {
     await activeLocks.get(lockKey);
   }
 
@@ -17,7 +19,7 @@ async function withLock<T>(lockKey: string, operation: () => Promise<T>): Promis
   const lockPromise = new Promise<void>(resolve => {
     resolveLock = resolve;
   });
-  
+
   activeLocks.set(lockKey, lockPromise);
 
   try {
@@ -193,7 +195,7 @@ async function getGitCommitHash(): Promise<string | null> {
   } catch (error) {
     // Fall back to a timestamp-based hash if git is not available or no commits
   }
-  
+
   // Generate a pseudo-hash based on current timestamp if no git commit available
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   return `no-commit-${timestamp}`;
@@ -276,17 +278,17 @@ async function findPlanProgressFiles(dirInfo: DirectoryInfo): Promise<{ planFile
 }
 
 async function createPlanFromAIData(
-  taskDescription: string, 
+  taskDescription: string,
   synopsis: string,
   tasks: Task[],
   sessionId: string = ''
 ): Promise<{ plan: PlanDocument; progress: ProgressDocument; sessionId: string }> {
   const gitHash = await getGitCommitHash();
   const createdAt = new Date().toISOString();
-  
+
   // Generate session_id if not provided
   const finalSessionId = sessionId || generateSessionId();
-  
+
   // Create clean plan without state
   const plan: PlanDocument = {
     task_description: taskDescription,
@@ -322,7 +324,7 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
       case 'create_plan':
       case 'mcp__levys-awesome-mcp__mcp__plan-creator__create_plan': {
         const { task_description, synopsis, tasks, session_id = '' } = args;
-        
+
         // Validate required parameters
         if (!task_description || task_description.trim().length === 0) {
           return {
@@ -365,7 +367,7 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
               isError: true
             };
           }
-          
+
           if (!Array.isArray(task.files_to_modify)) {
             return {
               content: [{
@@ -375,7 +377,7 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
               isError: true
             };
           }
-          
+
           if (!Array.isArray(task.dependencies)) {
             return {
               content: [{
@@ -397,7 +399,7 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
           useTimestamps: false
         };
         const reportsDir = dirInfo.path;
-        
+
         if (!existsSync(reportsDir)) {
           await mkdir(reportsDir, { recursive: true });
         }
@@ -499,56 +501,77 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
 
           const progressFilePath = filesInfo.progressFile;
 
-          // Read current progress
-          const progressContent = await readFile(progressFilePath, 'utf8');
-          const progress: ProgressDocument = JSON.parse(progressContent);
+          // Create a lock key based on the session/git hash to ensure concurrent updates are handled properly
+          const lockKey = session_id ? `progress-update-${session_id}` : `progress-update-${git_commit_hash}`;
 
-          // Find and update the task
-          const taskIndex = progress.tasks.findIndex(t => t.id === task_id);
-          if (taskIndex === -1) {
+          // Use locking to prevent race conditions in concurrent progress updates
+          const updateResult = await withLock(lockKey, async () => {
+            // Read current progress
+            const progressContent = await readFile(progressFilePath, 'utf8');
+            const progress: ProgressDocument = JSON.parse(progressContent);
+
+            // Find and update the task
+            const taskIndex = progress.tasks.findIndex(t => t.id === task_id);
+            if (taskIndex === -1) {
+              return {
+                success: false,
+                error: `Task ${task_id} not found in progress file`
+              };
+            }
+
+            const now = new Date().toISOString();
+            const task = progress.tasks[taskIndex];
+
+            // Update task with new information
+            task.state = state as 'pending' | 'completed' | 'in_progress' | 'failed';
+            task.agent_session_id = agent_session_id;
+
+            if (files_modified.length > 0) {
+              task.files_modified = files_modified;
+            }
+
+            if (summary) {
+              task.summary = summary;
+            }
+
+            // Set timestamps based on state
+            if (state === 'in_progress' && !task.started_at) {
+              task.started_at = now;
+            } else if (state === 'completed') {
+              task.completed_at = now;
+            } else if (state === 'failed') {
+              task.failed_at = now;
+            }
+
+            // Update the last_updated timestamp
+            progress.last_updated = now;
+
+            // Save updated progress
+            await writeFile(progressFilePath, JSON.stringify(progress, null, 2), 'utf8');
+
+            return {
+              success: true,
+              task_id,
+              state,
+              agent_session_id,
+              updated: now
+            };
+          });
+
+          if (!updateResult.success) {
             return {
               content: [{
                 type: 'text',
-                text: `Error: Task ${task_id} not found in progress file`
+                text: `Error: ${updateResult.error}`
               }],
               isError: true
             };
           }
 
-          const now = new Date().toISOString();
-          const task = progress.tasks[taskIndex];
-
-          // Update task with new information
-          task.state = state as 'pending' | 'completed' | 'in_progress' | 'failed';
-          task.agent_session_id = agent_session_id;
-
-          if (files_modified.length > 0) {
-            task.files_modified = files_modified;
-          }
-
-          if (summary) {
-            task.summary = summary;
-          }
-
-          // Set timestamps based on state
-          if (state === 'in_progress' && !task.started_at) {
-            task.started_at = now;
-          } else if (state === 'completed') {
-            task.completed_at = now;
-          } else if (state === 'failed') {
-            task.failed_at = now;
-          }
-
-          // Update the last_updated timestamp
-          progress.last_updated = now;
-
-          // Save updated progress
-          await writeFile(progressFilePath, JSON.stringify(progress, null, 2), 'utf8');
-
           return {
             content: [{
               type: 'text',
-              text: `Progress updated successfully!\n\nTask: ${task_id}\nState: ${state}\nAgent Session: ${agent_session_id}\nUpdated: ${now}`
+              text: `Progress updated successfully!\n\nTask: ${updateResult.task_id}\nState: ${updateResult.state}\nAgent Session: ${updateResult.agent_session_id}\nUpdated: ${updateResult.updated}`
             }]
           };
         } catch (error) {
@@ -884,22 +907,22 @@ function generatePlanSummary(plan: PlanDocument, progress: ProgressDocument): st
   summary.push('');
 
   progress.tasks.forEach((task) => {
-    const status = task.state === 'pending' ? '⏳' : 
+    const status = task.state === 'pending' ? '⏳' :
                   task.state === 'in_progress' ? '🔄' : '✅';
     const dependencies = task.dependencies.length > 0 ? ` [depends on: ${task.dependencies.join(', ')}]` : '';
-    
+
     summary.push(`  ${status} ${task.id}: ${task.description}`);
     summary.push(`     👤 Agent: ${task.designated_agent}`);
     summary.push(`     📊 State: ${task.state}`);
-    
+
     if (task.files_to_modify.length > 0) {
       summary.push(`     📁 Files to modify: ${task.files_to_modify.join(', ')}`);
     }
-    
+
     if (dependencies) {
       summary.push(`     🔗${dependencies}`);
     }
-    
+
     summary.push('');
   });
 
