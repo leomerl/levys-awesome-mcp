@@ -1,0 +1,739 @@
+{
+  "dataModels": {
+    "version": "1.0.0",
+    "description": "Data models and TypeScript interfaces for user login authentication system",
+    "lastUpdated": "2025-01-05",
+    "models": {
+      "frontend": {
+        "description": "Frontend TypeScript interfaces and types for React components",
+        "interfaces": {
+          "LoginCredentials": {
+            "description": "User input for login form",
+            "properties": {
+              "email": {
+                "type": "string",
+                "validation": "RFC-compliant email format",
+                "maxLength": 254,
+                "required": true,
+                "example": "user@example.com"
+              },
+              "password": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 128,
+                "required": true,
+                "sensitive": true,
+                "example": "SecurePassword123!"
+              },
+              "rememberMe": {
+                "type": "boolean",
+                "required": false,
+                "default": false,
+                "description": "Enable persistent session"
+              }
+            }
+          },
+          "User": {
+            "description": "User entity representation on frontend",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "required": true,
+                "immutable": true,
+                "example": "550e8400-e29b-41d4-a716-446655440000"
+              },
+              "email": {
+                "type": "string",
+                "format": "email",
+                "required": true,
+                "unique": true,
+                "example": "user@example.com"
+              },
+              "emailVerified": {
+                "type": "boolean",
+                "required": true,
+                "default": false,
+                "description": "Email verification status"
+              },
+              "createdAt": {
+                "type": "Date",
+                "required": true,
+                "immutable": true,
+                "description": "Account creation timestamp"
+              },
+              "lastLoginAt": {
+                "type": "Date",
+                "required": false,
+                "description": "Last successful login timestamp"
+              },
+              "profile": {
+                "type": "UserProfile",
+                "required": true,
+                "description": "User profile information"
+              }
+            }
+          },
+          "UserProfile": {
+            "description": "User profile data",
+            "properties": {
+              "firstName": {
+                "type": "string",
+                "maxLength": 100,
+                "required": true,
+                "example": "John"
+              },
+              "lastName": {
+                "type": "string",
+                "maxLength": 100,
+                "required": true,
+                "example": "Doe"
+              },
+              "displayName": {
+                "type": "string",
+                "maxLength": 200,
+                "required": true,
+                "computed": true,
+                "description": "Computed from firstName and lastName",
+                "example": "John Doe"
+              },
+              "avatar": {
+                "type": "string",
+                "format": "url",
+                "required": false,
+                "description": "Profile picture URL"
+              }
+            }
+          },
+          "AuthResponse": {
+            "description": "Successful authentication response",
+            "properties": {
+              "success": {
+                "type": "boolean",
+                "enum": [true],
+                "required": true,
+                "description": "Always true for success response"
+              },
+              "user": {
+                "type": "User",
+                "required": true,
+                "excludes": ["passwordHash"],
+                "description": "User data without sensitive information"
+              },
+              "accessToken": {
+                "type": "string",
+                "format": "jwt",
+                "required": true,
+                "sensitive": true,
+                "description": "JWT access token"
+              },
+              "refreshToken": {
+                "type": "string",
+                "format": "jwt",
+                "required": true,
+                "sensitive": true,
+                "description": "JWT refresh token"
+              },
+              "expiresAt": {
+                "type": "Date",
+                "required": true,
+                "description": "Access token expiration time"
+              }
+            }
+          },
+          "AuthError": {
+            "description": "Authentication error response",
+            "properties": {
+              "success": {
+                "type": "boolean",
+                "enum": [false],
+                "required": true,
+                "description": "Always false for error response"
+              },
+              "error": {
+                "type": "AuthErrorDetails",
+                "required": true,
+                "description": "Error details object"
+              }
+            }
+          },
+          "AuthErrorDetails": {
+            "description": "Detailed error information",
+            "properties": {
+              "code": {
+                "type": "AuthErrorCode",
+                "required": true,
+                "description": "Machine-readable error code"
+              },
+              "message": {
+                "type": "string",
+                "required": true,
+                "description": "Human-readable error message"
+              },
+              "details": {
+                "type": "Record<string, string[]>",
+                "required": false,
+                "description": "Field-specific validation errors"
+              }
+            }
+          },
+          "AuthErrorCode": {
+            "type": "union",
+            "values": [
+              "INVALID_CREDENTIALS",
+              "ACCOUNT_LOCKED",
+              "EMAIL_NOT_VERIFIED",
+              "MFA_REQUIRED",
+              "RATE_LIMITED",
+              "VALIDATION_ERROR",
+              "SYSTEM_ERROR"
+            ],
+            "description": "Enumeration of possible error codes"
+          },
+          "FormErrors": {
+            "description": "Form validation errors",
+            "properties": {
+              "email": {
+                "type": "string",
+                "required": false,
+                "description": "Email field validation error"
+              },
+              "password": {
+                "type": "string",
+                "required": false,
+                "description": "Password field validation error"
+              },
+              "api": {
+                "type": "string",
+                "required": false,
+                "description": "API-level error message"
+              }
+            }
+          },
+          "AuthContextValue": {
+            "description": "React context value for authentication state",
+            "properties": {
+              "user": {
+                "type": "User | null",
+                "required": true,
+                "description": "Current authenticated user or null"
+              },
+              "isAuthenticated": {
+                "type": "boolean",
+                "required": true,
+                "computed": true,
+                "description": "Whether user is authenticated"
+              },
+              "isLoading": {
+                "type": "boolean",
+                "required": true,
+                "description": "Whether authentication state is loading"
+              },
+              "login": {
+                "type": "(credentials: LoginCredentials) => Promise<AuthResult>",
+                "required": true,
+                "description": "Login function"
+              },
+              "logout": {
+                "type": "() => Promise<void>",
+                "required": true,
+                "description": "Logout function"
+              },
+              "refreshToken": {
+                "type": "() => Promise<void>",
+                "required": true,
+                "description": "Token refresh function"
+              }
+            }
+          }
+        }
+      },
+      "backend": {
+        "description": "Backend TypeScript interfaces for Node.js server",
+        "interfaces": {
+          "AuthRequest": {
+            "description": "Authentication request payload",
+            "properties": {
+              "email": {
+                "type": "string",
+                "validation": "email format, SQL injection protection",
+                "maxLength": 254,
+                "required": true,
+                "sanitization": "trim, normalize"
+              },
+              "password": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 128,
+                "required": true,
+                "sensitive": true,
+                "validation": "strength requirements, XSS protection"
+              },
+              "rememberMe": {
+                "type": "boolean",
+                "required": false,
+                "default": false
+              }
+            }
+          },
+          "AuthResponse": {
+            "description": "Authentication service response",
+            "discriminatedUnion": {
+              "discriminator": "success",
+              "variants": {
+                "success": {
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true],
+                      "required": true
+                    },
+                    "token": {
+                      "type": "string",
+                      "format": "jwt",
+                      "required": true,
+                      "sensitive": true
+                    },
+                    "refreshToken": {
+                      "type": "string",
+                      "format": "jwt",
+                      "required": true,
+                      "sensitive": true
+                    },
+                    "user": {
+                      "type": "UserEntity",
+                      "required": true,
+                      "excludes": ["passwordHash"]
+                    },
+                    "message": {
+                      "type": "string",
+                      "required": false
+                    }
+                  }
+                },
+                "failure": {
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [false],
+                      "required": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "required": true,
+                      "description": "Error message without information leakage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "ValidationResult": {
+            "description": "Input validation result",
+            "properties": {
+              "isValid": {
+                "type": "boolean",
+                "required": true,
+                "description": "Whether validation passed"
+              },
+              "errors": {
+                "type": "string[]",
+                "required": true,
+                "description": "List of validation errors"
+              }
+            }
+          },
+          "UserEntity": {
+            "description": "Database user entity",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "required": true,
+                "primaryKey": true,
+                "immutable": true
+              },
+              "email": {
+                "type": "string",
+                "format": "email",
+                "maxLength": 254,
+                "required": true,
+                "unique": true,
+                "index": true
+              },
+              "passwordHash": {
+                "type": "string",
+                "required": true,
+                "sensitive": true,
+                "minLength": 32,
+                "description": "Argon2id or bcrypt hash"
+              },
+              "emailVerified": {
+                "type": "boolean",
+                "required": true,
+                "default": false
+              },
+              "createdAt": {
+                "type": "Date",
+                "required": true,
+                "immutable": true,
+                "default": "NOW()"
+              },
+              "updatedAt": {
+                "type": "Date",
+                "required": true,
+                "autoUpdate": true
+              },
+              "lastLoginAt": {
+                "type": "Date",
+                "required": false,
+                "index": true
+              },
+              "firstName": {
+                "type": "string",
+                "maxLength": 100,
+                "required": false
+              },
+              "lastName": {
+                "type": "string",
+                "maxLength": 100,
+                "required": false
+              },
+              "displayName": {
+                "type": "string",
+                "maxLength": 200,
+                "required": false
+              },
+              "avatarUrl": {
+                "type": "string",
+                "format": "url",
+                "required": false
+              }
+            }
+          },
+          "UserSession": {
+            "description": "User session entity",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "required": true,
+                "primaryKey": true
+              },
+              "userId": {
+                "type": "string",
+                "format": "uuid",
+                "required": true,
+                "foreignKey": "users.id",
+                "index": true
+              },
+              "sessionToken": {
+                "type": "string",
+                "required": true,
+                "unique": true,
+                "sensitive": true,
+                "minLength": 32
+              },
+              "refreshToken": {
+                "type": "string",
+                "required": true,
+                "unique": true,
+                "sensitive": true,
+                "minLength": 32
+              },
+              "ipAddress": {
+                "type": "string",
+                "format": "ip",
+                "required": false,
+                "description": "Client IP address"
+              },
+              "userAgent": {
+                "type": "string",
+                "required": false,
+                "maxLength": 1000,
+                "description": "Client user agent string"
+              },
+              "createdAt": {
+                "type": "Date",
+                "required": true,
+                "immutable": true,
+                "default": "NOW()"
+              },
+              "lastAccessedAt": {
+                "type": "Date",
+                "required": true,
+                "autoUpdate": true
+              },
+              "expiresAt": {
+                "type": "Date",
+                "required": true,
+                "index": true,
+                "description": "Session expiration time"
+              },
+              "isValid": {
+                "type": "boolean",
+                "required": true,
+                "default": true,
+                "description": "Whether session is active"
+              }
+            }
+          },
+          "JWTClaims": {
+            "description": "JWT token claims structure",
+            "properties": {
+              "sub": {
+                "type": "string",
+                "required": true,
+                "description": "Subject (user ID)"
+              },
+              "iat": {
+                "type": "number",
+                "required": true,
+                "description": "Issued at timestamp"
+              },
+              "exp": {
+                "type": "number",
+                "required": true,
+                "description": "Expiration timestamp"
+              },
+              "iss": {
+                "type": "string",
+                "required": true,
+                "description": "Issuer"
+              },
+              "aud": {
+                "type": "string",
+                "required": true,
+                "description": "Audience"
+              },
+              "jti": {
+                "type": "string",
+                "required": true,
+                "description": "JWT ID for revocation"
+              },
+              "scope": {
+                "type": "string[]",
+                "required": false,
+                "description": "User permissions/roles"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["access", "refresh"],
+                "required": true,
+                "description": "Token type"
+              }
+            }
+          }
+        }
+      },
+      "database": {
+        "description": "Database schema definitions",
+        "tables": {
+          "users": {
+            "description": "User account information",
+            "columns": {
+              "id": {
+                "type": "UUID",
+                "primaryKey": true,
+                "default": "gen_random_uuid()",
+                "nullable": false
+              },
+              "email": {
+                "type": "VARCHAR(254)",
+                "unique": true,
+                "nullable": false,
+                "constraints": ["valid_email"]
+              },
+              "password_hash": {
+                "type": "VARCHAR(255)",
+                "nullable": false,
+                "constraints": ["valid_password_hash"]
+              },
+              "email_verified": {
+                "type": "BOOLEAN",
+                "default": false,
+                "nullable": false
+              },
+              "created_at": {
+                "type": "TIMESTAMP WITH TIME ZONE",
+                "default": "NOW()",
+                "nullable": false
+              },
+              "updated_at": {
+                "type": "TIMESTAMP WITH TIME ZONE",
+                "default": "NOW()",
+                "nullable": false
+              },
+              "last_login_at": {
+                "type": "TIMESTAMP WITH TIME ZONE",
+                "nullable": true
+              },
+              "first_name": {
+                "type": "VARCHAR(100)",
+                "nullable": true
+              },
+              "last_name": {
+                "type": "VARCHAR(100)",
+                "nullable": true
+              },
+              "display_name": {
+                "type": "VARCHAR(200)",
+                "nullable": true
+              },
+              "avatar_url": {
+                "type": "TEXT",
+                "nullable": true
+              }
+            },
+            "indexes": [
+              {
+                "name": "idx_users_email",
+                "columns": ["email"],
+                "unique": true
+              },
+              {
+                "name": "idx_users_last_login",
+                "columns": ["last_login_at"]
+              }
+            ],
+            "constraints": [
+              {
+                "name": "valid_email",
+                "type": "CHECK",
+                "expression": "email ~ '^[^@]+@[^@]+\\.[^@]+$'"
+              },
+              {
+                "name": "valid_password_hash",
+                "type": "CHECK",
+                "expression": "length(password_hash) >= 32"
+              }
+            ]
+          },
+          "user_sessions": {
+            "description": "Active user sessions and tokens",
+            "columns": {
+              "id": {
+                "type": "UUID",
+                "primaryKey": true,
+                "default": "gen_random_uuid()",
+                "nullable": false
+              },
+              "user_id": {
+                "type": "UUID",
+                "foreignKey": "users(id)",
+                "onDelete": "CASCADE",
+                "nullable": false
+              },
+              "session_token": {
+                "type": "VARCHAR(255)",
+                "unique": true,
+                "nullable": false
+              },
+              "refresh_token": {
+                "type": "VARCHAR(255)",
+                "unique": true,
+                "nullable": false
+              },
+              "ip_address": {
+                "type": "INET",
+                "nullable": true
+              },
+              "user_agent": {
+                "type": "TEXT",
+                "nullable": true
+              },
+              "created_at": {
+                "type": "TIMESTAMP WITH TIME ZONE",
+                "default": "NOW()",
+                "nullable": false
+              },
+              "last_accessed_at": {
+                "type": "TIMESTAMP WITH TIME ZONE",
+                "default": "NOW()",
+                "nullable": false
+              },
+              "expires_at": {
+                "type": "TIMESTAMP WITH TIME ZONE",
+                "nullable": false
+              },
+              "is_valid": {
+                "type": "BOOLEAN",
+                "default": true,
+                "nullable": false
+              }
+            },
+            "indexes": [
+              {
+                "name": "idx_sessions_user_id",
+                "columns": ["user_id"]
+              },
+              {
+                "name": "idx_sessions_token",
+                "columns": ["session_token"],
+                "unique": true
+              },
+              {
+                "name": "idx_sessions_refresh_token",
+                "columns": ["refresh_token"],
+                "unique": true
+              },
+              {
+                "name": "idx_sessions_expires_at",
+                "columns": ["expires_at"]
+              }
+            ],
+            "constraints": [
+              {
+                "name": "valid_tokens",
+                "type": "CHECK",
+                "expression": "length(session_token) >= 32 AND length(refresh_token) >= 32"
+              }
+            ]
+          }
+        }
+      },
+      "validation": {
+        "description": "Validation rules and constraints",
+        "rules": {
+          "email": {
+            "format": "RFC 5322 compliant",
+            "maxLength": 254,
+            "pattern": "^[^@]+@[^@]+\\.[^@]+$",
+            "securityChecks": [
+              "SQL injection patterns",
+              "XSS patterns",
+              "Unicode normalization"
+            ]
+          },
+          "password": {
+            "minLength": 8,
+            "maxLength": 128,
+            "requirements": [
+              "At least one lowercase letter",
+              "At least one uppercase letter",
+              "At least one number",
+              "At least one special character"
+            ],
+            "securityChecks": [
+              "Common password detection",
+              "Breach database check",
+              "Pattern analysis"
+            ]
+          },
+          "tokens": {
+            "jwt": {
+              "algorithm": "HS256",
+              "accessTokenExpiry": "15m",
+              "refreshTokenExpiry": "7d",
+              "refreshTokenExpiryRememberMe": "30d"
+            },
+            "session": {
+              "tokenLength": 32,
+              "encoding": "base64url"
+            }
+          }
+        }
+      }
+    }
+  }
+}
