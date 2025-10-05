@@ -148,15 +148,15 @@ function validateConfig(config: unknown): asserts config is ContentWriterConfig 
 }
 
 /**
- * Loads and parses the content-writer.json configuration file
- * @param configPath - Optional path to the configuration file (defaults to content-writer.json in project root)
+ * Loads and parses the .content-writer.json configuration file
+ * @param configPath - Optional path to the configuration file (defaults to .content-writer.json in project root)
  * @returns Promise<ContentWriterConfig> The parsed and validated configuration
  * @throws {ConfigNotFoundError} If the configuration file doesn't exist
  * @throws {ConfigValidationError} If the configuration structure is invalid
  * @throws {SyntaxError} If the JSON file contains invalid syntax
  */
 export async function loadContentWriterConfig(
-  configPath: string = 'content-writer.json'
+  configPath: string = '.content-writer.json'
 ): Promise<ContentWriterConfig> {
   const absolutePath = path.resolve(configPath);
 
@@ -196,14 +196,14 @@ export async function loadContentWriterConfig(
 
 /**
  * Synchronous version of loadContentWriterConfig
- * @param configPath - Optional path to the configuration file (defaults to content-writer.json in project root)
+ * @param configPath - Optional path to the configuration file (defaults to .content-writer.json in project root)
  * @returns ContentWriterConfig The parsed and validated configuration
  * @throws {ConfigNotFoundError} If the configuration file doesn't exist
  * @throws {ConfigValidationError} If the configuration structure is invalid
  * @throws {SyntaxError} If the JSON file contains invalid syntax
  */
 export function loadContentWriterConfigSync(
-  configPath: string = 'content-writer.json'
+  configPath: string = '.content-writer.json'
 ): ContentWriterConfig {
   const absolutePath = path.resolve(configPath);
 
@@ -332,11 +332,11 @@ export function isPathAllowed(
 
 /**
  * Loads configuration with fallback to default values for backward compatibility
- * @param configPath - Optional path to the configuration file (defaults to content-writer.json in project root)
+ * @param configPath - Optional path to the configuration file (defaults to .content-writer.json in project root)
  * @returns ContentWriterConfig The configuration (loaded from file or default fallback)
  */
 export function loadContentWriterConfigWithFallback(
-  configPath: string = 'content-writer.json'
+  configPath: string = '.content-writer.json'
 ): ContentWriterConfig {
   try {
     return loadContentWriterConfigSync(configPath);

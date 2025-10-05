@@ -14,7 +14,7 @@ describe('Content Writer Configuration Integration Tests', () => {
 
   // Helper to create a temporary config file
   const createTempConfig = (config: ContentWriterConfig): string => {
-    const configPath = path.join(tempDir, 'content-writer.json');
+    const configPath = path.join(tempDir, '.content-writer.json');
     writeFileSync(configPath, JSON.stringify(config, null, 2));
     return configPath;
   };
@@ -506,7 +506,7 @@ describe('Content Writer Configuration Integration Tests', () => {
   describe('Invalid configuration handling', () => {
     it('should fall back to hardcoded paths with invalid JSON config', async () => {
       // Arrange - Create invalid JSON config
-      const configPath = path.join(tempDir, 'src', 'content-writer.json');
+      const configPath = path.join(tempDir, 'src', '.content-writer.json');
       const srcDir = path.join(tempDir, 'src');
       mkdirSync(srcDir, { recursive: true });
       writeFileSync(configPath, '{ invalid json }');
@@ -536,7 +536,7 @@ describe('Content Writer Configuration Integration Tests', () => {
         }
       };
 
-      const configPath = path.join(tempDir, 'src', 'content-writer.json');
+      const configPath = path.join(tempDir, 'src', '.content-writer.json');
       const srcDir = path.join(tempDir, 'src');
       mkdirSync(srcDir, { recursive: true });
       writeFileSync(configPath, JSON.stringify(invalidConfig));
@@ -1063,7 +1063,7 @@ describe('Content Writer Configuration Integration Tests', () => {
   describe('Config file location variations', () => {
     it('should load config from custom location if specified', async () => {
       // This test would require modifying the implementation to accept custom config paths
-      // Currently the implementation looks for content-writer.json by default
+      // Currently the implementation looks for .content-writer.json by default
       // Skipping as it would require implementation changes
     });
 
@@ -1099,7 +1099,7 @@ describe('Content Writer Configuration Integration Tests', () => {
         }
       };
 
-      const configPath = path.join(tempDir, 'src', 'content-writer.json');
+      const configPath = path.join(tempDir, 'src', '.content-writer.json');
       const srcDir = path.join(tempDir, 'src');
       mkdirSync(srcDir, { recursive: true });
 

@@ -6,7 +6,7 @@ import { loadContentWriterConfigSync, getDefaultPath } from '../config/content-w
 export const buildExecutorTools = [
   {
     name: 'build_project',
-    description: 'Build the entire project (backend typecheck + frontend build). Folders are configurable via content-writer.json',
+    description: 'Build the entire project (backend typecheck + frontend build). Folders are configurable via .content-writer.json',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -15,7 +15,7 @@ export const buildExecutorTools = [
   },
   {
     name: 'build_backend',
-    description: 'Build/typecheck the backend only. Backend folder is configurable via content-writer.json',
+    description: 'Build/typecheck the backend only. Backend folder is configurable via .content-writer.json',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -24,7 +24,7 @@ export const buildExecutorTools = [
   },
   {
     name: 'build_frontend',
-    description: 'Build the frontend only. Frontend folder is configurable via content-writer.json',
+    description: 'Build the frontend only. Frontend folder is configurable via .content-writer.json',
     inputSchema: {
       type: 'object' as const,
       properties: {},

@@ -49,7 +49,7 @@ All agents follow this standardized structure:
   - `mcp__levys-awesome-mcp__get_summary`
 
 **Restrictions**:
-- Can only write to backend folders (configurable via `content-writer.json`)
+- Can only write to backend folders (configurable via `.content-writer.json`)
 - Cannot access frontend directories
 
 ### Frontend Agent
@@ -63,7 +63,7 @@ All agents follow this standardized structure:
   - `mcp__levys-awesome-mcp__get_summary`
 
 **Restrictions**:
-- Can only write to frontend folders (configurable via `content-writer.json`)
+- Can only write to frontend folders (configurable via `.content-writer.json`)
 - Cannot access backend directories
 
 ### Builder Agent

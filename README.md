@@ -27,7 +27,23 @@ npm install @leomerl/levys-awesome-mcp
 
 ### Configure Claude Code
 
-Add to `.claude/claude.json`:
+**Option 1: Using Claude CLI (Recommended)**
+
+```bash
+# Add the MCP server
+claude mcp add levys-awesome-mcp
+
+# When prompted, enter:
+# Command: npx
+# Args: @leomerl/levys-awesome-mcp
+
+# Restart Claude Code to load the MCP
+claude mcp restart
+```
+
+**Option 2: Manual Configuration**
+
+Add to `.mcp.json` in your project root:
 ```json
 {
   "mcpServers": {
@@ -38,6 +54,8 @@ Add to `.claude/claude.json`:
   }
 }
 ```
+
+Then restart Claude Code or use `/mcp` command.
 
 ### Environment Configuration
 
@@ -53,7 +71,125 @@ CONTEXT7_API_KEY=your_api_key_here
 GITHUB_PERSONAL_ACCESS_TOKEN=your_github_token
 ```
 
+### Folder Configuration
+
+Create a `.content-writer.json` file to configure agent folder access:
+```json
+{
+  "folderMappings": {
+    "backend": ["backend/", "lib/", "api/", "server/"],
+    "frontend": ["frontend/", "ui/", "app/", "components/"],
+    "agents": ["agents/"],
+    "docs": ["docs/"]
+  },
+  "defaultPaths": {
+    "backend": "backend/",
+    "frontend": "frontend/",
+    "agents": "agents/",
+    "docs": "docs/"
+  },
+  "pathValidation": {
+    "allowPathTraversal": false,
+    "restrictToConfiguredFolders": true,
+    "createDirectoriesIfNotExist": true
+  }
+}
+```
+
+Then create your project folders:
+```bash
+mkdir -p backend frontend agents docs
+```
+
 ## Quick Start
+
+### Complete Setup Example
+
+```bash
+# 1. Install the package (automatically creates .claude/commands/ with slash commands)
+npm install git+https://github.com/leomerl/levys-awesome-mcp.git
+
+# 2. Create .mcp.json
+cat > .mcp.json << 'EOF'
+{
+  "mcpServers": {
+    "levys-awesome-mcp": {
+      "command": "npx",
+      "args": ["@leomerl/levys-awesome-mcp"]
+    }
+  }
+}
+EOF
+
+# 3. Create .env file
+cat > .env << 'EOF'
+WORKSPACE_PATH=/absolute/path/to/your/project
+EOF
+
+# 4. Create .content-writer.json
+cat > .content-writer.json << 'EOF'
+{
+  "folderMappings": {
+    "backend": ["backend/", "lib/", "api/", "server/"],
+    "frontend": ["frontend/", "ui/", "app/", "components/"],
+    "agents": ["agents/"],
+    "docs": ["docs/"]
+  },
+  "defaultPaths": {
+    "backend": "backend/",
+    "frontend": "frontend/"
+  },
+  "pathValidation": {
+    "restrictToConfiguredFolders": true,
+    "createDirectoriesIfNotExist": true
+  }
+}
+EOF
+
+# 5. Create project folders
+mkdir -p backend frontend agents docs
+
+# 6. Restart Claude Code
+# Use /mcp command in Claude Code or run: claude mcp restart
+```
+
+### Verify Installation
+
+```bash
+# Check that slash commands and agents were installed automatically
+ls .claude/commands/
+# Should show: orchestrate.md, create-agent.md, analyze-and-create-static-tests.md
+
+ls .claude/agents/
+# Should show: 21 agent markdown files (backend-agent.md, frontend-agent.md, orchestrator-agent.md, etc.)
+
+# List installed MCP servers
+claude mcp list
+
+# Check if levys-awesome-mcp is loaded
+claude mcp status levys-awesome-mcp
+
+# View available tools (in Claude Code)
+/tools
+
+# Test slash commands (in Claude Code)
+/orchestrate
+```
+
+**Note**: During installation, the postinstall script automatically:
+1. Copies slash commands to `.claude/commands/`
+2. Converts all TypeScript agents from `agents/` to markdown in `.claude/agents/`
+
+### Manual Agent Conversion (Optional)
+
+If you want to regenerate agent markdown files after modifying agent TypeScript files:
+
+```bash
+# In Claude Code
+/generate-agents
+```
+
+This scans the entire `agents/` directory tree and regenerates markdown configurations in `.claude/agents/`. The converter extracts agent names, descriptions, models, system prompts, and tool configurations.
 
 ### Orchestrate Development Tasks
 
@@ -64,9 +200,10 @@ GITHUB_PERSONAL_ACCESS_TOKEN=your_github_token
 The orchestrator will:
 1. **Plan** - Analyze requirements and create execution plan
 2. **Execute** - Assign tasks to specialized agents (backend, frontend, testing, etc.)
-3. **Self-Heal** - Automatically retry failed tasks with correct agents (up to 2 retries)
+3. **Self-Heal** - Automatically retry failed tasks indefinitely until success
 4. **Validate** - Run reviewer, builder, linter, and testing agents
-5. **Report** - Provide comprehensive status of what works and what's validated
+5. **Iterate** - Continue review and testing loops until all validations pass
+6. **Report** - Provide comprehensive status of what works and what's validated
 
 ### Available Agents
 
@@ -82,8 +219,8 @@ The orchestrator will:
 
 ## Key Features
 
-- ✅ **Self-Healing**: Automatically retries failed tasks with correct agents (max 2 attempts)
-- ✅ **Never Stops Mid-Workflow**: Continues with remaining tasks even if some fail
+- ✅ **Self-Healing**: Automatically retries failed tasks indefinitely until success
+- ✅ **Unlimited Iterations**: Review and testing loops continue until all validations pass
 - ✅ **Mandatory Validation**: Always runs all validation phases
 - ✅ **Session Management**: Resume agent sessions with retained memory
 - ✅ **Dynamic Tool Restrictions**: Automatic security enforcement across all agents
@@ -163,10 +300,30 @@ project/
 
 ## Troubleshooting
 
+### MCP Server Issues
+- **MCP not loading**: Run `claude mcp restart` or `/mcp` in Claude Code
+- **Tools not available**: Check `claude mcp list` - ensure levys-awesome-mcp is listed
+- **Environment variables not loaded**: Verify `.env` file exists in project root
+- **Language Server not working**: Check `WORKSPACE_PATH` is set and mcp-language-server is installed
+
+### Agent Issues
 - **Task stuck**: Check `output_streams/{session-id}/stream.log` for errors
 - **Self-healing not working**: Verify orchestrator has `get_failed_tasks` tool
-- **Permission errors**: Check `content-writer.json` for folder configuration
+- **Permission errors**: Check `.content-writer.json` for folder configuration
 - **Session resume fails**: Verify session ID matches directory name
+
+### Debug Commands
+```bash
+# View MCP server logs
+claude mcp logs levys-awesome-mcp
+
+# Restart MCP server
+claude mcp restart
+
+# Remove and re-add MCP server
+claude mcp remove levys-awesome-mcp
+claude mcp add levys-awesome-mcp
+```
 
 See [TESTING.md](docs/TESTING.md) for detailed troubleshooting guide.
 

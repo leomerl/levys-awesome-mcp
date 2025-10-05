@@ -78,7 +78,7 @@ describe('Content Writer Config Loader - Real Implementation Tests', () => {
 
     it('should use default path when no configPath is provided', async () => {
       // Act & Assert
-      // This will try to load from the real content-writer.json file
+      // This will try to load from the real .content-writer.json file
       const result = await loadContentWriterConfig();
 
       // Verify it loads the actual configuration
@@ -534,7 +534,7 @@ describe('Content Writer Config Loader - Real Implementation Tests', () => {
 
   describe('Default Fallback Values', () => {
     it('should load from default location when path not provided', async () => {
-      // This test uses the actual content-writer.json file
+      // This test uses the actual .content-writer.json file
       const result = await loadContentWriterConfig();
 
       // Verify the structure matches expected configuration

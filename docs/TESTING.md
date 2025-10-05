@@ -300,7 +300,7 @@ The test suite is integrated into the CI/CD pipeline to ensure all core function
    - Check tool names match format: `mcp__levys-awesome-mcp__[tool]`
 
 5. **Write permission errors**
-   - Check `content-writer.json` configuration
+   - Check `.content-writer.json` configuration
    - Verify folder paths are correct
 
 6. **Progress tracking not updating**
@@ -317,7 +317,7 @@ The test suite is integrated into the CI/CD pipeline to ensure all core function
 npm run list-agents
 
 # Verify configuration
-cat content-writer.json
+cat .content-writer.json
 
 # Check session files
 ls -la output_streams/

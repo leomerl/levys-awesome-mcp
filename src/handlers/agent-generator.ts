@@ -246,7 +246,7 @@ export async function handleAgentGeneratorTool(name: string, args: any): Promise
       case 'mcp__levys-awesome-mcp__mcp__agent-generator__convert_all_agents_ts_to_claude_md': {
         const agentsDir = path.join(process.cwd(), 'agents');
         const outputDir = path.join(process.cwd(), '.claude', 'agents');
-        
+
         // Ensure agents directory exists
         if (!existsSync(agentsDir)) {
           return {
@@ -257,39 +257,53 @@ export async function handleAgentGeneratorTool(name: string, args: any): Promise
             isError: true
           };
         }
-        
+
         // Ensure output directory exists
         if (!existsSync(outputDir)) {
           await mkdir(outputDir, { recursive: true });
         }
-        
-        // Get all .ts files in agents directory
-        const files = await readdir(agentsDir);
-        const tsFiles = files.filter(file => file.endsWith('.ts'));
-        
+
+        // Recursively find all .ts files in agents directory and subdirectories
+        async function findTsFiles(dir: string): Promise<string[]> {
+          const entries = await readdir(dir, { withFileTypes: true });
+          const files = await Promise.all(entries.map(async (entry) => {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+              return findTsFiles(fullPath);
+            } else if (entry.isFile() && entry.name.endsWith('.ts')) {
+              return [fullPath];
+            }
+            return [];
+          }));
+          return files.flat();
+        }
+
+        const tsFilePaths = await findTsFiles(agentsDir);
+
         const results = [];
         let successCount = 0;
-        
-        for (const tsFile of tsFiles) {
+
+        for (const agentPath of tsFilePaths) {
           try {
-            const agentPath = path.join(agentsDir, tsFile);
             const markdown = await convertTSAgentToMD(agentPath);
-            
-            const fileName = path.basename(tsFile, '.ts') + '.md';
+
+            const fileName = path.basename(agentPath, '.ts') + '.md';
             const outputPath = path.join(outputDir, fileName);
-            
+
             await writeFile(outputPath, markdown, 'utf8');
-            results.push(`✓ ${tsFile} → ${fileName}`);
+            const relativePath = path.relative(agentsDir, agentPath);
+            results.push(`✓ ${relativePath} → ${fileName}`);
             successCount++;
           } catch (error) {
-            results.push(`✗ ${tsFile} → Error: ${error instanceof Error ? error.message : String(error)}`);
+            const relativePath = path.relative(agentsDir, agentPath);
+            results.push(`✗ ${relativePath} → Error: ${error instanceof Error ? error.message : String(error)}`);
           }
         }
-        
+
         return {
           content: [{
             type: 'text',
-            text: `Build complete: ${successCount}/${tsFiles.length} agents converted\n\n${results.join('\n')}\n\nOutput directory: ${outputDir}`
+            text: `Build complete: ${successCount}/${tsFilePaths.length} agents converted\n\n${results.join('\n')}\n\nOutput directory: ${outputDir}`
           }]
         };
       }

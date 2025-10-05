@@ -30,7 +30,7 @@ export const contentWriterTools = [
   },
   {
     name: 'frontend_write',
-    description: 'Write files to frontend folders. Allowed folders are configurable via content-writer.json and may include frontend/, ui/, client/, etc.',
+    description: 'Write files to frontend folders. Allowed folders are configurable via .content-writer.json and may include frontend/, ui/, client/, etc.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -48,7 +48,7 @@ export const contentWriterTools = [
   },
   {
     name: 'backend_write',
-    description: 'Write files to backend folders. Allowed folders are configurable via content-writer.json and may include backend/, src/, api/, server/, etc.',
+    description: 'Write files to backend folders. Allowed folders are configurable via .content-writer.json and may include backend/, src/, api/, server/, etc.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -816,13 +816,13 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
           const cwd = process.cwd();
 
           // Check if config file exists
-          const configPath = path.resolve(cwd, 'content-writer.json');
+          const configPath = path.resolve(cwd, '.content-writer.json');
           const configFileExists = existsSync(configPath);
 
           return {
             content: [{
               type: 'text',
-              text: `Content Writer Configuration:\n\nWorking Directory: ${cwd}\nConfig File Path: ${configPath}\nConfig File Exists: ${configFileExists}\n\nCurrent Configuration:\n${JSON.stringify(config, null, 2)}\n\n${!configFileExists ? 'Note: Using default configuration since content-writer.json was not found in the project root.' : ''}`
+              text: `Content Writer Configuration:\n\nWorking Directory: ${cwd}\nConfig File Path: ${configPath}\nConfig File Exists: ${configFileExists}\n\nCurrent Configuration:\n${JSON.stringify(config, null, 2)}\n\n${!configFileExists ? 'Note: Using default configuration since .content-writer.json was not found in the project root.' : ''}`
             }]
           };
         } catch (error) {

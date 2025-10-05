@@ -36,7 +36,7 @@
     ]
   },
   "defaultPaths": {
-    "backend": ".",
+    "backend": "backend/",
     "frontend": "frontend/",
     "agents": "agents/",
     "docs": "docs/",

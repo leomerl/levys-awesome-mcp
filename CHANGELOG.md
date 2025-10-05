@@ -4,6 +4,27 @@ All notable changes to Levy's Awesome MCP will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.4] - 2025-10-05
+
+### Added
+- **SPARC Orchestration Command**: New `/sparc` slash command for SPARC workflows
+- **Generate Agents Command**: New `/generate-agents` command to convert all TypeScript agents to Claude markdown format
+- **Recursive Agent Conversion**: Agent converter now scans entire `agents/` directory tree including subdirectories
+- **Automatic Agent Conversion**: Postinstall script now automatically converts all TypeScript agent files to markdown during installation
+- **Complete Setup Documentation**: Added comprehensive setup example in README with all configuration files
+- **Folder Configuration Guide**: Documented `.content-writer.json` setup for agent folder access
+
+### Changed
+- **Orchestrator Unlimited Retries**: Removed all retry/cycle limits - orchestrator now retries indefinitely until all tasks succeed and validations pass
+- **Enhanced /orchestrate Command**: Updated documentation with comprehensive workflow overview
+- **Configuration Files**: Renamed `content-writer.json` to `.content-writer.json` (dotfile convention)
+- **MCP Configuration**: Updated README to use `.mcp.json` instead of `.claude/claude.json`
+- **Postinstall Automation**: Postinstall script now performs both slash command copying and agent markdown conversion
+
+### Fixed
+- **Postinstall Script**: Fixed path calculation for scoped packages - now correctly creates `.claude/commands/` in project root (not in `node_modules/`)
+- **Agent Converter**: Now recursively scans subdirectories to find all agent TypeScript files
+
 ## [1.0.3] - 2025-10-05
 
 ### Added
@@ -59,7 +80,7 @@ All notable changes to Levy's Awesome MCP will be documented in this file.
   - Claude PR Assistant for automated PR reviews
   - Claude Code Review workflow for continuous code quality
 - **GitHub Packages Publishing**: Automated npm publishing to GitHub Packages registry
-- **Configurable Paths**: Backend/frontend paths now configurable via `content-writer.json`
+- **Configurable Paths**: Backend/frontend paths now configurable via `.content-writer.json`
 
 ### Fixed
 - **GitHub Actions Authentication**: Added proper npm authentication for GitHub Packages registry access

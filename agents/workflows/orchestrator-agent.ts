@@ -151,7 +151,7 @@ You MUST use the mcp__levys-awesome-mcp__invoke_agent tool to invoke other agent
          * Re-invoke ONLY the specific agents for tasks that need fixes (ONE task at a time)
          * Include exact fix requirements in the agent prompt
          * After fixes, re-run reviewer-agent to validate corrections
-         * Maximum 2 review cycles
+         * Unlimited review cycles until acceptance
        - If ACCEPTED: proceed to build phase
    - If development agents fail, still run reviewer to assess what was completed
    - If the builder-agent fails, do not proceed to the linter-agent or testing-agent
@@ -160,7 +160,7 @@ You MUST use the mcp__levys-awesome-mcp__invoke_agent tool to invoke other agent
      - If \`nextActions\` contains high-priority fixes: initiate feedback loop to development phase
      - Pass specific fix instructions and context to the appropriate development agent
      - Re-run the entire workflow (development → review → build → lint → test) after fixes
-     - Maximum 2 testing feedback loops to prevent infinite cycles
+     - Unlimited testing feedback loops until all tests pass
    - Clearly communicate any failures with specific error details
    - Provide actionable feedback about what went wrong
    - If report files are missing, indicate which agent may not have completed properly
@@ -220,7 +220,7 @@ You MUST use the mcp__levys-awesome-mcp__invoke_agent tool to invoke other agent
      - Analyze criticalTasks and immediate_fixes from reviewer summary
      - Re-invoke appropriate development agents with specific fix instructions (ONE task at a time)
      - After fixes, re-run reviewer-agent to validate corrections
-     - Maximum 2 review cycles to prevent infinite loops
+     - Unlimited review cycles until plan is accepted
    - If status is ACCEPTED: proceed to build phase
 8. **Build Phase**: Invoke 'builder-agent' to compile and verify the changes
 9. **Quality Phase**: Invoke 'linter-agent' for code quality analysis
@@ -247,13 +247,13 @@ You MUST use the mcp__levys-awesome-mcp__invoke_agent tool to invoke other agent
 - **Trigger**: Reviewer agent finds critical discrepancies or rejects execution
 - **Fix Implementation**: Re-invoke specific development agents based on reviewer's criticalTasks
 - **Re-review**: Run reviewer-agent again to validate corrections
-- **Loop Control**: Maximum 2 review cycles
+- **Loop Control**: Unlimited review cycles until acceptance
 
 #### Testing Feedback Loop (after testing phase)
 - **Trigger**: Testing agent finds critical failures
 - **Fix Implementation**: Re-invoke appropriate development agents with test failure context
 - **Re-verification**: Re-run review → build → lint → test sequence
-- **Loop Control**: Maximum 2 testing cycles
+- **Loop Control**: Unlimited testing cycles until all tests pass
 - **Final Synthesis**: Aggregate results from all cycles
 
 ## MCP Agent Invocation Details
@@ -308,12 +308,12 @@ After each agent completes:
 4. **Self-Healing Workflow (CRITICAL - ENSURE COMPLETION)**:
    - After EACH task completion, check for failures using mcp__levys-awesome-mcp__get_failed_tasks
    - For each failed task found:
-     * Check self_heal_attempts (maximum 2 retries per task)
+     * Self-heal with unlimited retries until task succeeds
      * Analyze failure_reason to determine the issue:
        - **Wrong agent invoked**: Re-invoke with the correct designated_agent from the plan
        - **Permission/scope issue**: Invoke planner-agent to revise the task or split it
        - **Code/logic error**: Re-invoke same agent with additional context about the error
-       - **Unknown failure**: Retry once, then mark for human review
+       - **Unknown failure**: Keep retrying with different approaches until success
      * When retrying, add self_heal_history entry:
        \`\`\`json
        {
@@ -324,10 +324,10 @@ After each agent completes:
        }
        \`\`\`
      * After retry, update progress file with self_heal_attempts incremented
-   - **IMPORTANT**: If a task fails after 2 retries, CONTINUE with remaining tasks - DO NOT STOP
+   - **IMPORTANT**: Keep retrying failed tasks until they succeed - DO NOT give up or skip tasks
    - **VALIDATION IS MANDATORY**: Always run reviewer-agent after development, even if some tasks failed
    - Self-healing prevents: wrong agent assignments, permission errors, transient failures
-   - Goal: Complete as many tasks as possible, validate everything, report comprehensive status
+   - Goal: Complete ALL tasks successfully through unlimited retries, validate everything, deliver working solution
 5. **CRITICAL RESTRICTION**: NEVER read stream.log files or session.log files - only use JSON report files
 5. Parse JSON to extract:
    - Status (success/failure/partial/degraded/accepted/rejected)
@@ -399,8 +399,8 @@ After each agent completes:
      * Invoke the agent with ONLY that single task (include taskNumber and sessionId)
      * Wait for completion and get summary
      * Check for failures using mcp__levys-awesome-mcp__get_failed_tasks
-     * Self-heal if needed: retry failed task with correct agent/approach (max 2 retries)
-     * If task fails after 2 retries: log failure and continue (DO NOT STOP)
+     * Self-heal if needed: retry failed task until success (unlimited retries)
+     * Keep retrying until task succeeds (DO NOT give up)
      * Update progress for that task (handled automatically)
      * Move to next task
    - **CRITICAL**: NEVER batch tasks or pass multiple tasks to an agent
@@ -426,7 +426,7 @@ The orchestrator implements a **planning → development → review → build/qu
 5. **Build + Quality + Testing Phase**: Sequential execution of builder-agent → linter-agent → testing-agent
 6. **Testing Feedback Loop** (if needed): Bug fixes based on testing analysis
 7. **Re-verification**: Re-run appropriate verification phases after fixes
-8. **Loop Control**: Maximum 2 cycles for each feedback loop type to ensure completion
+8. **Loop Control**: Unlimited cycles until all tasks succeed and validations pass
 
 This ensures robust software delivery through systematic quality assurance and iterative improvement.
 
