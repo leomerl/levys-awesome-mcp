@@ -62,6 +62,7 @@ interface ProgressTask extends Task {
     action: string;
     timestamp: string;
     result?: string;
+    reason?: string;
   }>;
 }
 
@@ -147,6 +148,18 @@ export const planCreatorTools = [
         summary: {
           type: 'string',
           description: 'Summary of work completed (optional)'
+        },
+        is_self_heal_retry: {
+          type: 'boolean',
+          description: 'Set to true when this update is for a self-healing retry attempt (optional)'
+        },
+        self_heal_action: {
+          type: 'string',
+          description: 'Description of the self-healing action taken (optional, used when is_self_heal_retry is true)'
+        },
+        self_heal_reason: {
+          type: 'string',
+          description: 'Reason for self-healing retry (optional, used when is_self_heal_retry is true)'
         }
       },
       required: ['task_id', 'state', 'agent_session_id']
@@ -471,7 +484,18 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
 
       case 'update_progress':
       case 'mcp__levys-awesome-mcp__mcp__plan-creator__update_progress': {
-        const { session_id, git_commit_hash, task_id, state, agent_session_id, files_modified = [], summary = '' } = args;
+        const {
+          session_id,
+          git_commit_hash,
+          task_id,
+          state,
+          agent_session_id,
+          files_modified = [],
+          summary = '',
+          is_self_heal_retry = false,
+          self_heal_action = '',
+          self_heal_reason = ''
+        } = args;
 
         // Validate required parameters
         if ((!session_id && !git_commit_hash) || !task_id || !state || !agent_session_id) {
@@ -532,6 +556,33 @@ export async function handlePlanCreatorTool(name: string, args: any): Promise<{ 
 
             if (summary) {
               task.summary = summary;
+            }
+
+            // Handle self-healing metadata
+            if (is_self_heal_retry) {
+              // Increment self_heal_attempts counter
+              task.self_heal_attempts = (task.self_heal_attempts || 0) + 1;
+
+              // Initialize self_heal_history if it doesn't exist
+              if (!task.self_heal_history) {
+                task.self_heal_history = [];
+              }
+
+              // Add entry to self_heal_history
+              task.self_heal_history.push({
+                attempt: task.self_heal_attempts,
+                action: self_heal_action || 'Retrying task execution',
+                timestamp: now,
+                result: state === 'completed' ? 'success' : state === 'failed' ? 'failed' : 'in_progress'
+              });
+
+              // Add reason if provided
+              if (self_heal_reason) {
+                task.self_heal_history[task.self_heal_history.length - 1] = {
+                  ...task.self_heal_history[task.self_heal_history.length - 1],
+                  reason: self_heal_reason
+                };
+              }
             }
 
             // Set timestamps based on state

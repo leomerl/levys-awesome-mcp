@@ -172,29 +172,40 @@ describe('Orchestrator Progress Updates', () => {
   });
 
   describe('Progress File Integrity', () => {
-    it('should detect when progress file is never updated despite agent invocations', async () => {
+    it('should verify progress file is updated when tasks transition', async () => {
       const initialContent = fs.readFileSync(progressFilePath, 'utf8');
       const initialProgress = JSON.parse(initialContent);
-      const initialTimestamp = initialProgress.last_updated;
       const initialCreatedAt = initialProgress.created_at;
+      const initialLastUpdated = initialProgress.last_updated;
 
-      // This is the CRITICAL BUG from the simulation:
-      // Progress file created but never updated
-      // created_at === last_updated means NO updates occurred
+      // Initially, timestamps should be equal (file just created)
+      expect(
+        initialCreatedAt,
+        'Initial created_at and last_updated should be equal on file creation'
+      ).toBe(initialLastUpdated);
 
-      // If we don't call updateTaskToInProgress, timestamps should remain equal
-      // (This simulates the bug we found)
+      // Perform task state transition
+      await updateTaskToInProgress(1, orchestratorSessionId);
 
-      const currentContent = fs.readFileSync(progressFilePath, 'utf8');
-      const currentProgress = JSON.parse(currentContent);
+      // Read updated progress file
+      const updatedContent = fs.readFileSync(progressFilePath, 'utf8');
+      const updatedProgress = JSON.parse(updatedContent);
 
-      // ASSERTION: Detect the bug condition
-      if (currentProgress.created_at === currentProgress.last_updated) {
-        expect(
-          true,
-          'CRITICAL BUG DETECTED: Progress file never updated (created_at === last_updated)'
-        ).toBe(false); // This will fail, highlighting the bug
-      }
+      // REGRESSION PREVENTION: Verify the fix works
+      // After task transition, last_updated should differ from created_at
+      expect(
+        updatedProgress.created_at !== updatedProgress.last_updated,
+        'Progress file should be updated: created_at should differ from last_updated after task transition'
+      ).toBe(true);
+
+      // Additional validation: created_at should never change
+      expect(updatedProgress.created_at).toBe(initialCreatedAt);
+
+      // last_updated should be more recent than created_at
+      expect(
+        new Date(updatedProgress.last_updated) > new Date(updatedProgress.created_at),
+        'last_updated should be chronologically after created_at'
+      ).toBe(true);
     });
 
     it('should maintain file lock during concurrent updates', async () => {

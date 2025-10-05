@@ -308,26 +308,41 @@ After each agent completes:
 4. **Self-Healing Workflow (CRITICAL - ENSURE COMPLETION)**:
    - After EACH task completion, check for failures using mcp__levys-awesome-mcp__get_failed_tasks
    - For each failed task found:
-     * Self-heal with unlimited retries until task succeeds
-     * Analyze failure_reason to determine the issue:
+     * Self-heal with up to 3 retries per task (configurable)
+     * Analyze failure_reason from get_failed_tasks output to determine the issue:
        - **Wrong agent invoked**: Re-invoke with the correct designated_agent from the plan
        - **Permission/scope issue**: Invoke planner-agent to revise the task or split it
        - **Code/logic error**: Re-invoke same agent with additional context about the error
-       - **Unknown failure**: Keep retrying with different approaches until success
-     * When retrying, add self_heal_history entry:
-       \`\`\`json
-       {
-         "attempt": 1,
-         "action": "Reinvoking with correct agent: frontend-agent (was: backend-agent)",
-         "timestamp": "2025-09-30T...",
-         "reason": "Wrong agent assigned - frontend task sent to backend agent"
-       }
+       - **Unknown failure**: Keep retrying with different approaches
+     * **IMPORTANT**: When retrying, invoke the agent with the new attempt AND mark it as self-healing:
+       \`\`\`typescript
+       // Step 1: Invoke agent for retry
+       await mcp__levys-awesome-mcp__invoke_agent({
+         agentName: task.designated_agent,
+         prompt: "Retry task with fix: " + self_heal_action,
+         taskNumber: taskNumber,
+         sessionId: orchestratorSessionId
+       });
+
+       // Step 2: After agent completes, update progress with self-healing metadata
+       await mcp__levys-awesome-mcp__update_progress({
+         session_id: orchestratorSessionId,
+         task_id: task.task_id,
+         state: 'in_progress', // or 'completed' if successful
+         agent_session_id: newAgentSessionId,
+         is_self_heal_retry: true,
+         self_heal_action: "Reinvoking with correct agent: frontend-agent (was: backend-agent)",
+         self_heal_reason: "Wrong agent assigned - frontend task sent to backend agent"
+       });
        \`\`\`
-     * After retry, update progress file with self_heal_attempts incremented
-   - **IMPORTANT**: Keep retrying failed tasks until they succeed - DO NOT give up or skip tasks
+     * The self-healing metadata is automatically tracked:
+       - \`self_heal_attempts\` counter is incremented
+       - \`self_heal_history\` array gets new entry with attempt, action, timestamp, result, reason
+     * After max retries (3), mark task as failed and continue with other tasks
+   - **IMPORTANT**: Continue with ALL remaining tasks even if some fail after retries
    - **VALIDATION IS MANDATORY**: Always run reviewer-agent after development, even if some tasks failed
    - Self-healing prevents: wrong agent assignments, permission errors, transient failures
-   - Goal: Complete ALL tasks successfully through unlimited retries, validate everything, deliver working solution
+   - Goal: Maximize success rate through automatic retries, validate everything, deliver working solution
 5. **CRITICAL RESTRICTION**: NEVER read stream.log files or session.log files - only use JSON report files
 5. Parse JSON to extract:
    - Status (success/failure/partial/degraded/accepted/rejected)
