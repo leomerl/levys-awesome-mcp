@@ -9,7 +9,9 @@ export default defineConfig({
     setupFiles: './tests/setup.ts',
     environmentMatchGlobs: [
       // Only use jsdom for React component tests
-      ['**/test-projects/**/*.test.{ts,tsx}', 'jsdom']
+      ['**/test-projects/**/*.test.{ts,tsx}', 'jsdom'],
+      ['**/tests/unit/*HelloWorld*.test.{ts,tsx}', 'jsdom'],
+      ['**/tests/unit/*hello*.test.{ts,tsx}', 'jsdom']
     ]
   }
 });
