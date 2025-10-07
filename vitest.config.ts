@@ -13,7 +13,7 @@ export default defineConfig({
       ['**/tests/unit/*HelloWorld*.test.{ts,tsx}', 'jsdom'],
       ['**/tests/unit/*hello*.test.{ts,tsx}', 'jsdom'],
       ['**/tests/e2e/*.test.tsx', 'jsdom'],
-      ['**/tests/integration/*integration*.test.tsx', 'jsdom']
+      ['**/tests/integration/*integration*.test.{ts,tsx}', 'jsdom']
     ]
   }
 });
