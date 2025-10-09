@@ -169,20 +169,13 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
           }
         }
 
-        // Generate session ID upfront for new sessions
+        // Generate base session ID upfront for new sessions
         // Check for "undefined" string which can come from MCP calls
         console.log(`[AgentInvoker] continueSessionId received:`, continueSessionId, `type:`, typeof continueSessionId);
         // Handle both undefined value and "undefined" string
         const shouldGenerateNew = !continueSessionId || continueSessionId === 'undefined' || continueSessionId === undefined;
-        let sessionId: string = shouldGenerateNew ? randomUUID() : continueSessionId;
-        console.log(`[AgentInvoker] Generated/using sessionId:`, sessionId, `(shouldGenerateNew: ${shouldGenerateNew})`);
-        let streamingUtils: StreamingManager | undefined;
-        let streamLogFile: string | undefined;
-
-        const messages: any[] = [];
-        let claudeCodeSessionId: string | undefined; // To capture Claude Code's actual session ID
-        let isFirstMessage = true;
-        let agentCompleted = false; // Track if agent completed successfully
+        const baseSessionId: string = shouldGenerateNew ? randomUUID() : continueSessionId;
+        console.log(`[AgentInvoker] Generated/using baseSessionId:`, baseSessionId, `(shouldGenerateNew: ${shouldGenerateNew})`);
 
         // Initialize monitoring
         const monitor = getMonitor();
@@ -195,16 +188,48 @@ export async function handleAgentInvokerTool(name: string, args: any): Promise<{
           monitoringOrchestrationId = orchestration?.id;
         }
 
-        const executionId = monitor.startAgentExecution({
-          agentSessionId: sessionId,
-          agentName,
-          orchestrationId: monitoringOrchestrationId,
-          taskId: taskNumber ? `TASK-${String(taskNumber).padStart(3, '0')}` : undefined,
-          taskNumber,
-          sessionLogPath: `output_streams/${sessionId}/session.log`
-        });
+        // Outer waterfall: retry entire agent invocation with different models if it fails
+        const allModels = ['opus', 'sonnet', 'haiku'];
+        const originalModel = agentConfig.options?.model || 'sonnet';
+        const modelsToTryForAgent = [originalModel, ...allModels.filter(m => m !== originalModel)];
+        let lastAgentError: any = null;
+        let agentSucceeded = false;
+        let lastSessionId: string = baseSessionId;
+        let lastClaudeCodeSessionId: string | undefined;
 
-        console.log(`[AgentInvoker] Started monitoring execution ${executionId} for agent ${agentName}`);
+        for (let modelTryIndex = 0; modelTryIndex < modelsToTryForAgent.length && !agentSucceeded; modelTryIndex++) {
+          const modelToUse = modelsToTryForAgent[modelTryIndex];
+
+          // Generate sessionId for this attempt (append retry suffix for retries)
+          const sessionId = modelTryIndex === 0 ? baseSessionId : `${baseSessionId}-retry-${modelTryIndex}`;
+          console.log(`[AgentInvoker] Using sessionId for attempt ${modelTryIndex + 1}: ${sessionId}`);
+
+          // Initialize per-attempt variables
+          let streamingUtils: StreamingManager | undefined;
+          let streamLogFile: string | undefined;
+          const messages: any[] = [];
+          let claudeCodeSessionId: string | undefined;
+          let isFirstMessage = true;
+          let agentCompleted = false;
+
+          // Start monitoring for this attempt
+          const executionId = monitor.startAgentExecution({
+            agentSessionId: sessionId,
+            agentName,
+            orchestrationId: monitoringOrchestrationId,
+            taskId: taskNumber ? `TASK-${String(taskNumber).padStart(3, '0')}` : undefined,
+            taskNumber,
+            sessionLogPath: `output_streams/${sessionId}/session.log`
+          });
+
+          console.log(`[AgentInvoker] Started monitoring execution ${executionId} for agent ${agentName} (attempt ${modelTryIndex + 1}/${modelsToTryForAgent.length})`);
+
+          if (modelTryIndex > 0) {
+            console.log(`[AgentInvoker] 🔄 Retrying entire agent invocation with ${modelToUse} model (attempt ${modelTryIndex + 1}/${modelsToTryForAgent.length})...`);
+            // Override the agent config model for this retry
+            if (!agentConfig.options) agentConfig.options = {};
+            agentConfig.options.model = modelToUse;
+          }
 
         try {
           // Step 1: Create specialized prompt (systemPrompt + task)
@@ -218,12 +243,6 @@ task: ${prompt}`;
           }
 
           // Step 2: Build enhanced prompt (session info + restrictions)
-          // Debug: Ensure sessionId is defined at this point
-          if (!sessionId) {
-            console.error(`[AgentInvoker] CRITICAL: sessionId is undefined when building sessionInfo!`);
-            sessionId = randomUUID();
-            console.log(`[AgentInvoker] Generated emergency sessionId: ${sessionId}`);
-          }
           const sessionInfo = `
 
 IMPORTANT: When you complete your task, create a summary report using available tools.
@@ -372,10 +391,31 @@ OUTPUT_DIR: output_streams/${sessionId}/
           // For logging: build a user-facing prompt that includes task and session info
           const userFacingPrompt = `task: ${prompt}${enhancedPrompt}`;
 
-          for await (const message of query({
-            prompt: userFacingPrompt, // Pass user prompt with task prefix and session info
+          // Initialize stream log file early for waterfall fallback error logging
+          const streamLogPath = path.join(process.cwd(), 'output_streams', sessionId, 'stream.log');
+          let streamLogFile: string | undefined = streamLogPath;
+          // Create the directory if it doesn't exist
+          const streamDir = path.dirname(streamLogPath);
+          if (!fs.existsSync(streamDir)) {
+            fs.mkdirSync(streamDir, { recursive: true });
+          }
+          // Initialize stream.log with header
+          const streamHeader = `=== Agent Session Started ===
+Session ID: ${sessionId}
+Agent: ${agentName}
+Started: ${new Date().toISOString()}
+=== Real-time Conversation ===
+`;
+          fs.writeFileSync(streamLogPath, streamHeader, 'utf8');
+
+          // Create query iterator with current model (no inner fallback)
+          console.log(`[AgentInvoker] Creating query with model: ${queryOptions.model || 'sonnet'} (attempt ${modelTryIndex + 1}/${modelsToTryForAgent.length})`);
+          const queryIterator = query({
+            prompt: userFacingPrompt,
             options: queryOptions
-          })) {
+          });
+
+          for await (const message of queryIterator) {
             // Always collect messages for conversation history
             messages.push(message);
 
@@ -437,10 +477,21 @@ OUTPUT_DIR: output_streams/${sessionId}/
             // Save conversation history in real-time
             await SessionStore.saveConversationHistory(sessionId, agentName, messages);
 
+            // Check for rate limit errors in assistant messages
+            if (message.type === "assistant") {
+              const assistantContent = JSON.stringify(message);
+              if (assistantContent.includes('usage limit') || assistantContent.includes('rate limit')) {
+                console.error(`[AgentInvoker] ⚠️  Rate limit detected in assistant message!`);
+                // Throw error to trigger outer waterfall retry
+                throw new Error('Claude AI usage limit reached during execution');
+              }
+            }
+
             // Track completion status without collecting output
             if (message.type === "result") {
               if (message.is_error) {
                 const errorMsg = 'result' in message && typeof message.result === 'string' ? message.result : 'Unknown error';
+
                 // Use actual session ID
                 const errorSessionId = claudeCodeSessionId || sessionId;
                 const logPath = `output_streams/${sessionId}/session.log`;
@@ -454,6 +505,11 @@ OUTPUT_DIR: output_streams/${sessionId}/
               } else {
                 // Agent completed successfully
                 agentCompleted = true;
+
+                // Log success with model info
+                if (modelTryIndex > 0) {
+                  console.log(`[AgentInvoker] ✅ Agent completed successfully using ${queryOptions.model} model (after ${modelTryIndex} failed attempts)`);
+                }
               }
             }
           }
@@ -636,6 +692,10 @@ This is a required step - you MUST either complete the task or mark it as comple
             }
           }
 
+          // If we reach here, agent succeeded
+          agentSucceeded = true;
+          console.log(`[AgentInvoker] ✅ Agent '${agentName}' completed successfully with model ${modelToUse}`);
+
           // Use Claude Code's actual session ID for returning to user
           const returnSessionId = claudeCodeSessionId || sessionId;
 
@@ -647,31 +707,87 @@ This is a required step - you MUST either complete the task or mark it as comple
           };
 
         } catch (error) {
+          lastAgentError = error;
+          lastSessionId = sessionId;
+          lastClaudeCodeSessionId = claudeCodeSessionId;
+
+          const errorMessage = error instanceof Error ? error.message : String(error);
+
+          console.error(`[AgentInvoker] 🔍 OUTER WATERFALL CATCH: Caught error in outer loop`);
+          console.error(`[AgentInvoker] 🔍 modelTryIndex: ${modelTryIndex}, modelsToTryForAgent.length: ${modelsToTryForAgent.length}`);
+          console.error(`[AgentInvoker] 🔍 Error message: ${errorMessage}`);
+
           // Log error to session.log
           if (streamLogFile) {
             const timestamp = new Date().toISOString();
-            const errorLog = `[${timestamp}] EXECUTION ERROR:\n${error instanceof Error ? error.message : String(error)}\n\n=== Session Ended with Error ===\n`;
+            const errorLog = `[${timestamp}] EXECUTION ERROR:\n${errorMessage}\n\n=== Session Ended with Error ===\n`;
             fs.appendFileSync(streamLogFile, errorLog, 'utf8');
           }
 
           // Save conversation history even on error
           await SessionStore.saveConversationHistory(sessionId, agentName, messages);
 
-          // Update monitoring with error
+          // Check if this is a rate limit or process exit error that we should retry with next model
+          const isRetryableError = errorMessage.includes('usage limit') ||
+                                   errorMessage.includes('rate limit') ||
+                                   errorMessage.includes('process exited with code 1');
+
+          console.error(`[AgentInvoker] 🔍 isRetryableError: ${isRetryableError}`);
+
+          if (isRetryableError && modelTryIndex < modelsToTryForAgent.length - 1) {
+            const nextModel = modelsToTryForAgent[modelTryIndex + 1];
+            console.log(`[AgentInvoker] ⚠️  Agent failed with ${modelToUse} (${errorMessage}), will retry with ${nextModel}...`);
+
+            // Update stream log with retry message
+            if (streamLogFile && fs.existsSync(streamLogFile)) {
+              const retryLog = `\n[${new Date().toISOString()}] Agent will retry with ${nextModel} model...\n\n`;
+              fs.appendFileSync(streamLogFile, retryLog, 'utf8');
+            }
+
+            // Continue to next iteration of outer loop (will retry with next model)
+            continue;
+          } else {
+            // Not retryable or last model failed
+            console.error(`[AgentInvoker] ❌ Agent '${agentName}' failed with ${modelToUse}: ${errorMessage}`);
+
+            // Update monitoring with error
+            monitor.completeAgentExecution({
+              agentSessionId: sessionId,
+              status: 'failed',
+              errorMessage
+            });
+
+            return {
+              content: [{
+                type: 'text',
+                text: `Agent '${agentName}' execution error: ${errorMessage}\n\nSession ID: ${claudeCodeSessionId || sessionId}\nSession Log: output_streams/${sessionId}/session.log`
+              }],
+              isError: true
+            };
+          }
+        }
+        } // End of outer waterfall loop
+
+        // If we got here and agent didn't succeed, return the last error
+        if (!agentSucceeded && lastAgentError) {
+          const errorMessage = lastAgentError instanceof Error ? lastAgentError.message : String(lastAgentError);
           monitor.completeAgentExecution({
-            agentSessionId: sessionId,
+            agentSessionId: lastSessionId,
             status: 'failed',
-            errorMessage: error instanceof Error ? error.message : String(error)
+            errorMessage
           });
 
           return {
             content: [{
               type: 'text',
-              text: `Agent '${agentName}' execution error: ${error instanceof Error ? error.message : String(error)}\n\nSession ID: ${claudeCodeSessionId || sessionId}\nSession Log: output_streams/${sessionId}/session.log`
+              text: `Agent '${agentName}' failed after trying all models: ${errorMessage}\n\nSession ID: ${lastClaudeCodeSessionId || lastSessionId}\nSession Log: output_streams/${lastSessionId}/session.log`
             }],
             isError: true
           };
         }
+
+        // This should never be reached, but satisfy TypeScript
+        throw new Error('Agent invocation failed unexpectedly');
       }
 
       case 'list_agents': {

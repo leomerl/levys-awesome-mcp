@@ -1,6 +1,6 @@
 {
   "name": "@leomerl/levys-awesome-mcp",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "A comprehensive MCP (Model Context Protocol) server toolkit with agent management, build automation, and content writing capabilities",
   "type": "module",
   "main": "dist/src/index.js",
@@ -24,6 +24,9 @@
     "test:integration:quick": "vitest run tests/integration/content-writer-config.integration.test.ts tests/integration/mcp-server.integration.test.ts tests/integration/agent-loader-tree-search.test.ts tests/integration/agent-permission-verification.test.ts tests/integration/summary-enforcement-simple.test.ts tests/integration/test-write-path-fix.test.ts tests/integration/test-agents-write.test.ts tests/integration/test-docs-write.test.ts tests/integration/session-id-behavior.integration.test.ts tests/integration/compare-plan-progress.integration.test.ts tests/integration/task-tracker.integration.test.ts",
     "test:publish": "vitest run tests/unit --exclude='tests/unit/*HelloWorld*.test.{ts,tsx}' --exclude='tests/unit/*hello*.test.{ts,tsx}' tests/integration/content-writer-config.integration.test.ts tests/integration/mcp-server.integration.test.ts tests/integration/agent-permission-verification.test.ts tests/integration/summary-enforcement-simple.test.ts",
     "test:golden": "vitest run tests/golden",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:e2e:orchestrator": "vitest run tests/integration/orchestrator-*.test.ts tests/integration/sparc-workflow-e2e.test.ts --config vitest.e2e.config.ts",
+    "test:all": "vitest run --config vitest.e2e.config.ts --exclude='**/node_modules/**' --exclude='**/dist/**'",
     "test:mutate": "stryker run",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src utilities --ext .ts,.js",

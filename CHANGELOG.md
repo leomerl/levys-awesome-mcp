@@ -4,6 +4,24 @@ All notable changes to Levy's Awesome MCP will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.7] - 2025-10-09
+
+### Added
+- **Waterfall Model Fallback**: Automatic retry with different models when rate limits occur
+  - Cascading fallback chain: opus → sonnet → haiku (based on original model)
+  - Detects rate limits in assistant messages during execution
+  - Creates new session with `-retry-N` suffix for each attempt
+  - Properly resets all per-attempt variables (messages, sessionId, streamingUtils)
+  - Removed conflicting inner fallback loop for clean retry logic
+
+### Fixed
+- **Orchestrator Planning Phase**: Now always invokes planner-agent first
+  - Added prominent warning at top of system prompt
+  - Removed conditional language about "complex" vs "simple" tasks
+  - Added "NO EXCEPTIONS" to all planning phase requirements
+  - Orchestrator no longer skips planning for simple tasks
+  - Ensures proper workflow: planner → development → review → build → lint → test
+
 ## [1.0.6] - 2025-10-05
 
 ### Added
