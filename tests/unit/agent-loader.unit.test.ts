@@ -387,8 +387,8 @@ export default complexAgent;`;
 
       expect(realAgentNames.length).toBeGreaterThan(0);
 
-      // Should find common agents (based on what actually exists)
-      const expectedAgents = ['frontend-agent', 'testing-agent', 'builder-agent', 'linter-agent'];
+      // Updated to include backend-agent which was recently added
+      const expectedAgents = ['frontend-agent', 'backend-agent', 'testing-agent', 'builder-agent', 'linter-agent'];
 
       for (const expectedAgent of expectedAgents) {
         expect(realAgentNames).toContain(expectedAgent);
