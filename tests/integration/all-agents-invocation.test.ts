@@ -26,6 +26,7 @@ const ALL_AGENTS = [
   'completion-agent',
 
   // Development agents
+  'backend-agent',
   'builder-agent',
   'frontend-agent',
   'linter-agent',
@@ -38,7 +39,10 @@ const ALL_AGENTS = [
 
   // Tooling agents
   'agent-creator',
-  'github-issue-creator'
+  'github-issue-creator',
+
+  // Test agents
+  'memory-test-agent'
 ];
 
 describe('All Agents Invocation Tests', () => {
@@ -139,7 +143,7 @@ describe('All Agents Invocation Tests', () => {
   });
 
   describe('Agent Count Verification', () => {
-    it('should have exactly 19 agents available', async () => {
+    it('should have exactly 21 agents available', async () => {
       console.log('\n🔢 Counting agents...');
 
       const response = await client.call('tools/call', {
