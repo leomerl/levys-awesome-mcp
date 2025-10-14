@@ -7,11 +7,14 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     setupFiles: './tests/setup.ts',
-    // Include only e2e orchestration tests
+    // Include only e2e orchestration tests and long-running integration tests
     include: [
       'tests/e2e/**/*.test.{ts,tsx}',
       'tests/integration/*e2e*.test.ts',
-      'tests/integration/orchestrator-*.test.ts'
+      'tests/integration/orchestrator-*.test.ts',
+      'tests/integration/all-agents-invocation.test.ts',
+      'tests/integration/monitoring-workflow.integration.test.ts',
+      'tests/integration/task-tracker.integration.test.ts'
     ],
     // Longer timeout for full orchestration tests (30 minutes)
     testTimeout: 1800000,
