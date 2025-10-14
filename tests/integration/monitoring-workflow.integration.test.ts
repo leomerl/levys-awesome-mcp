@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { handlePlanCreatorTool } from '../../src/handlers/plan-creator.js';
-import { handleAgentInvokerTool } from '../../src/handlers/agent-invoker.js';
 import { getMonitor } from '../../src/monitoring/monitor.js';
 import { getMonitoringDatabase } from '../../src/monitoring/database.js';
 import * as fs from 'fs';
@@ -55,7 +54,7 @@ describe('Monitoring Workflow Integration', () => {
     console.log('\n🧪 Step 1: Creating test plan...');
     const createPlanResult = await handlePlanCreatorTool('create_plan', {
       task_description: 'Integration test for monitoring workflow',
-      synopsis: 'Test monitoring system with real agent execution',
+      synopsis: 'Test monitoring system with simulated agent execution',
       tasks: [
         {
           id: 'TASK-001',
@@ -78,18 +77,41 @@ describe('Monitoring Workflow Integration', () => {
     expect(orchestration?.status).toBe('running');
     orchestrationId = orchestration?.id;
 
-    // Step 2: Invoke backend-agent
-    console.log('\n🤖 Step 2: Invoking backend-agent...');
-    const invokeResult = await handleAgentInvokerTool('invoke_agent', {
+    // Step 2: Simulate backend-agent execution
+    // Instead of invoking the real agent (which requires Claude API),
+    // we simulate the agent's work by directly creating the file and updating monitoring
+    console.log('\n🤖 Step 2: Simulating backend-agent execution...');
+
+    // Create the backend directory if it doesn't exist
+    const backendDir = path.join(process.cwd(), 'backend');
+    if (!fs.existsSync(backendDir)) {
+      fs.mkdirSync(backendDir, { recursive: true });
+    }
+
+    // Simulate the agent creating the file
+    const testFilePath = path.join(backendDir, 'monitoring-test.txt');
+    const testContent = `Monitoring integration test - ${new Date().toISOString()}`;
+    fs.writeFileSync(testFilePath, testContent, 'utf8');
+
+    // Start and complete agent execution in monitoring system
+    const agentSessionId = 'test-agent-session-001';
+    const executionId = monitor.startAgentExecution({
+      agentSessionId,
       agentName: 'backend-agent',
-      prompt: `Create a file backend/monitoring-test.txt with content "Monitoring integration test - ${new Date().toISOString()}"`,
+      orchestrationId: orchestration?.id,
+      taskId: 'TASK-001',
       taskNumber: 1,
-      sessionId: testSessionId,
-      invokerAgent: 'orchestrator-agent'
+      sessionLogPath: `output_streams/${agentSessionId}/session.log`
     });
 
-    expect(invokeResult.isError).not.toBe(true);
-    console.log('✅ Agent completed');
+    // Simulate successful completion
+    monitor.completeAgentExecution({
+      agentSessionId,
+      status: 'completed',
+      summaryReportPath: `reports/${testSessionId}/backend-agent-summary.json`
+    });
+
+    console.log('✅ Agent simulation completed');
 
     // Step 3: Mark task as completed
     console.log('\n✔️  Step 3: Marking task as completed...');
@@ -97,7 +119,7 @@ describe('Monitoring Workflow Integration', () => {
       session_id: testSessionId,
       task_id: 'TASK-001',
       state: 'completed',
-      agent_session_id: 'test-session-001',
+      agent_session_id: agentSessionId,
       files_modified: ['backend/monitoring-test.txt'],
       summary: 'Created test file successfully'
     });
@@ -204,7 +226,7 @@ describe('Monitoring Workflow Integration', () => {
     console.log('  ✅ getExecutionsByOrchestration works');
 
     console.log('\n✅ All monitoring commands work correctly!\n');
-  }, 120000); // 2 minute timeout for agent execution
+  }, 120000); // 2 minute timeout for test execution
 
   it('should handle cleanup command', async () => {
     const monitor = getMonitor();
