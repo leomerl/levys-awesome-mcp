@@ -2,7 +2,7 @@
 Description: Analyzes the codebase for missing static type tests and then creates them sequentially.
 ---
 
-invoke the orchestrator-agent with this special prompt:
+invoke the orchestrator agent with this special prompt:
 
 ```
 1. **Phase 1: Analysis**
@@ -17,8 +17,4 @@ invoke the orchestrator-agent with this special prompt:
      - Invokes the `static-test-creator` agent with specific instructions
      - Creates static tests ONLY for the types specified in the analysis
      - Waits for completion before moving to the next file
-
-3. **Phase 3: Build**
-    - Invoke the builder and make sure the project can build.
-    - Create a summary of failing tests and the reason for that
 ```

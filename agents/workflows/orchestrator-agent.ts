@@ -527,7 +527,6 @@ async function runAgent() {
         systemPrompt: orchestratorAgent.options.systemPrompt,
         model: orchestratorAgent.options.model,
         allowedTools: orchestratorAgent.options.allowedTools,
-        disallowedTools: ['Task'], // Block built-in Task tool
         pathToClaudeCodeExecutable: path.resolve(process.cwd(), "node_modules/@anthropic-ai/claude-code/cli.js"),
         mcpServers: orchestratorAgent.options.mcpServers
     }

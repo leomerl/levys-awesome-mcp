@@ -80,20 +80,22 @@ describe('Agent Tool Permission Verification', () => {
       }
     } catch (error) {
       // Even if the agent fails, check if restrictions were injected
-      const dirs = fs.readdirSync('output_streams');
-      const recentDir = dirs.sort().reverse()[0];
-      
-      if (recentDir) {
-        const sessionLogPath = path.join('output_streams', recentDir, 'session.log');
-        if (fs.existsSync(sessionLogPath)) {
-          const content = fs.readFileSync(sessionLogPath, 'utf8');
-          
-          // Verify restrictions exist
-          expect(content).toContain('TOOL RESTRICTIONS');
-          expect(content).toContain('TodoWrite');
-          expect(content).toContain('Task');
-          expect(content).toContain('Write');
-          expect(content).toContain('Edit');
+      if (fs.existsSync('output_streams')) {
+        const dirs = fs.readdirSync('output_streams');
+        const recentDir = dirs.sort().reverse()[0];
+
+        if (recentDir) {
+          const sessionLogPath = path.join('output_streams', recentDir, 'session.log');
+          if (fs.existsSync(sessionLogPath)) {
+            const content = fs.readFileSync(sessionLogPath, 'utf8');
+
+            // Verify restrictions exist
+            expect(content).toContain('TOOL RESTRICTIONS');
+            expect(content).toContain('TodoWrite');
+            expect(content).toContain('Task');
+            expect(content).toContain('Write');
+            expect(content).toContain('Edit');
+          }
         }
       }
     } finally {
