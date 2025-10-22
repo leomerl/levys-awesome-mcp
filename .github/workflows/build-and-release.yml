@@ -127,7 +127,7 @@ jobs:
             ls -la .claude/agents
           fi
 
-  publish:
+  publish-github:
     name: Publish to GitHub Packages
     needs: [build, verify-installation]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
@@ -155,3 +155,30 @@ jobs:
         run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-npm:
+    name: Publish to npm Registry
+    needs: [build, verify-installation]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js for npm registry
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Publish to npm
+        run: npm publish --registry=https://registry.npmjs.org --access=public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
