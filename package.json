@@ -1,6 +1,6 @@
 {
   "name": "@leomerl/levys-awesome-mcp",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "A comprehensive MCP (Model Context Protocol) server toolkit with agent management, build automation, and content writing capabilities",
   "type": "module",
   "main": "dist/src/index.js",
