@@ -168,6 +168,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Remove .npmrc to prevent registry override
+        run: rm -f .npmrc
+
       - name: Setup Node.js for npm registry
         uses: actions/setup-node@v4
         with:
@@ -179,6 +182,6 @@ jobs:
         run: npm ci
 
       - name: Publish to npm
-        run: npm publish --registry=https://registry.npmjs.org --access=public
+        run: npm publish --access=public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
