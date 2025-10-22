@@ -13,13 +13,7 @@ const baseConfig: AgentConfig = {
   options: {
     model: 'opus',
     allowedTools: [
-      'Glob',
-      'Grep', 
-      'Read',
-      'WebFetch',
       'TodoWrite',
-      'WebSearch',
-      'BashOutput',
       'mcp__levys-awesome-mcp__invoke_agent',
       'mcp__levys-awesome-mcp__list_agents',
       'mcp__levys-awesome-mcp__get_summary',
@@ -137,8 +131,8 @@ You MUST use the mcp__levys-awesome-mcp__invoke_agent tool to invoke other agent
    - Example session_ID: "20250830-153642"
 
 6. **Output Collection and Report Enforcement**
-   - After planner agent completes, IMMEDIATELY use mcp__content-writer__get_plan to retrieve the plan file
-   - After all other agents complete, IMMEDIATELY use mcp__content-writer__get_summary with the session_ID to retrieve the agent's summary report  
+   - After planner agent completes, IMMEDIATELY use mcp__levys-awesome-mcp__get_plan to retrieve the plan file
+   - After all other agents complete, IMMEDIATELY use mcp__levys-awesome-mcp__get_summary with the session_ID to retrieve the agent's summary report  
    - Expected summary reports: \`\${agent_name}-summary.json\` (e.g., "builder-summary.json", "testing-agent-summary.json")
    - **ALWAYS use get_summary after invoking non-planner agents** to retrieve and analyze what the agent accomplished
    - **NEVER use get_summary for planner agent - use get_plan instead**
@@ -202,7 +196,7 @@ You MUST use the mcp__levys-awesome-mcp__invoke_agent tool to invoke other agent
 
 ### Primary Development Cycle
 1. **Planning Phase (MANDATORY - NO EXCEPTIONS)**: ALWAYS invoke 'planner-agent' first, even for simple tasks, to analyze and create detailed execution plan
-2. **Plan Retrieval**: Use mcp__content-writer__get_plan to retrieve and analyze the plan file from the planner
+2. **Plan Retrieval**: Use mcp__levys-awesome-mcp__get_plan to retrieve and analyze the plan file from the planner
 3. **Session Setup**: Generate unique session_ID using format: YYYYMMDD-HHMMSS (e.g., "20250830-153642")
 4. **Plan Analysis**: Review the planner's output to understand task breakdown and agent assignments
 5. **Task-by-Task Development Phase (CRITICAL)**:
@@ -287,9 +281,9 @@ When using mcp__agent-invoker__invoke_agent:
     * sessionId: Pass YOUR session_id (the one you're using for plan/progress tracking)
   - Example: agentName="backend-agent", prompt="Execute TASK-001...", taskNumber=1, sessionId="20250830-153642"
 - Include clean session_ID in the prompt: "Execute [SINGLE TASK] for SESSION_ID: \${session_ID}. Use this exact session ID for all report generation."
-- **IMMEDIATELY after each agent invocation**, use mcp__content-writer__get_summary:
+- **IMMEDIATELY after each agent invocation**, use mcp__levys-awesome-mcp__get_summary:
   \`\`\`
-  mcp__content-writer__get_summary({
+  mcp__levys-awesome-mcp__get_summary({
     session_id: "your-session-id",
     agent_name: "agent-you-just-invoked"
   })
@@ -307,8 +301,8 @@ When using mcp__agent-invoker__invoke_agent:
 ## Report Processing
 
 After each agent completes:
-1. **For planner agent**: Use mcp__content-writer__get_plan to retrieve the plan file from plan_and_progress/
-2. **For all other agents**: Use mcp__content-writer__get_summary to retrieve the agent's summary report:
+1. **For planner agent**: Use mcp__levys-awesome-mcp__get_plan to retrieve the plan file from plan_and_progress/
+2. **For all other agents**: Use mcp__levys-awesome-mcp__get_summary to retrieve the agent's summary report:
    - Development reports: \`/reports/\${session_ID}/development-report.json\` (if generated)
    - Reviewer reports: \`/reports/\${session_ID}/reviewer-agent-summary.json\`
    - Build reports: \`/reports/\${session_ID}/build-report.json\`
@@ -417,7 +411,7 @@ After each agent completes:
 ## Workflow Decision Making
 
 1. **MANDATORY (NO EXCEPTIONS): ALWAYS invoke planner agent first** for EVERY task regardless of complexity - analyze the user's request and create detailed execution plan
-2. **Use mcp__content-writer__get_plan** to retrieve and analyze the plan file created by the planner
+2. **Use mcp__levys-awesome-mcp__get_plan** to retrieve and analyze the plan file created by the planner
 3. **Analyze the planner's output** to understand task breakdown, scope, and agent assignments
 4. **Execute tasks ONE BY ONE from the plan**:
    - Process tasks in dependency order

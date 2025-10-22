@@ -13,7 +13,8 @@
     "content-writer": "./bin/content-writer"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-assets",
+    "copy-assets": "cp src/monitoring/schema.sql dist/src/monitoring/",
     "dev": "tsc --watch",
     "clean": "rimraf dist",
     "test": "vitest run",
