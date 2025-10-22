@@ -4,7 +4,7 @@
 This dev command simulates a simple orchestration workflow to validate the orchestrator agent's behavior. It creates a test task, executes it through the orchestrator, and validates:
 - Correct task routing and execution
 - Proper report generation
-- Success criteria achievement
+- Success criteria achievement1
 - Absence of unexpected behaviors or inconsistencies
 
 All outputs are written to git-ignored directories (reports/, plan_and_progress/, output_streams/) to avoid polluting the source code.
@@ -57,12 +57,31 @@ After validation, optionally clean up:
 
 ## Implementation Instructions
 
-Use the Task tool to launch the orchestrator-agent sub-agent with the following task:
+**CRITICAL: Launch orchestrator as a SUB-AGENT using Task tool**
 
+This is a **SUB-AGENT workflow** where you delegate work and receive results back.
+
+**Step 1: Launch orchestrator-agent as SUB-AGENT**
+Use `Task` tool with `subagent_type: "orchestrator-agent"` to launch the orchestrator as a sub-agent that will:
+- Execute the task
+- Return results to you
+- Allow you to validate the outcome
+
+**DO NOT use `mcp__levys-awesome-mcp__invoke_agent`** - that creates a separate independent agent session (fire-and-forget). You need a sub-agent that returns results.
+
+**Task prompt for the orchestrator sub-agent:**
+```
 Execute a simple orchestration workflow to create:
 1. A basic 'Hello World' component in test-projects/frontend/HelloWorld.tsx
 2. A basic API endpoint in test-projects/backend/hello.ts
 
 Ensure all files are created in the test-projects/ directory (git-ignored).
+```
 
-After the orchestrator completes, validate all success criteria listed above.
+**Step 2: After sub-agent returns results, validate:**
+- Plan file exists in plan_and_progress/
+- Progress file shows all tasks completed
+- Reports generated in reports/ directory
+- Both files created: test-projects/frontend/HelloWorld.tsx and test-projects/backend/hello.ts
+- No unexpected failures in progress file
+- Success criteria met (compare plan vs progress)

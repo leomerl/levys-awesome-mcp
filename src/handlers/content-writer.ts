@@ -142,15 +142,16 @@ export const contentWriterTools = [
   },
   {
     name: 'get_plan',
-    description: 'Read a plan file from plan_and_progress/$GIT_HASH/ directory. Looks for plan files created by the planner agent.',
+    description: 'Read a plan file from plan_and_progress/sessions/$SESSION_ID/ directory. Looks for plan.json created by the planner agent.',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        git_hash: {
+        session_id: {
           type: 'string',
-          description: 'Optional: specific git hash to look for. If not provided, uses current git commit hash.'
+          description: 'Session ID to read the plan from (required)'
         }
-      }
+      },
+      required: ['session_id']
     }
   },
   {
@@ -838,61 +839,51 @@ export async function handleContentWriterTool(name: string, args: any): Promise<
 
       case 'get_plan':
       case 'mcp__levys-awesome-mcp__mcp__content-writer__get_plan': {
-        const { git_hash } = args;
-        
+        const { session_id } = args;
+
+        if (!session_id) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Error: session_id is required'
+            }],
+            isError: true
+          };
+        }
+
         try {
-          // Get git commit hash for directory structure
-          const { executeCommand } = await import('../shared/utils.js');
-          let finalGitHash = git_hash;
-          
-          if (!finalGitHash) {
-            const result = await executeCommand('git', ['rev-parse', 'HEAD'], process.cwd());
-            if (result.success && result.stdout) {
-              finalGitHash = result.stdout.trim();
-            } else {
-              // Generate a pseudo-hash based on current timestamp if no git commit available
-              const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-              finalGitHash = `no-commit-${timestamp}`;
-            }
-          }
-          
-          // Check plan_and_progress directory
-          const planDir = path.resolve(process.cwd(), 'plan_and_progress', finalGitHash);
+          // Check plan_and_progress/sessions directory
+          const planDir = path.resolve(process.cwd(), 'plan_and_progress', 'sessions', session_id);
           if (!existsSync(planDir)) {
             return {
               content: [{
                 type: 'text',
-                text: `No plan directory found for git hash: ${finalGitHash}`
+                text: `No plan directory found for session: ${session_id}\nExpected path: ${planDir}`
               }],
               isError: true
             };
           }
 
-          // Get all JSON files in the plan directory
-          const files = readdirSync(planDir).filter((file: string) => file.startsWith('plan-') && file.endsWith('.json'));
-          
-          if (files.length === 0) {
+          // Look for plan.json file
+          const planPath = path.join(planDir, 'plan.json');
+          if (!existsSync(planPath)) {
             return {
               content: [{
                 type: 'text',
-                text: `No plan files found in plan_and_progress/${finalGitHash}/`
+                text: `No plan.json found in plan_and_progress/sessions/${session_id}/`
               }],
               isError: true
             };
           }
 
-          // Get the most recent plan file (they have timestamps)
-          const planFile = files.sort().reverse()[0]; // Most recent first
-          
           // Read the plan file
-          const planPath = path.join(planDir, planFile);
           const planContent = readFileSync(planPath, 'utf8');
           const planData = JSON.parse(planContent);
 
           return {
             content: [{
               type: 'text',
-              text: `Plan for git hash ${finalGitHash} (${planFile}):\n\n${JSON.stringify(planData, null, 2)}`
+              text: `Plan for session ${session_id}:\n\n${JSON.stringify(planData, null, 2)}`
             }]
           };
 

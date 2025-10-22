@@ -108,8 +108,20 @@ After validation, optionally clean up:
 
 ## Implementation Instructions
 
-Use the Task tool to launch the sparc-orchestrator sub-agent with the following task:
+**CRITICAL: Launch SPARC orchestrator as a SUB-AGENT using Task tool**
 
+This is a **SUB-AGENT workflow** where you delegate work and receive results back.
+
+**Step 1: Launch sparc-orchestrator as SUB-AGENT**
+Use `Task` tool with `subagent_type: "sparc-orchestrator"` to launch the SPARC orchestrator as a sub-agent that will:
+- Execute all 6 SPARC phases
+- Return complete results to you
+- Allow you to validate phase sequencing, reports, and deliverables
+
+**DO NOT use `mcp__levys-awesome-mcp__invoke_agent`** - that creates a separate independent agent session (fire-and-forget). You need a sub-agent that returns results.
+
+**Task prompt for the sparc-orchestrator sub-agent:**
+```
 Execute the complete SPARC workflow to build a simple user login feature with:
 - Frontend login form component (test-projects/frontend/LoginForm.tsx)
 - Backend authentication endpoint (test-projects/backend/auth.ts)
@@ -118,8 +130,17 @@ Execute the complete SPARC workflow to build a simple user login feature with:
 
 Ensure all files are created in the test-projects/ directory (git-ignored).
 Generate reports for each phase in reports/SESSION_ID/.
+```
 
-After the sparc-orchestrator completes all 6 phases, validate all success criteria listed above.
+**Step 2: After sub-agent returns results, validate:**
+- All 6 phase reports exist (research, specification, pseudocode, architecture, refinement, completion)
+- Phases executed in correct sequence (0→1→2→3→4→5)
+- No phases skipped or bypassed
+- Deliverables created: test-projects/frontend/LoginForm.tsx and test-projects/backend/auth.ts
+- Unit and integration tests exist and pass
+- Build and lint successful
+- Documentation complete
+- Handoff quality between phases (each phase used previous phase output)
 
 ## Success Metrics
 - All 6 phase reports generated ✓
