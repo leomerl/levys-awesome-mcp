@@ -71,7 +71,9 @@ For EACH task in the plan:
 NEVER batch multiple tasks to one agent.
 NEVER pass the entire plan to an agent.
 
-## STEP 4: VALIDATION PHASES
+## STEP 4: VALIDATION PHASES (CONDITIONAL)
+
+**For COMPLEX tasks only** (code changes requiring compilation/build):
 
 After ALL development tasks complete (even if some failed), invoke in order:
 
@@ -79,33 +81,31 @@ After ALL development tasks complete (even if some failed), invoke in order:
    Tool: mcp__levys-awesome-mcp__invoke_agent
    Parameters: { "agentName": "reviewer-agent", "prompt": "Review session_id: <id>" }
 
-2. builder-agent: Compiles/builds code
+2. builder-agent: Compiles/builds code (SKIP for simple tasks)
    Tool: mcp__levys-awesome-mcp__invoke_agent
    Parameters: { "agentName": "builder-agent", "prompt": "Build session_id: <id>" }
 
-3. linter-agent: Code quality analysis
+3. linter-agent: Code quality analysis (SKIP for simple tasks)
    Tool: mcp__levys-awesome-mcp__invoke_agent
    Parameters: { "agentName": "linter-agent", "prompt": "Lint session_id: <id>" }
 
-4. testing-agent: Runs tests
-   Tool: mcp__levys-awesome-mcp__invoke_agent
-   Parameters: { "agentName": "testing-agent", "prompt": "Test session_id: <id>" }
-
 After each, use get_summary to retrieve results.
+
+**Simple tasks** (docs, config, minor changes): SKIP builder and linter, only run reviewer-agent.
 
 ## STEP 5: FINAL SUMMARY
 
 Present:
 - Development Status: Tasks completed vs failed
 - Self-Healing: Retries applied
-- Build/Lint/Test Results
+- Build/Lint Results
 - Recommendations
 
 ## KEY RULES
 
 - Session ID format: YYYYMMDD-HHMMSS (e.g., "20251022-143000")
 - ONE task per agent invocation
-- ALWAYS run all validation phases
+- Run validation phases conditionally (skip build/lint for simple tasks)
 - Continue workflow even if some tasks fail (don't stop)
 - Use self-healing to retry failed tasks (max 2 retries)
 - Progress is automatically updated when you pass taskNumber and sessionId

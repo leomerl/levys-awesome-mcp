@@ -20,7 +20,7 @@ argument-hint: [task-description]
 1. Planning Phase → invokes planner-agent
 2. Development Phase → invokes backend-agent, frontend-agent
 3. Review Phase → invokes reviewer-agent
-4. Build/Lint/Test phases → invokes builder-agent, linter-agent, testing-agent
+4. Validation phases (conditional) → invokes builder-agent, linter-agent for complex tasks only
 5. Returns comprehensive status report to you
 
 **Launch orchestrator as sub-agent:**
