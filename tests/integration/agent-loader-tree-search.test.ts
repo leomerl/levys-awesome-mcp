@@ -143,6 +143,11 @@ describe('Agent Loader Tree Search Validation', () => {
         expect(counts[expectedDir]).toBeGreaterThan(0);
       }
 
+      // Check if memory-test-agent is in root
+      if (counts['memory-test-agent.ts']) {
+        console.log('   Note: memory-test-agent.ts in root directory');
+      }
+
       // base/ directory may have base-agent.ts but it has no name field, so count could be 0
       console.log('   ✅ All expected directories have agents');
     });
@@ -176,24 +181,30 @@ describe('Agent Loader Tree Search Validation', () => {
 
       const counts = countAgentsByDirectory();
 
-      // Expected counts based on current structure
+      // Expected counts based on current structure (updated to include new agents)
       const expectedCounts = {
         'workflows': 3,    // orchestrator-agent, planner-agent, sparc-orchestrator
         'sparc': 7,        // research-agent, sparc-research-agent, specification-agent, pseudocode-agent, architecture-agent, refinement-agent, completion-agent
-        'development': 4,  // builder-agent, frontend-agent, linter-agent, reviewer-agent
+        'development': 5,  // backend-agent, builder-agent, frontend-agent, linter-agent, reviewer-agent
         'testing': 3,      // testing-agent, static-test-creator, static-test-absence-detector
         'tooling': 2       // agent-creator, github-issue-creator
+        // Note: memory-test-agent.ts is in the root agents/ directory
       };
+
+      // Check root directory for memory-test-agent
+      if (counts['memory-test-agent.ts']) {
+        expectedCounts['memory-test-agent.ts'] = 1;
+      }
 
       for (const [dir, expectedCount] of Object.entries(expectedCounts)) {
         console.log(`   ${dir}: expected ${expectedCount}, found ${counts[dir] || 0}`);
-        expect(counts[dir]).toBe(expectedCount);
+        expect(counts[dir] || 0).toBe(expectedCount);
       }
 
       console.log('   ✅ All subdirectory counts match expectations');
     });
 
-    it('should find exactly 19 total agents (excluding base)', () => {
+    it('should find exactly 21 total agents (excluding base)', () => {
       console.log('\n🔢 Counting total agents...');
 
       const fsAgents = getAgentNamesFromFileSystem();
@@ -201,10 +212,10 @@ describe('Agent Loader Tree Search Validation', () => {
 
       console.log(`   File system: ${fsAgents.length} agents`);
       console.log(`   AgentLoader: ${loaderAgents.length} agents`);
-      console.log(`   Expected: 19 agents`);
+      console.log(`   Expected: 21 agents`);
 
-      expect(fsAgents).toHaveLength(19);
-      expect(loaderAgents).toHaveLength(19);
+      expect(fsAgents).toHaveLength(21);
+      expect(loaderAgents).toHaveLength(21);
     });
 
     it('should handle nested directory traversal correctly', () => {
@@ -222,10 +233,10 @@ describe('Agent Loader Tree Search Validation', () => {
       console.log(`   Files in root: ${agentFiles.length - filesInSubdirs.length}`);
       console.log(`   Files in subdirectories: ${filesInSubdirs.length}`);
 
-      // All agents should be in subdirectories (we moved them all)
-      expect(filesInSubdirs.length).toBe(agentFiles.length);
+      // Most agents should be in subdirectories, but memory-test-agent.ts is in root
+      expect(filesInSubdirs.length).toBe(agentFiles.length - 1); // All except memory-test-agent.ts
 
-      console.log('   ✅ All agents are in subdirectories');
+      console.log('   ✅ Directory traversal working correctly');
     });
   });
 
